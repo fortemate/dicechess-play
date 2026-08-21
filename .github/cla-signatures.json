@@ -1,4 +1,11 @@
 {
 	"claVersion": "1.0",
-	"signatures": []
+	"signatures": [
+		{
+			"github": "rabestro",
+			"name": "Jegors Čemisovs",
+			"date": "2026-08-21",
+			"claVersion": "1.0"
+		}
+	]
 }
