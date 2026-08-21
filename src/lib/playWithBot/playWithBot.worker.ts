@@ -6,10 +6,12 @@ import openingBook from './opening_book.json';
 const DiceChess = (DiceChessEngine as any).DiceChess;
 
 try {
-	const openingBookJson = JSON.stringify(openingBook);
+	const openingBookTsv = Object.entries(openingBook)
+		.map(([k, v]) => `${k}\t${v}`)
+		.join('\n');
 	if (
 		!DiceChess.registerOpeningBookBot(
-			openingBookJson,
+			openingBookTsv,
 			'aggressive',
 			'aggressive-book',
 			'Aggressive + Book',

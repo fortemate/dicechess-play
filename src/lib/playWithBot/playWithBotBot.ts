@@ -16,10 +16,12 @@ export const BOT_TIME_BUDGET_MS = 2500;
 let DiceChess = (DiceChessEngine as any).DiceChess;
 
 try {
-	const openingBookJson = JSON.stringify(openingBook);
+	const openingBookTsv = Object.entries(openingBook)
+		.map(([k, v]) => `${k}\t${v}`)
+		.join('\n');
 	if (
 		!DiceChess.registerOpeningBookBot(
-			openingBookJson,
+			openingBookTsv,
 			'aggressive',
 			'aggressive-book',
 			'Aggressive + Book',
