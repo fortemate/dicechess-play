@@ -1,0 +1,20 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!-- Minimal sitemap (#254): only the pages that exist as real HTML for crawlers — the landing
+     (served by the SPA fallback with the default-head block) and the prerendered rules pages.
+     The app routes behind them are a JS-only SPA and deliberately not listed. Origin must match
+     src/lib/rules/seo.ts. -->
+<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9" xmlns:xhtml="http://www.w3.org/1999/xhtml">
+	<url>
+		<loc>https://fortemate.com/</loc>
+	</url>
+	<url>
+		<loc>https://fortemate.com/rules</loc>
+		<xhtml:link rel="alternate" hreflang="en" href="https://fortemate.com/rules" />
+		<xhtml:link rel="alternate" hreflang="ru" href="https://fortemate.com/ru/rules" />
+	</url>
+	<url>
+		<loc>https://fortemate.com/ru/rules</loc>
+		<xhtml:link rel="alternate" hreflang="en" href="https://fortemate.com/rules" />
+		<xhtml:link rel="alternate" hreflang="ru" href="https://fortemate.com/ru/rules" />
+	</url>
+</urlset>

@@ -1,0 +1,206 @@
+@import 'tailwindcss';
+
+@theme {
+	/* Semantic Status Tokens (theme-aware — values defined per theme below) */
+	--color-danger: var(--danger);
+	--color-badge-accent: var(--badge-accent);
+	/* "Alive" indicator (the lobby's LIVE tiles) — a green tuned per theme to stay >=4.5:1
+	   against --bg-surface (the flat #22c55e was ~2.3:1 on the light theme). */
+	--color-success: var(--success);
+
+	/* Fixed Domain Tokens */
+	--color-piece-white: #ffffff;
+	--color-piece-white-border: #e2e8f0;
+	--color-piece-black: #1e293b;
+	--color-piece-black-border: #475569;
+
+	--color-background: var(--bg-app);
+	--color-surface: var(--bg-surface);
+	--color-surface-hover: var(--bg-surface-hover);
+	--color-border: var(--border-subtle);
+	--color-border-strong: var(--border-strong);
+
+	--color-content: var(--text-primary);
+	--color-content-muted: var(--text-muted);
+
+	--color-primary: var(--accent);
+	--color-primary-hover: var(--accent-hover);
+	/* Readable text on a filled primary/accent button; white unless a theme's
+	   accent is light enough to need a dark foreground (overridden below). */
+	--color-primary-content: var(--accent-content, #ffffff);
+
+	--color-dice-surface: var(--bg-dice);
+}
+
+:root,
+[data-theme='dark'] {
+	/* Dark theme (default) */
+	--bg-app: #020617; /* slate-950 */
+	--bg-surface: #0f172a; /* slate-900 */
+	--bg-surface-hover: #1e293b; /* slate-800 */
+
+	--border-subtle: #1e293b; /* slate-800 */
+	--border-strong: #334155; /* slate-700 */
+
+	--text-primary: #f8fafc; /* slate-50 */
+	--text-muted: #94a3b8; /* slate-400 */
+
+	--accent: #3b82f6; /* blue-500 */
+	--accent-hover: #2563eb; /* blue-600 */
+
+	--bg-dice: #475569; /* slate-600 to ensure black pieces are visible */
+
+	--danger: #f87171; /* red-400 */
+	--badge-accent: #fbbf24; /* amber-400 */
+	--success: #22c55e;
+}
+
+[data-theme='light'] {
+	/* Light theme */
+	--bg-app: #f8fafc; /* slate-50 */
+	--bg-surface: #ffffff; /* white */
+	--bg-surface-hover: #f1f5f9; /* slate-100 */
+
+	--border-subtle: #e2e8f0; /* slate-200 */
+	--border-strong: #cbd5e1; /* slate-300 */
+
+	--text-primary: #0f172a; /* slate-900 */
+	--text-muted: #64748b; /* slate-500 */
+
+	--accent: #2563eb; /* blue-600 */
+	--accent-hover: #1d4ed8; /* blue-700 */
+
+	--bg-dice: #ffffff; /* white */
+
+	--danger: #dc2626; /* red-600 */
+	--badge-accent: #d97706; /* amber-600 */
+	--success: #178640; /* darker than the shared green — 4.5:1 needs it here, not just a bright accent */
+}
+
+[data-theme='dracula'] {
+	/* Dracula theme */
+	--bg-app: #282a36;
+	--bg-surface: #44475a;
+	--bg-surface-hover: #6272a4;
+
+	--border-subtle: #6272a4;
+	--border-strong: #bd93f9;
+
+	--text-primary: #f8f8f2;
+	--text-muted: #afb8d1; /* lightened from the Dracula comment color (#6272a4 was ~1.9:1 on bg-surface) */
+
+	--accent: #ff79c6;
+	--accent-hover: #bd93f9;
+	--accent-content: #282a36; /* dark text on the light pink accent */
+
+	--bg-dice: #6272a4; /* Dracula comment color, good contrast */
+
+	--danger: #ff5555;
+	--badge-accent: #ffb86c;
+	--success: #25d465; /* slightly lightened from the shared green to clear 4.5:1 here */
+}
+
+[data-theme='nord'] {
+	/* Nord theme */
+	--bg-app: #2e3440;
+	--bg-surface: #3b4252;
+	--bg-surface-hover: #434c5e;
+
+	--border-subtle: #4c566a;
+	--border-strong: #d8dee9;
+
+	--text-primary: #eceff4;
+	--text-muted: #d8dee9;
+
+	--accent: #88c0d0;
+	--accent-hover: #81a1c1;
+	--accent-content: #2e3440; /* dark text on the light cyan accent */
+
+	--bg-dice: #4c566a;
+
+	--danger: #bf616a;
+	--badge-accent: #ebcb8b;
+	--success: #23cc61; /* slightly lightened from the shared green to clear 4.5:1 here */
+}
+
+[data-theme='solarized-dark'] {
+	/* Solarized Dark theme */
+	--bg-app: #002b36;
+	--bg-surface: #073642;
+	--bg-surface-hover: #0a4d5e;
+
+	--border-subtle: #586e75;
+	--border-strong: #839496;
+
+	--text-primary: #93a1a1;
+	--text-muted: #8a9ea5; /* lightened from #657b83, which was ~2.9:1 on bg-surface */
+
+	--accent: #2aa198;
+	--accent-hover: #268bd2;
+	--accent-content: #002b36; /* dark text on the teal accent */
+
+	--bg-dice: #586e75;
+
+	--danger: #dc322f;
+	--badge-accent: #b58900;
+	--success: #22c55e;
+}
+
+[data-theme='tokyo-night'] {
+	/* Tokyo Night theme */
+	--bg-app: #1a1b26;
+	--bg-surface: #24283b;
+	--bg-surface-hover: #2f334d;
+
+	--border-subtle: #414868;
+	--border-strong: #7aa2f7;
+
+	--text-primary: #a9b1d6;
+	--text-muted: #8990b5; /* lightened from #565f89, which was ~2.35:1 on bg-surface */
+
+	--accent: #7aa2f7;
+	--accent-hover: #bb9af7;
+	--accent-content: #1a1b26; /* dark text on the light blue accent */
+
+	--bg-dice: #414868;
+
+	--danger: #f7768e;
+	--badge-accent: #e0af68;
+	--success: #22c55e;
+}
+
+[data-theme='gruvbox'] {
+	/* Gruvbox Dark theme */
+	--bg-app: #282828;
+	--bg-surface: #3c3836;
+	--bg-surface-hover: #504945;
+
+	--border-subtle: #665c54;
+	--border-strong: #d5c4a1;
+
+	--text-primary: #ebdbb2;
+	--text-muted: #afa28e; /* lightened from #a89984, which was ~4.17:1 on bg-surface (just under AA) */
+
+	--accent: #fe8019;
+	--accent-hover: #fabd2f;
+	--accent-content: #282828; /* dark text on the orange accent */
+
+	--bg-dice: #665c54;
+
+	--danger: #fb4934;
+	--badge-accent: #fabd2f;
+	--success: #22c55e;
+}
+
+body {
+	background-color: var(--bg-app);
+	color: var(--text-primary);
+	font-family:
+		'Inter',
+		ui-sans-serif,
+		system-ui,
+		-apple-system,
+		sans-serif;
+	margin: 0;
+	min-height: 100vh;
+}

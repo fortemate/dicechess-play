@@ -1,0 +1,158 @@
+<!doctype html>
+<html lang="en">
+	<head>
+		<meta charset="UTF-8" />
+		<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
+		<meta id="theme-color-meta" name="theme-color" content="#020617" />
+		<link rel="icon" type="image/png" href="/favicon.png" />
+		<link rel="apple-touch-icon" href="/apple-touch-icon.png" />
+		<!-- The default-head block is the site-wide fallback metadata (#254). Crawlers and
+		     unfurl bots do not run JS, so every route served by the SPA fallback — the landing
+		     page included — unfurls from exactly these tags. Prerendered content pages
+		     (/rules, /ru/rules) carry their own <title>/description/OG via <svelte:head>;
+		     src/hooks.server.ts strips this block from their HTML at build time so the head
+		     holds one set of tags, not two. Keep the marker comments intact. -->
+		<!-- default-head -->
+		<title>Dice Chess — Play</title>
+		<meta
+			name="description"
+			content="Play Dice Chess free in your browser — roll three dice, move your pieces, capture the king. Practice against bots or play people live. No sign-up needed."
+		/>
+		<meta property="og:type" content="website" />
+		<meta property="og:site_name" content="Dice Chess — Play" />
+		<meta property="og:title" content="Dice Chess — Play" />
+		<meta
+			property="og:description"
+			content="Roll the dice, move your pieces, capture the king. A full Dice Chess game right in your browser — no sign-up, nothing to install."
+		/>
+		<meta property="og:url" content="https://fortemate.com/" />
+		<meta property="og:image" content="https://fortemate.com/pwa-512x512.png" />
+		<meta name="twitter:card" content="summary" />
+		<!-- /default-head -->
+		<script>
+			(function () {
+				try {
+					var allowed = [
+						'dark',
+						'light',
+						'dracula',
+						'nord',
+						'solarized-dark',
+						'tokyo-night',
+						'gruvbox',
+					];
+					var storedTheme = localStorage.getItem('dicechess-theme');
+					var systemTheme = window.matchMedia('(prefers-color-scheme: light)').matches
+						? 'light'
+						: 'dark';
+					var theme =
+						storedTheme && allowed.indexOf(storedTheme) !== -1 ? storedTheme : systemTheme;
+					document.documentElement.setAttribute('data-theme', theme);
+					var metaColors = {
+						dark: '#020617',
+						light: '#f8fafc',
+						dracula: '#282a36',
+						nord: '#2e3440',
+						'solarized-dark': '#002b36',
+						'tokyo-night': '#1a1b26',
+						gruvbox: '#282828',
+					};
+					var metaTag = document.getElementById('theme-color-meta');
+					if (metaTag && metaColors[theme]) {
+						metaTag.setAttribute('content', metaColors[theme]);
+					}
+				} catch (e) {}
+			})();
+		</script>
+		<!-- boot-watchdog (#223): self-heal a client wedged by a poisoned service worker or
+		     HTTP cache. A deploy burst can leave workbox's precache holding the SPA fallback
+		     (200 + HTML) under hash-named JS URLs; such a client white-screens on every load
+		     and never recovers on its own — the poisoned manifest is already the newest, and
+		     the app never boots far enough for src/lib/staleBundleRecovery.ts to run. Inline
+		     and module-free on purpose: it must keep working when every module import fails.
+		     It only ever touches service workers and Cache Storage — never localStorage or
+		     IndexedDB, which hold the guest identity and the local game history. -->
+		<script>
+			(function (w) {
+				'use strict';
+				var KEY = 'dicechess-play-boot-watchdog';
+				var BOOT_FAILURE = /dynamically imported module|importing a module script failed/i;
+				function shouldHeal(reason) {
+					if (w.__dcBooted) return false;
+					if (!BOOT_FAILURE.test(String((reason && reason.message) || reason || ''))) return false;
+					if (w.navigator && w.navigator.onLine === false) return false;
+					try {
+						var last = Number(w.sessionStorage.getItem(KEY) || '0');
+						if (Date.now() - last < 60000) return false;
+						w.sessionStorage.setItem(KEY, String(Date.now()));
+					} catch (e) {
+						return false; // no storage means no loop guard, so never auto-reload
+					}
+					return true;
+				}
+				function swallow(p) {
+					return p.catch(function () {});
+				}
+				function heal() {
+					var steps = [];
+					if (w.navigator && w.navigator.serviceWorker) {
+						steps.push(
+							swallow(
+								w.navigator.serviceWorker.getRegistrations().then(function (regs) {
+									return Promise.all(
+										regs.map(function (r) {
+											return r.unregister();
+										}),
+									);
+								}),
+							),
+						);
+					}
+					if (w.caches) {
+						steps.push(
+							swallow(
+								w.caches.keys().then(function (names) {
+									return Promise.all(
+										names.map(function (n) {
+											return w.caches.delete(n);
+										}),
+									);
+								}),
+							),
+						);
+					}
+					steps.push(
+						swallow(
+							w
+								.fetch('/', { cache: 'reload' })
+								.then(function (r) {
+									return r.text();
+								})
+								.then(function (html) {
+									var urls = html.match(/_app\/immutable\/[^"']+/g) || [];
+									var unique = urls.filter(function (u, i) {
+										return urls.indexOf(u) === i;
+									});
+									return Promise.all(
+										unique.slice(0, 60).map(function (u) {
+											return swallow(w.fetch('/' + u, { cache: 'reload' }));
+										}),
+									);
+								}),
+						),
+					);
+					Promise.all(steps).then(function () {
+						w.location.reload();
+					});
+				}
+				w.addEventListener('unhandledrejection', function (event) {
+					if (shouldHeal(event && event.reason)) heal();
+				});
+			})(window);
+		</script>
+		%sveltekit.head%
+	</head>
+	<body class="bg-background text-content min-h-screen">
+		<div style="display: contents">%sveltekit.body%</div>
+	</body>
+</html>

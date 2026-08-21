@@ -1,0 +1,14 @@
+{
+	"extends": "./.svelte-kit/tsconfig.json",
+	"compilerOptions": {
+		"target": "ES2023",
+		"strict": true,
+		// Skip type-checking of dependency .d.ts (e.g. workbox-core references the
+		// service-worker global ExtendableEvent, vite-plugin-pwa an optional pkg).
+		"skipLibCheck": true,
+		"noFallthroughCasesInSwitch": true,
+		"useDefineForClassFields": true,
+		"allowJs": true,
+		"checkJs": true
+	}
+}

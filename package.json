@@ -1,0 +1,68 @@
+{
+	"name": "dicechess-play",
+	"version": "0.0.0",
+	"private": true,
+	"type": "module",
+	"description": "Public Dice Chess play site — anonymous play vs bots, no sign-up required",
+	"author": {
+		"name": "Jegors Čemisovs",
+		"url": "https://jc.id.lv"
+	},
+	"license": "AGPL-3.0",
+	"repository": {
+		"type": "git",
+		"url": "git+https://github.com/fortemate/dicechess-play.git"
+	},
+	"scripts": {
+		"dev": "vite dev",
+		"build": "vite build",
+		"postbuild": "node scripts/verify-bundle.mjs",
+		"verify:bundle": "node scripts/verify-bundle.mjs",
+		"preview": "vite preview",
+		"check": "svelte-kit sync && svelte-check --tsconfig ./tsconfig.json && npm run check:functions",
+		"check:functions": "tsc --noEmit -p functions/tsconfig.json",
+		"lint": "eslint .",
+		"format": "prettier --write .",
+		"format:check": "prettier --check .",
+		"test": "vitest run",
+		"test:watch": "vitest",
+		"test:coverage": "vitest run --coverage",
+		"prepare": "svelte-kit sync || echo \"\"",
+		"test:e2e": "playwright test"
+	},
+	"dependencies": {
+		"@fortemate/dicechess-engine": "0.4.0",
+		"@lichess-org/chessground": "^10.1.1",
+		"idb": "^8.0.3",
+		"uuid": "^14.0.1"
+	},
+	"devDependencies": {
+		"@eslint/js": "^10.0.1",
+		"@playwright/test": "^1.62.1",
+		"@sveltejs/adapter-static": "^3.0.10",
+		"@sveltejs/kit": "^2.70.2",
+		"@sveltejs/vite-plugin-svelte": "^7.2.0",
+		"@tailwindcss/vite": "^4.3.3",
+		"@testing-library/jest-dom": "^7.0.0",
+		"@testing-library/svelte": "^5.4.2",
+		"@tsconfig/svelte": "^5.0.8",
+		"@types/node": "^26.2.0",
+		"@vite-pwa/sveltekit": "^1.1.0",
+		"@vitest/coverage-v8": "^4.1.10",
+		"eslint": "^10.8.1",
+		"eslint-plugin-svelte": "^3.22.0",
+		"fake-indexeddb": "^6.2.5",
+		"globals": "^17.11.0",
+		"jsdom": "^30.0.1",
+		"prettier": "^3.9.6",
+		"prettier-plugin-svelte": "^4.1.1",
+		"svelte": "^5.56.8",
+		"svelte-check": "^4.7.6",
+		"tailwindcss": "^4.3.2",
+		"typescript": "~6.0.3",
+		"typescript-eslint": "^8.66.0",
+		"vite": "^8.2.1",
+		"vite-plugin-pwa": "^1.3.0",
+		"vitest": "^4.1.9"
+	}
+}

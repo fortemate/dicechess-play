@@ -1,0 +1,44 @@
+[tools]
+node = "26"
+lefthook = "latest"
+betterleaks = "latest"
+
+[env]
+# Engine + chessground come from GitHub Packages. Export a PAT with read:packages as
+# NODE_AUTH_TOKEN before `mise run setup` (see .env.example / .npmrc).
+
+[tasks.setup]
+description = "📦 Install project dependencies (needs NODE_AUTH_TOKEN for @fortemate packages)"
+run = "npm install"
+
+[tasks.dev]
+description = "🚀 Start Vite dev server"
+run = "npm run dev"
+
+[tasks.compile]
+description = "🏗️ Build the static SPA"
+run = "npm run build"
+
+[tasks.check]
+description = "✅ Lint + format check + svelte-check"
+run = """
+npm run lint
+npm run format:check
+npm run check
+"""
+
+[tasks.format]
+description = "🎨 Format with Prettier"
+run = "npm run format"
+
+[tasks.test]
+description = "🧪 Run unit tests"
+run = "npm run test"
+
+[tasks."hook:install"]
+description = "🪝 Register Git hooks via lefthook"
+run = "lefthook install"
+
+[tasks."hook:run"]
+description = "🏃 Run all pre-commit hook jobs manually"
+run = "lefthook run pre-commit --all-files"

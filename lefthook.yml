@@ -1,0 +1,23 @@
+# Lefthook — Git hooks configuration
+# Docs: https://github.com/evilmartians/lefthook
+# Same pattern as dicechess-engine-scala.
+
+pre-commit:
+  parallel: true
+  jobs:
+    # Secret scanning: abort if any staged diff leaks a credential
+    - name: betterleaks
+      run: betterleaks git --pre-commit --redact --staged
+
+    # Auto-format staged files with Prettier (write, not check — fast, non-blocking)
+    - name: prettier
+      glob: '**.{ts,svelte,js,json,md,yaml,yml,css,html}'
+      run: npx prettier --write {staged_files}
+      stage_fixed: true
+
+# Pre-push: full-project format check — catches --no-verify commits and rebase fallout
+pre-push:
+  jobs:
+    - name: prettier-all
+      glob: '**.{ts,svelte,js,json,md,yaml,yml,css,html}'
+      run: npx prettier --check .
