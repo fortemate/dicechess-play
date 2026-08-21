@@ -19,8 +19,8 @@ jobs:
         with:
           script: |
             const author = context.payload.pull_request.user.login;
-            if (author === context.repo.owner) {
-              console.log(`@${author} is the repository owner — CLA not required.`);
+            if (author === context.repo.owner || author.toLowerCase() === 'rabestro') {
+              console.log(`@${author} is the project owner — CLA not required.`);
               return;
             }
             if (author.endsWith('[bot]')) {
