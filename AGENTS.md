@@ -125,6 +125,13 @@ npm run test:watch      # watch mode; npm run test:coverage for v8 coverage
 - The human owner reviews, approves, and merges. Never merge a PR, never push tags.
 - Split large work into small, reviewable PRs.
 
+### Issues, native types, and project tracking
+
+- Issues need three sections: `## Context`, `## Objective`, and `## Definition of Done (DoD)`. Create with `gh issue create --body-file <file>` — never inline multi-line bodies.
+- **Native Issue Types (`Task`, `Bug`, `Feature`)**: Use GitHub's built-in `issueType` field via GraphQL. Do NOT add `bug` or `enhancement` labels to issues — those labels are reserved for Pull Requests (applied by `.github/labeler.yml`).
+- **No priority labels (`P0`, `P1`, `P2`)**: Manage priority via GitHub Projects (`Fortemate Engineering`).
+- All titles, descriptions, and comments are English-only.
+
 ## Security & boundaries
 
 <!-- dc-shared:security v2 — keep identical across dicechess repos -->
