@@ -177,6 +177,7 @@ Route work by required capability instead of defaulting to the strongest model:
 - All documentation is English-only.
 
 ## Issue management
+
 <!-- dc-shared:issue-management v3 — keep identical across Fortemate repositories -->
 
 - Use the native GitHub Issue Type as the canonical work classification:
