@@ -1,13 +1,44 @@
 /// <reference types="vitest/config" />
+import { sentrySvelteKit } from '@sentry/sveltekit';
 import { sveltekit } from '@sveltejs/kit/vite';
 import tailwindcss from '@tailwindcss/vite';
 import { svelteTesting } from '@testing-library/svelte/vite';
 import { SvelteKitPWA } from '@vite-pwa/sveltekit';
 import { defineConfig } from 'vite';
 
+// Both halves of "Sentry is on". A token without a DSN would upload source maps for a bundle
+// that contains no SDK and mint a release nothing can ever report against. Both are read from
+// the PROCESS environment, which is where deploy.yaml puts them; Vite loads a local .env into
+// import.meta.env rather than here, so a local build never uploads.
+const sentryEnabled = Boolean(process.env.SENTRY_AUTH_TOKEN && process.env.VITE_SENTRY_DSN);
+
 // https://vite.dev/config/
 export default defineConfig({
+	// Compiles Sentry's performance-tracing code out of the bundle: it is 20.5 kB gzip on the
+	// critical path (measured) for data this site does not act on yet — errors are what the
+	// integration is for. Deleting this line is all it takes to turn tracing back on, plus a
+	// `tracesSampleRate` in hooks.client.ts.
+	define: { __SENTRY_TRACING__: 'false' },
 	plugins: [
+		// Must be registered before sveltekit(). Everything it does is gated on `sentryEnabled`:
+		// without it the plugin adds no source-map generation and no upload step, so `npm run
+		// dev`, CI and fork PR builds produce exactly the bundle they did before.
+		sentrySvelteKit({
+			autoUploadSourceMaps: sentryEnabled,
+			org: 'fortemate',
+			project: 'dicechess-play',
+			// adapter-static is not one of the adapters the plugin knows (node | auto | vercel |
+			// cloudflare), so tell it not to guess: 'other' points it at .svelte-kit/output, which is
+			// where the client build and its maps live before the adapter copies them to dist/.
+			adapter: 'other',
+			sourcemaps: {
+				// The plugin's own default only cleans .svelte-kit; by then the adapter has copied the
+				// maps into dist/, and dist/ is what is uploaded to Cloudflare. Shipping them would be
+				// harmless for AGPL source but is dead weight in every visitor's cache — Sentry keeps
+				// the copy that matters.
+				filesToDeleteAfterUpload: ['./.svelte-kit/output/**/*.map', './dist/**/*.map'],
+			},
+		}),
 		sveltekit(),
 		// Test-mode only: points Svelte imports at the client build so component
 		// tests can mount (vitest otherwise resolves the SSR build and mount() throws).

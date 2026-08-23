@@ -52,10 +52,13 @@ To work on live play, run `dicechess-play-api` locally and point `VITE_PLAY_API_
 
 ## Configuration
 
-| Variable            | When           | Effect                                                                                                       |
-| ------------------- | -------------- | ------------------------------------------------------------------------------------------------------------ |
-| `NODE_AUTH_TOKEN`   | install        | GitHub PAT with `read:packages`, for the `@fortemate` scope                                                  |
-| `VITE_PLAY_API_URL` | build (client) | Base URL of play-api. Empty = the `/live` routes are disabled AND recording is off (games stay in IndexedDB) |
+| Variable                  | When            | Effect                                                                                                       |
+| ------------------------- | --------------- | ------------------------------------------------------------------------------------------------------------ |
+| `NODE_AUTH_TOKEN`         | install         | GitHub PAT with `read:packages`, for the `@fortemate` scope                                                  |
+| `VITE_PLAY_API_URL`       | build (client)  | Base URL of play-api. Empty = the `/live` routes are disabled AND recording is off (games stay in IndexedDB) |
+| `VITE_SENTRY_DSN`         | build (client)  | Sentry DSN for the `dicechess-play` project. Empty = the SDK is disabled and adds nothing to the bundle      |
+| `VITE_SENTRY_ENVIRONMENT` | build (client)  | Sentry environment tag: `production` on `main`, `preview` on a PR deployment                                 |
+| `SENTRY_AUTH_TOKEN`       | build (CI only) | Uploads source maps so stack traces are readable. Absent = the build skips the upload and ships no maps      |
 
 `VITE_*` values are **baked into the bundle at build time** — the site is Direct-Uploaded to
 Cloudflare Pages, so Pages dashboard variables never reach `vite build`. Changing one means
@@ -169,6 +172,8 @@ src/
 │   ├── localGamesDB.ts        IndexedDB via idb (sync_status: pending → synced | quarantined)
 │   ├── timings.ts             presentation pacing shared by BOTH game surfaces — never fork per surface
 │   ├── staleBundleRecovery.ts one-shot reload when a mid-session deploy breaks a lazy chunk import
+│   ├── sentryFilters.ts       `beforeSend`: drops the chunk failure the reload above is about to fix
+│   ├── sentryReplay.ts        Session Replay, dynamically imported so it stays out of the entry chunk
 │   ├── appAssetFallback.ts    honest-404 logic for functions/_app/ (below) — pure, tested here
 │   ├── boardStore.ts          the structural interface Board.svelte consumes, satisfied by both stores
 │   ├── lastMove.ts            last-move highlight keys · types.ts shared history/board types
@@ -186,6 +191,29 @@ functions/
                                 for a hashed asset a later deploy has already deleted (#220,
                                 #223) — logic in src/lib/appAssetFallback.ts, wiring only here
 ```
+
+## Error monitoring
+
+Browser errors go to the Sentry project `dicechess-play` (org `fortemate`), wired up in
+`src/hooks.client.ts`. There is no server-side half: `adapter-static` leaves no SvelteKit server
+at runtime, and the one thing that does run — the `/_app/*` Pages Function — is an asset
+fallback with no Sentry in it.
+
+The shape of it is driven by page weight. The JS `index.html` pulls in before the first board
+appears is 46.8 kB gzip; on top of that the error SDK costs 31.5 kB, performance tracing would
+cost 20.5 kB and Session Replay 39.6 kB (all measured on the production bundle). So:
+
+- **Errors** are the only part on the critical path.
+- **Tracing** is compiled out via `__SENTRY_TRACING__` in `vite.config.ts`. Delete that line and
+  add a `tracesSampleRate` to turn it on.
+- **Replay** is recorded only for sessions that hit an error, and its chunk is fetched once the
+  browser goes idle — so a failure in the first seconds arrives without one. Text stays
+  masked: `/bots` reveals a rotated bot token as a text node, which no input-level masking
+  would cover. Images are not blocked, or a replay of a board game would have no board.
+- **Stale-chunk noise is filtered.** Every deploy replaces the hashed chunks, so tabs opened
+  before it fail their next lazy import; `staleBundleRecovery.ts` fixes that with one reload and
+  `sentryFilters.ts` drops the matching event — but only while that reload is still pending. An
+  import that is still broken after a fresh `index.html` is a real broken deploy and is reported.
 
 ## How recording works
 
