@@ -195,8 +195,9 @@ functions/
 ## Error monitoring
 
 Browser errors go to the Sentry project `dicechess-play` (org `fortemate`), wired up in
-`src/hooks.client.ts`. There is no server-side half — `adapter-static` leaves nothing running at
-runtime.
+`src/hooks.client.ts`. There is no server-side half: `adapter-static` leaves no SvelteKit server
+at runtime, and the one thing that does run — the `/_app/*` Pages Function — is an asset
+fallback with no Sentry in it.
 
 The shape of it is driven by page weight. The JS `index.html` pulls in before the first board
 appears is 46.8 kB gzip; on top of that the error SDK costs 31.5 kB, performance tracing would
@@ -206,7 +207,9 @@ cost 20.5 kB and Session Replay 39.6 kB (all measured on the production bundle).
 - **Tracing** is compiled out via `__SENTRY_TRACING__` in `vite.config.ts`. Delete that line and
   add a `tracesSampleRate` to turn it on.
 - **Replay** is recorded only for sessions that hit an error, and its chunk is fetched once the
-  browser goes idle — so a failure in the first seconds arrives without one.
+  browser goes idle — so a failure in the first seconds arrives without one. Text stays
+  masked: `/bots` reveals a rotated bot token as a text node, which no input-level masking
+  would cover. Images are not blocked, or a replay of a board game would have no board.
 - **Stale-chunk noise is filtered.** Every deploy replaces the hashed chunks, so tabs opened
   before it fail their next lazy import; `staleBundleRecovery.ts` fixes that with one reload and
   `sentryFilters.ts` drops the matching event — but only while that reload is still pending. An

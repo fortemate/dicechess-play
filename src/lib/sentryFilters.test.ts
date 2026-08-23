@@ -60,6 +60,19 @@ describe('dropSelfHealingChunkErrors', () => {
 		).toBeNull();
 	});
 
+	it('reports rather than swallows when the sessionStorage getter itself throws', () => {
+		// A document with an opaque origin throws on property ACCESS, before getItem is reached. A
+		// `beforeSend` that throws would take reporting down with it, so it must still return.
+		const event = chunkError('Failed to fetch dynamically imported module: https://x/_app/a.js');
+		const host: SelfHealHost = {
+			get sessionStorage(): Pick<Storage, 'getItem'> {
+				throw new Error('SecurityError');
+			},
+			timeOrigin: TIME_ORIGIN,
+		};
+		expect(dropSelfHealingChunkErrors(event, {}, host)).toBe(event);
+	});
+
 	it('reports rather than swallows when sessionStorage is unreadable', () => {
 		const event = chunkError('Failed to fetch dynamically imported module: https://x/_app/a.js');
 		const host: SelfHealHost = {

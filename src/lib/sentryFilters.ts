@@ -35,10 +35,6 @@ export type SelfHealHost = {
 	timeOrigin: number;
 };
 
-function browserHost(): SelfHealHost {
-	return { sessionStorage: window.sessionStorage, timeOrigin: performance.timeOrigin };
-}
-
 /** True when the event describes a chunk that could not be fetched. */
 export function isStaleChunkError(event: ErrorEvent): boolean {
 	const messages = [event.message, ...(event.exception?.values ?? []).map((value) => value.value)];
@@ -48,14 +44,19 @@ export function isStaleChunkError(event: ErrorEvent): boolean {
 }
 
 /**
- * True when `staleBundleRecovery` has decided to reload during the life of this document, i.e.
- * the page is on its way out and the import failure is about to be fixed. A timestamp older than
+ * True when `staleBundleRecovery` decided to reload during the life of this document, i.e. the
+ * page is on its way out and the import failure is about to be fixed. A timestamp older than
  * `timeOrigin` was written by the PREVIOUS document — the reload already happened and did not
  * help.
  */
-export function isReloadPending(host: SelfHealHost): boolean {
+function isReloadPending(host: SelfHealHost | undefined): boolean {
 	try {
-		return Number(host.sessionStorage.getItem(RELOADED_AT_KEY) ?? '0') >= host.timeOrigin;
+		// Read inside the `try`, never as a default argument: `window.sessionStorage` THROWS on a
+		// document with an opaque origin or with site data blocked, and a `beforeSend` that throws
+		// takes error reporting down with it instead of just this one decision.
+		const storage = host?.sessionStorage ?? window.sessionStorage;
+		const timeOrigin = host?.timeOrigin ?? performance.timeOrigin;
+		return Number(storage.getItem(RELOADED_AT_KEY) ?? '0') >= timeOrigin;
 	} catch {
 		// Unreadable sessionStorage leaves no way to tell a pending self-heal from a failed one.
 		// Report it: a spurious issue is cheaper than a silently broken deploy.
@@ -67,7 +68,7 @@ export function isReloadPending(host: SelfHealHost): boolean {
 export function dropSelfHealingChunkErrors(
 	event: ErrorEvent,
 	_hint: unknown,
-	host: SelfHealHost = browserHost(),
+	host?: SelfHealHost,
 ): ErrorEvent | null {
 	return isStaleChunkError(event) && isReloadPending(host) ? null : event;
 }

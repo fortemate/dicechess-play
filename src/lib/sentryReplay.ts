@@ -16,11 +16,15 @@ import { addIntegration, replayIntegration } from '@sentry/sveltekit';
 export function startReplay(): void {
 	addIntegration(
 		replayIntegration({
-			// The defaults mask every text node, which would blank the move list, the clocks and
-			// the coordinates — the parts that make a replay worth watching. Play is anonymous and
-			// every game here is public, so that text is safe to keep. Typed input stays masked
-			// (`maskAllInputs` defaults to true) for the account screens.
-			maskAllText: false,
+			// Text stays masked, which is the default. Unmasking is tempting — the move list, the
+			// clocks and the coordinates are what make a replay worth watching, and play is anonymous
+			// — but /bots reveals a freshly rotated bot token as a `<code>` text node exactly once
+			// (AdminBotCard, OwnedBotCard) and `maskAllInputs` does not cover a text node. One
+			// credential in one replay costs more than every replay being duller. Unmasking specific
+			// reviewed elements with `unmask` is the safe direction if replays turn out too redacted.
+			//
+			// Media is deliberately NOT blocked: the pieces are images, and the default would leave a
+			// replay of a board game without a board.
 			blockAllMedia: false,
 		}),
 	);

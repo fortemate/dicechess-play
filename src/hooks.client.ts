@@ -1,8 +1,10 @@
 // Sentry wiring for the browser — the only place the SDK is initialised.
 //
 // There is deliberately no server-side counterpart: `adapter-static` plus `ssr = false`
-// (+layout.ts) means no server exists at runtime, and `hooks.server.ts` runs only while the
-// prerendered pages are built. Everything Sentry knows about this site is reported by a browser.
+// (+layout.ts) means no SvelteKit server exists at runtime, and `hooks.server.ts` runs only
+// while the prerendered pages are built. (`functions/_app/[[path]].ts` does run, as a
+// Cloudflare Pages Function, but it is a nine-line asset fallback with no Sentry in it.)
+// Everything Sentry knows about this site is therefore reported by a browser.
 //
 // The DSN is baked in at BUILD time like every other VITE_ var here — the bundle is built in
 // Actions and Direct-Uploaded, so a Cloudflare Pages dashboard variable would never reach `vite
@@ -16,6 +18,7 @@
 // chunk after the page is idle ($lib/sentryReplay), leaving errors — the reason for the
 // integration — as the only thing on the critical path.
 
+import type { HandleClientError } from '@sveltejs/kit';
 import * as Sentry from '@sentry/sveltekit';
 import { dropSelfHealingChunkErrors } from '$lib/sentryFilters';
 
@@ -27,8 +30,11 @@ if (dsn) {
 		// 'production' for main, 'preview' for a PR deployment (deploy.yaml). A preview talks to
 		// the production play-api and is CORS-blocked on every live surface, so its errors must
 		// not land in the same bucket as real ones.
+		// `||`, not `??`: the variable is present-but-empty in a local .env copied from
+		// .env.example, and an empty string is a valid environment name that Sentry would
+		// happily file events under.
 		environment:
-			(import.meta.env.VITE_SENTRY_ENVIRONMENT as string | undefined) ?? import.meta.env.MODE,
+			(import.meta.env.VITE_SENTRY_ENVIRONMENT as string | undefined) || import.meta.env.MODE,
 		// A replay of the session that ended in an error is the whole point on a board game: which
 		// square, which drag, which dice. Sessions that end fine are never recorded.
 		replaysSessionSampleRate: 0,
@@ -49,6 +55,11 @@ if (dsn) {
 	}
 }
 
-// Errors SvelteKit catches during client-side navigation and rendering. Exported
-// unconditionally: with no initialised client, capturing is a no-op.
-export const handleError = Sentry.handleErrorWithSentry();
+// Errors SvelteKit catches during client-side navigation and rendering. Gated on the DSN
+// rather than exported unconditionally: `handleErrorWithSentry()` references the SDK, so an
+// unconditional call keeps Rollup from dropping the import and leaves 3.8 kB gzip of Sentry
+// (measured) on the critical path of a build that reports nothing. Gated, a DSN-less build is
+// byte-identical to one without this file. SvelteKit treats an absent handler as "rethrow".
+export const handleError: HandleClientError | undefined = dsn
+	? Sentry.handleErrorWithSentry()
+	: undefined;
