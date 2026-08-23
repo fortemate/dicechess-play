@@ -81,6 +81,17 @@ jobs:
           # yields the production URL.
           VITE_PLAY_API_URL: ${{ vars.VITE_PLAY_API_URL || 'https://api.fortemate.com' }}
 
+          # Sentry, project dicechess-play. The DSN is public by design and is baked into the
+          # bundle like every other VITE_ value; an unset repo variable simply leaves the SDK out.
+          VITE_SENTRY_DSN: ${{ vars.VITE_SENTRY_DSN }}
+          # A preview is CORS-blocked against the production play-api, so its errors are a
+          # different species from production's and must not share a bucket with them.
+          VITE_SENTRY_ENVIRONMENT: ${{ github.event_name == 'pull_request' && 'preview' || 'production' }}
+          # NOT public: the only thing it does is let the build upload source maps, without which
+          # every stack trace stays minified. Absent (fork PRs, or before the secret is set) the
+          # build skips the upload and is otherwise unchanged — it never fails for the lack of it.
+          SENTRY_AUTH_TOKEN: ${{ secrets.SENTRY_AUTH_TOKEN }}
+
       # wrangler pages deploy does not auto-create the project; create it once
       # (no-op / harmless error if it already exists, hence `|| true`).
       - name: Ensure Pages project exists

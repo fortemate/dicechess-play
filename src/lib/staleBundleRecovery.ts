@@ -9,7 +9,9 @@
 // import (offline, a genuinely broken deploy), reloading again would loop forever, so the
 // next failure is left to propagate to the console instead.
 
-const RELOADED_AT_KEY = 'dicechess-play-preload-error-reload';
+// Exported for `sentryFilters.ts`, which reads the same timestamp to tell a chunk failure
+// that is about to be reloaded away from one that already survived a reload.
+export const RELOADED_AT_KEY = 'dicechess-play-preload-error-reload';
 const RETRY_WINDOW_MS = 30_000;
 
 // The slice of `window` this module touches, so tests can pass a fake.
