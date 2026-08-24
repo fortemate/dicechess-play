@@ -71,8 +71,8 @@ src/
 ├── routes/                    SPA pages (ssr/prerender disabled in +layout.ts)
 │   ├── +layout.svelte         themed shell: nav, theme switcher, toasts, zen chrome
 │   ├── +page.svelte           landing — marketing hero over the game hub
-│   ├── rules/ · ru/rules/     prerendered rules pages, EN + RU (#254) — the only routes with
-│   │                          ssr/prerender re-enabled, so crawlers get real HTML + OG tags
+│   ├── rules/                 prerendered rules page (#254) — the only route with ssr/prerender
+│   │                          re-enabled, so crawlers get real HTML + OG tags
 │   │                          (src/hooks.server.ts strips app.html's default-head block there)
 │   ├── play/                  game hub: every way to start a game (#217)
 │   ├── practice/              vs-bot game (client-authoritative; engine in a Web Worker)
@@ -118,7 +118,7 @@ src/
 │   ├── authStore.svelte.ts    identity: guest by default, account once signed in (status/nickname/
 │   │                          externalId; `user:<uuid>` signed in, `guest:<uuid>` otherwise)
 │   ├── playWithBot/           bot-play core: store, engine worker, dice/history, opening book
-│   ├── rules/                 seo.ts — shared origins for the prerendered rules pages' absolute
+│   ├── rules/                 seo.ts — shared origins for the prerendered rules page's absolute
 │   │                          canonical/OG URLs (#254); sitemap.xml/app.html hardcode the same
 │   ├── live/                  live-play client: liveGameStore, liveClient (WS + reconnect),
 │   │                          liveApi/lobbyApi/historyApi/ratingApi (REST), ratingDelta (a finished
