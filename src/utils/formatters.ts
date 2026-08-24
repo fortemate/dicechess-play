@@ -1,5 +1,29 @@
 /**
- * Formats a date string to a human-readable format using en-GB locale.
+ * Locale constants. These constants serve as the single seam a future locale switch hooks into (i18n epic #8).
+ */
+export const RATING_LOCALE = 'en-US';
+export const DATE_LOCALE = 'en-GB';
+
+const wholeNumberFormatter = new Intl.NumberFormat(RATING_LOCALE, { maximumFractionDigits: 0 });
+const dateFormatter = new Intl.DateTimeFormat(DATE_LOCALE, {
+	day: 'numeric',
+	month: 'short',
+	year: 'numeric',
+	hour: '2-digit',
+	minute: '2-digit',
+});
+
+/**
+ * Formats a number as a whole number using the rating locale.
+ * @param value - The number to format.
+ * @returns Formatted number string.
+ */
+export function formatWholeNumber(value: number): string {
+	return wholeNumberFormatter.format(value);
+}
+
+/**
+ * Formats a date string to a human-readable format using the date locale.
  * @param dateString - The date string to format (ISO 8601 or similar).
  * @returns Formatted date string or "Unknown Date" if parsing fails.
  */
@@ -9,13 +33,7 @@ export function formatDate(dateString?: string | null): string {
 		const date = new Date(dateString);
 		if (isNaN(date.getTime())) return 'Unknown Date';
 
-		return new Intl.DateTimeFormat('en-GB', {
-			day: 'numeric',
-			month: 'short',
-			year: 'numeric',
-			hour: '2-digit',
-			minute: '2-digit',
-		}).format(date);
+		return dateFormatter.format(date);
 	} catch {
 		return 'Unknown Date';
 	}

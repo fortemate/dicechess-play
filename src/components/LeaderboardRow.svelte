@@ -3,6 +3,7 @@
 	import { authStore } from '$lib/authStore.svelte';
 	import type { LeaderRow } from '$lib/leaderboard/leaderboardApi';
 	import { winRate } from '$lib/stats/playerRecord';
+	import { formatWholeNumber } from '../utils/formatters';
 	import BotBadge from './BotBadge.svelte';
 
 	// One row of the shared rating board (#206). Extracted from the page because the row now has two
@@ -26,9 +27,7 @@
 	 * check requires a player row. */
 	const isMe = $derived(isPlayer && authStore.nickname !== null && row.name === authStore.nickname);
 
-	// Glicko ratings are estimates: whole points are honest enough for a board (the ± shows RD).
-	const wholeNumber = new Intl.NumberFormat('en-US', { maximumFractionDigits: 0 });
-	const fmt = (value: number): string => wholeNumber.format(value);
+	const fmt = (value: number): string => formatWholeNumber(value);
 </script>
 
 <tr

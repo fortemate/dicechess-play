@@ -1,12 +1,11 @@
 <script lang="ts">
 	import { resolve } from '$app/paths';
 	import type { CatalogBot } from '$lib/catalog/catalogApi';
+	import { formatWholeNumber } from '../utils/formatters';
 	import BotBadge from './BotBadge.svelte';
 	import BotChallengePanel from './BotChallengePanel.svelte';
 
 	let { bot }: { bot: CatalogBot } = $props();
-
-	const wholeNumber = new Intl.NumberFormat('en-US', { maximumFractionDigits: 0 });
 </script>
 
 <div class="flex flex-col gap-3 rounded-2xl border border-border bg-surface p-4">
@@ -22,8 +21,8 @@
 			<BotBadge />
 		</span>
 		<span class="font-mono text-xs tabular-nums text-content-muted">
-			<b class="text-content">{wholeNumber.format(bot.rating)}</b>
-			±{wholeNumber.format(bot.rd)}
+			<b class="text-content">{formatWholeNumber(bot.rating)}</b>
+			±{formatWholeNumber(bot.rd)}
 			{#if bot.provisional}<span class="italic">· provisional</span>{/if}
 			<!-- Advisory only — read once when the catalog was fetched, not polled — so a card can go
 			     stale before a click; `wake`'s own busy check and play-bot's 409 stay authoritative.

@@ -11,13 +11,10 @@
 		RATING_CATEGORY_ORDER,
 		type RatingCategory,
 	} from '$lib/live/ratingCategory';
+	import { formatWholeNumber } from '../utils/formatters';
 	import WdlCounts from './WdlCounts.svelte';
 
 	let { ratings }: { ratings: CategoryRating[] } = $props();
-
-	// Glicko ratings are estimates: whole points are honest enough (the ± carries the precision) —
-	// the same stance as the leaderboard.
-	const wholeNumber = new Intl.NumberFormat('en-US', { maximumFractionDigits: 0 });
 
 	const byCategory = $derived(new Map(ratings.map((r) => [r.category, r])));
 	const rows = $derived(
@@ -37,8 +34,8 @@
 			</span>
 			{#if row.rating}
 				<span class="min-w-0 flex-1 font-mono text-sm tabular-nums text-content-muted">
-					<b class="text-content">{wholeNumber.format(row.rating.rating)}</b>
-					±{wholeNumber.format(row.rating.rd)}
+					<b class="text-content">{formatWholeNumber(row.rating.rating)}</b>
+					±{formatWholeNumber(row.rating.rd)}
 					{#if row.rating.provisional}<span class="italic"> · provisional</span>{/if}
 				</span>
 				<span class="shrink-0">
