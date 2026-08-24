@@ -17,10 +17,9 @@
 		type OwnerBotFailure,
 	} from '$lib/bots/ownerApi';
 	import { toastStore } from '$lib/toastStore.svelte';
+	import { formatWholeNumber } from '../utils/formatters';
 
 	let { bot, onChanged }: { bot: MyBot; onChanged: () => void | Promise<void> } = $props();
-
-	const wholeNumber = new Intl.NumberFormat('en-US', { maximumFractionDigits: 0 });
 	let capacity = $state<BotCapacity | null>(null);
 	let capacityInput = $state('');
 	let description = $state('');
@@ -208,7 +207,7 @@
 		<div class="min-w-0">
 			<h3 class="truncate font-semibold text-content">{bot.team} {bot.name}</h3>
 			<p class="font-mono text-xs tabular-nums text-content-muted">
-				<b class="text-content">{wholeNumber.format(bot.rating)}</b> ±{wholeNumber.format(bot.rd)}
+				<b class="text-content">{formatWholeNumber(bot.rating)}</b> ±{formatWholeNumber(bot.rd)}
 			</p>
 		</div>
 		<div class="flex flex-wrap gap-2 text-xs font-bold">

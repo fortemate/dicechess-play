@@ -13,10 +13,9 @@
 		type AdminBotFailure,
 	} from '$lib/bots/adminApi';
 	import { toastStore } from '$lib/toastStore.svelte';
+	import { formatWholeNumber } from '../utils/formatters';
 
 	let { bot, onChanged }: { bot: AdminBot; onChanged: () => void | Promise<void> } = $props();
-
-	const wholeNumber = new Intl.NumberFormat('en-US', { maximumFractionDigits: 0 });
 	let description = $state('');
 	let lastServerDescription = $state<string | null>(null);
 	let error = $state<string | null>(null);
@@ -165,7 +164,7 @@
 		<div class="min-w-0">
 			<h3 class="truncate font-semibold text-content">{bot.team} {bot.name}</h3>
 			<p class="font-mono text-xs tabular-nums text-content-muted">
-				<b class="text-content">{wholeNumber.format(bot.rating)}</b> ±{wholeNumber.format(bot.rd)}
+				<b class="text-content">{formatWholeNumber(bot.rating)}</b> ±{formatWholeNumber(bot.rd)}
 				{#if bot.provisional}
 					· provisional{/if}
 			</p>
