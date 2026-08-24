@@ -1,0 +1,5 @@
+{
+	"$schema": "https://inlang.com/schema/inlang-message-format",
+	"common_win_rate": "win rate",
+	"common_total_games": "{total} games"
+}

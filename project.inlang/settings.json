@@ -1,0 +1,20 @@
+{
+	"$schema": "https://inlang.com/schema/project-settings",
+	"baseLocale": "en",
+	"locales": ["en"],
+	"modules": ["https://cdn.jsdelivr.net/npm/@inlang/plugin-message-format@4/dist/index.js"],
+	"plugin.inlang.messageFormat": {
+		"pathPattern": [
+			"./messages/common.{locale}.json",
+			"./messages/nav.{locale}.json",
+			"./messages/game.{locale}.json",
+			"./messages/lobby.{locale}.json",
+			"./messages/games.{locale}.json",
+			"./messages/bots.{locale}.json",
+			"./messages/profile.{locale}.json",
+			"./messages/leaderboard.{locale}.json",
+			"./messages/rules.{locale}.json",
+			"./messages/{locale}.json"
+		]
+	}
+}

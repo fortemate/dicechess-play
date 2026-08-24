@@ -1,4 +1,5 @@
 /// <reference types="vitest/config" />
+import { paraglideVitePlugin } from '@inlang/paraglide-js';
 import { sentrySvelteKit } from '@sentry/sveltekit';
 import { sveltekit } from '@sveltejs/kit/vite';
 import tailwindcss from '@tailwindcss/vite';
@@ -38,6 +39,27 @@ export default defineConfig({
 				// the copy that matters.
 				filesToDeleteAfterUpload: ['./.svelte-kit/output/**/*.map', './dist/**/*.map'],
 			},
+		}),
+		// Compiles messages/*.json into src/lib/paraglide/ (generated, gitignored). Must run before
+		// sveltekit() so the generated modules exist when SvelteKit resolves imports (i18n epic #8).
+		//
+		// NO `localStorage` in the strategy chain, deliberately. Paraglide's generated runtime calls
+		// `localStorage.getItem(...)` bare, guarded only by `typeof window === 'undefined'` — so any
+		// context where `window` exists but storage does not (privacy modes, sandboxed iframes, and
+		// this repo's own vitest environment) throws on the FIRST message call, taking the whole page
+		// with it. preferencesStore.svelte.ts already wraps its own storage access in try/catch for
+		// exactly this reason; the Paraglide runtime does not. With a single locale the strategy buys
+		// nothing anyway — every branch resolves to `en`. When a language switcher lands it will need
+		// a persistence strategy, and that is the moment to solve the guarding properly.
+		//
+		// Deliberately NOT setting `isServer: 'import.meta.env.SSR'` (which the Paraglide docs
+		// suggest for Vite): the bot engine runs in a Web Worker (playWithBot.worker.ts), where
+		// import.meta.env.SSR is false while `window` is undefined — the runtime would then take a
+		// browser-only branch. The default `typeof window === 'undefined'` is correct in a worker.
+		paraglideVitePlugin({
+			project: './project.inlang',
+			outdir: './src/lib/paraglide',
+			strategy: ['preferredLanguage', 'baseLocale'],
 		}),
 		sveltekit(),
 		// Test-mode only: points Svelte imports at the client build so component

@@ -19,7 +19,7 @@
 		"postbuild": "node scripts/verify-bundle.mjs",
 		"verify:bundle": "node scripts/verify-bundle.mjs",
 		"preview": "vite preview",
-		"check": "svelte-kit sync && svelte-check --tsconfig ./tsconfig.json && npm run check:functions",
+		"check": "paraglide-js compile --project ./project.inlang --outdir ./src/lib/paraglide && svelte-kit sync && svelte-check --tsconfig ./tsconfig.json && npm run check:functions",
 		"check:functions": "tsc --noEmit -p functions/tsconfig.json",
 		"lint": "eslint .",
 		"format": "prettier --write .",
@@ -27,7 +27,7 @@
 		"test": "vitest run",
 		"test:watch": "vitest",
 		"test:coverage": "vitest run --coverage",
-		"prepare": "svelte-kit sync || echo \"\"",
+		"prepare": "paraglide-js compile --project ./project.inlang --outdir ./src/lib/paraglide && svelte-kit sync || echo \"\"",
 		"test:e2e": "playwright test"
 	},
 	"dependencies": {
@@ -39,6 +39,7 @@
 	},
 	"devDependencies": {
 		"@eslint/js": "^10.0.1",
+		"@inlang/paraglide-js": "^2.24.1",
 		"@playwright/test": "^1.62.1",
 		"@sveltejs/adapter-static": "^3.0.10",
 		"@sveltejs/kit": "^2.70.2",
