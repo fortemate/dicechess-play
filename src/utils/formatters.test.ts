@@ -1,5 +1,11 @@
-import { describe, it, expect } from 'vitest';
-import { formatGameResult, formatDate, formatWholeNumber, RATING_LOCALE, DATE_LOCALE } from './formatters';
+import { describe, expect, it } from 'vitest';
+import {
+	DATE_LOCALE,
+	formatDate,
+	formatGameResult,
+	formatWholeNumber,
+	RATING_LOCALE,
+} from './formatters';
 
 describe('formatters', () => {
 	describe('exported locale constants', () => {
