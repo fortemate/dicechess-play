@@ -15,7 +15,7 @@
 	import { useRegisterSW } from 'virtual:pwa-register/svelte';
 
 	// This layout also renders at build time when the static content pages (/rules,
-	// /ru/rules, #254) are prerendered, so browser-only boot work is gated on `browser`.
+	// #254) are prerendered, so browser-only boot work is gated on `browser`.
 	if (browser) {
 		// registerType: 'autoUpdate' (vite.config.ts) — registering is enough, the
 		// service worker reloads the page itself once a new version activates.
@@ -49,8 +49,7 @@
 	const isActive = (path: string) =>
 		matches(path) ||
 		(path === '/play' && (matches('/practice') || matches('/bots'))) ||
-		(path === '/lobby' && matches('/live')) ||
-		(path === '/rules' && matches('/ru/rules'));
+		(path === '/lobby' && matches('/live'));
 
 	const links = [
 		{ path: '/play', label: 'Play' },

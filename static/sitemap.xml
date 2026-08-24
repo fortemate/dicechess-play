@@ -9,12 +9,5 @@
 	</url>
 	<url>
 		<loc>https://fortemate.com/rules</loc>
-		<xhtml:link rel="alternate" hreflang="en" href="https://fortemate.com/rules" />
-		<xhtml:link rel="alternate" hreflang="ru" href="https://fortemate.com/ru/rules" />
-	</url>
-	<url>
-		<loc>https://fortemate.com/ru/rules</loc>
-		<xhtml:link rel="alternate" hreflang="en" href="https://fortemate.com/rules" />
-		<xhtml:link rel="alternate" hreflang="ru" href="https://fortemate.com/ru/rules" />
 	</url>
 </urlset>

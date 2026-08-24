@@ -2,8 +2,6 @@
 	// The rules of the Dice Chess dialect this site plays (#254). Every rule stated here is
 	// verified against the engine's actual behavior (dicechess-engine-scala) and play-api's
 	// server rules — when in doubt, the engine is the source of truth, not other sites' docs.
-	// The Russian version (/ru/rules) mirrors this page section for section; keep the section
-	// ids in sync — rules.test.ts asserts parity.
 	import { resolve } from '$app/paths';
 	import { CANONICAL_ORIGIN, SITE_ORIGIN } from '$lib/rules/seo';
 
@@ -29,7 +27,6 @@
 	/>
 	<link rel="canonical" href="{CANONICAL_ORIGIN}/rules" />
 	<link rel="alternate" hreflang="en" href="{CANONICAL_ORIGIN}/rules" />
-	<link rel="alternate" hreflang="ru" href="{CANONICAL_ORIGIN}/ru/rules" />
 	<link rel="alternate" hreflang="x-default" href="{CANONICAL_ORIGIN}/rules" />
 	<meta property="og:type" content="article" />
 	<meta property="og:site_name" content="Dice Chess — Play" />
@@ -45,15 +42,7 @@
 
 <article class="mx-auto flex w-full max-w-3xl flex-col gap-10">
 	<header class="flex flex-col gap-4">
-		<div class="flex items-start justify-between gap-4">
-			<h1 class="text-3xl font-bold text-content sm:text-4xl">How to play Dice Chess</h1>
-			<a
-				href={resolve('/ru/rules')}
-				class="mt-1.5 shrink-0 rounded-lg border border-border px-2.5 py-1 text-xs font-bold text-content-muted transition-colors hover:border-primary hover:text-content"
-			>
-				Русский
-			</a>
-		</div>
+		<h1 class="text-3xl font-bold text-content sm:text-4xl">How to play Dice Chess</h1>
 		<p class="leading-relaxed text-content-muted">
 			Dice Chess is chess with the fog of luck rolled in: three dice decide which pieces you may
 			move, and the game ends the moment a king is captured. You keep all of your chess instincts —

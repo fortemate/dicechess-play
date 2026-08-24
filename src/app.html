@@ -8,9 +8,9 @@
 		<link rel="apple-touch-icon" href="/apple-touch-icon.png" />
 		<!-- The default-head block is the site-wide fallback metadata (#254). Crawlers and
 		     unfurl bots do not run JS, so every route served by the SPA fallback — the landing
-		     page included — unfurls from exactly these tags. Prerendered content pages
-		     (/rules, /ru/rules) carry their own <title>/description/OG via <svelte:head>;
-		     src/hooks.server.ts strips this block from their HTML at build time so the head
+		     page included — unfurls from exactly these tags. The prerendered content page
+		     (/rules) carries its own <title>/description/OG via <svelte:head>;
+		     src/hooks.server.ts strips this block from its HTML at build time so the head
 		     holds one set of tags, not two. Keep the marker comments intact. -->
 		<!-- default-head -->
 		<title>Dice Chess — Play</title>
