@@ -1,4 +1,5 @@
 <script lang="ts">
+	import { m } from '$lib/paraglide/messages.js';
 	import { totalGames, winRate, type OutcomeCounts } from '$lib/stats/playerRecord';
 	import WdlBar from './WdlBar.svelte';
 	import WdlCounts from './WdlCounts.svelte';
@@ -20,11 +21,13 @@
 			<span class="text-4xl font-black text-content tabular-nums">
 				{Math.round(winRate(counts) * 100)}%
 			</span>
-			<span class="text-xs font-bold uppercase tracking-wider text-content-muted">win rate</span>
+			<span class="text-xs font-bold uppercase tracking-wider text-content-muted"
+				>{m.common_win_rate()}</span
+			>
 		</div>
 		<div class="flex flex-col items-end gap-1">
 			<WdlCounts {counts} />
-			<span class="text-xs text-content-muted">{total} games</span>
+			<span class="text-xs text-content-muted">{m.common_total_games({ total })}</span>
 		</div>
 	</div>
 	<WdlBar {counts} />

@@ -2,6 +2,7 @@
 	// The rules of the Dice Chess dialect this site plays (#254). Every rule stated here is
 	// verified against the engine's actual behavior (dicechess-engine-scala) and play-api's
 	// server rules — when in doubt, the engine is the source of truth, not other sites' docs.
+	import { m } from '$lib/paraglide/messages.js';
 	import { resolve } from '$app/paths';
 	import { CANONICAL_ORIGIN, SITE_ORIGIN } from '$lib/rules/seo';
 
@@ -42,7 +43,7 @@
 
 <article class="mx-auto flex w-full max-w-3xl flex-col gap-10">
 	<header class="flex flex-col gap-4">
-		<h1 class="text-3xl font-bold text-content sm:text-4xl">How to play Dice Chess</h1>
+		<h1 class="text-3xl font-bold text-content sm:text-4xl">{m.rules_heading()}</h1>
 		<p class="leading-relaxed text-content-muted">
 			Dice Chess is chess with the fog of luck rolled in: three dice decide which pieces you may
 			move, and the game ends the moment a king is captured. You keep all of your chess instincts —

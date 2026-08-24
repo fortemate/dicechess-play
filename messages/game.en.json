@@ -1,0 +1,5 @@
+{
+	"$schema": "https://inlang.com/schema/inlang-message-format",
+	"game_dice_region": "Dice",
+	"game_dice_roll": "Roll"
+}

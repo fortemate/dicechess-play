@@ -3,3 +3,5 @@ dist/
 node_modules/
 public/
 .svelte-kit/
+src/lib/paraglide/
+project.inlang/cache/

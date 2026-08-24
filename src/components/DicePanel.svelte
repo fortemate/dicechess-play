@@ -2,6 +2,7 @@
 	// The dice card on the game screen. Used dice dim — that alone communicates progress,
 	// so there is deliberately no "N dice left" text. Shared by vs-bot (with a Roll
 	// button) and live (dice arrive from the server; `emptyText` shows waiting states).
+	import { m } from '$lib/paraglide/messages.js';
 	import { getPieceImage } from '$lib/utils/getPieceImage';
 	import type { DieState } from '$lib/playWithBot/playWithBotDice.svelte';
 
@@ -21,7 +22,7 @@
 	class="flex flex-col justify-center gap-3.5 rounded-2xl border border-border bg-surface p-3.5 md:flex-1"
 >
 	{#if dice.length > 0}
-		<div class="flex items-center justify-center gap-3" aria-label="Dice">
+		<div class="flex items-center justify-center gap-3" aria-label={m.game_dice_region()}>
 			{#each dice as d, i (i)}
 				<div
 					class="flex h-14 w-14 items-center justify-center rounded-xl border border-border bg-dice-surface transition-all duration-300 xl:h-16 xl:w-16
@@ -37,7 +38,7 @@
 			{/each}
 		</div>
 	{:else}
-		<div class="flex items-center justify-center gap-3" aria-label="Dice">
+		<div class="flex items-center justify-center gap-3" aria-label={m.game_dice_region()}>
 			{#each [0, 1, 2] as i (i)}
 				<div class="h-14 w-14 rounded-xl border border-border opacity-30 xl:h-16 xl:w-16"></div>
 			{/each}
@@ -53,7 +54,7 @@
 			onclick={onRoll}
 			class="w-full cursor-pointer rounded-xl bg-primary py-3 text-sm font-bold tracking-widest text-primary-content uppercase shadow-lg transition-all hover:bg-primary-hover active:scale-[0.98]"
 		>
-			Roll
+			{m.game_dice_roll()}
 		</button>
 	{/if}
 </div>
