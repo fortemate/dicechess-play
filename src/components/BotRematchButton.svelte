@@ -1,4 +1,5 @@
 <script lang="ts">
+	/* eslint-disable local/no-untranslated-text -- i18n debt: not yet migrated (#8) */
 	import { onDestroy } from 'svelte';
 	import { wakeBot } from '$lib/catalog/catalogApi';
 	import { describeStartFailure, startBotGame } from '$lib/catalog/botChallenge';

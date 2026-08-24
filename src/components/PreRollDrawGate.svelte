@@ -1,4 +1,5 @@
 <script lang="ts">
+	/* eslint-disable local/no-untranslated-text -- i18n debt: not yet migrated (#8) */
 	// Pre-roll draw offer gate card for live games (play-api #327, this repo #253).
 	// When an offer is pending for the active player before their dice roll, auto-roll is
 	// suspended: the responder must either Accept (draw immediately) or Roll (declines the offer).

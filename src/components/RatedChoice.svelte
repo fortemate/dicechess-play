@@ -1,4 +1,5 @@
 <script lang="ts">
+	/* eslint-disable local/no-untranslated-text -- i18n debt: not yet migrated (#8) */
 	import { authStore } from '$lib/authStore.svelte';
 
 	// The Rated/Casual choice for a game about to be started, shared by the catalog-bot panel and the

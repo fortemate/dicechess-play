@@ -1,4 +1,5 @@
 <script lang="ts">
+	/* eslint-disable local/no-untranslated-text -- i18n debt: not yet migrated (#8) */
 	import { resolve } from '$app/paths';
 	import { isLiveEnabled } from '$lib/live/liveApi';
 	import { fetchCatalog, type CatalogBot } from '$lib/catalog/catalogApi';

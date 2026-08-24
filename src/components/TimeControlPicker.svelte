@@ -1,4 +1,5 @@
 <script lang="ts">
+	/* eslint-disable local/no-untranslated-text -- i18n debt: not yet migrated (#8) */
 	import { timeControlGroups } from '$lib/live/timeControls';
 
 	// Bound to the selected preset index. Native radios in a fieldset give keyboard nav + focus for free.

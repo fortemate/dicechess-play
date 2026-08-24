@@ -1,4 +1,5 @@
 <script lang="ts">
+	/* eslint-disable local/no-untranslated-text -- i18n debt: not yet migrated (#8) */
 	// One signed-in author's bot-management card (#242). The public catalog and the owner's settings
 	// are intentionally separate: this card uses only `/me/bots`, whose server-side ownership gate
 	// is authoritative. The plaintext returned by rotation is component-local `$state` — no store,

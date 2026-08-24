@@ -1,4 +1,5 @@
 <script lang="ts">
+	/* eslint-disable local/no-untranslated-text -- i18n debt: not yet migrated (#8) */
 	// One rating per speed (#258): the per-category block shared by both public profiles and /me.
 	// Renders ALL three categories in canonical order even when unplayed — an absent wire entry means
 	// "genuinely unrated at this speed", and showing the row with an explicit dash says so, where

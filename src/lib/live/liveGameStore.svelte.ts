@@ -241,7 +241,6 @@ export class LiveGameStore {
 		return Math.max(0, base);
 	}
 
-	// eslint-disable-next-line svelte/prefer-svelte-reactivity
 	legalMovesDests = $derived.by<Map<Key, Key[]>>(() => {
 		if (this.isViewingHistory) return new Map();
 		if (this.isAnimatingRoll) return new Map(); // own roll: no moves until the spin lands

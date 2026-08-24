@@ -1,4 +1,5 @@
 <script lang="ts">
+	/* eslint-disable local/no-untranslated-text -- i18n debt: not yet migrated (#8) */
 	import type { ProfileRecentGame } from '$lib/leaderboard/leaderboardApi';
 	import { formatDate } from '../utils/formatters';
 	import BotBadge from './BotBadge.svelte';

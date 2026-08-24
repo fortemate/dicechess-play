@@ -1,4 +1,5 @@
 <script lang="ts">
+	/* eslint-disable local/no-untranslated-text -- i18n debt: not yet migrated (#8) */
 	// Landing page — the marketing hero over the same game hub /play renders (#217): the
 	// first decision is always "who do I play?", and the two entry points must not drift.
 	import GameHub from '../components/GameHub.svelte';

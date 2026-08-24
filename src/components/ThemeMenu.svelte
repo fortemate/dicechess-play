@@ -1,4 +1,5 @@
 <script lang="ts">
+	/* eslint-disable local/no-untranslated-text -- i18n debt: not yet migrated (#8) */
 	// A styled theme picker replacing the native <select>, whose OS-drawn option list
 	// couldn't be themed and clashed with the app chrome. Implemented as an
 	// aria-activedescendant listbox so it keeps the select's keyboard support:

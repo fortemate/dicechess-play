@@ -1,4 +1,5 @@
 <script lang="ts">
+	/* eslint-disable local/no-untranslated-text -- i18n debt: not yet migrated (#8) */
 	// The one way a rated offer or game is marked on the play surfaces (lobby wall, the creator's own
 	// waiting table). Deliberately the same accent family as ProfileGameCard's Rated/Casual pill so
 	// "rated" reads identically wherever it appears.

@@ -1,4 +1,5 @@
 <script lang="ts">
+	/* eslint-disable local/no-untranslated-text -- i18n debt: not yet migrated (#8) */
 	// Operator-only view for the full registered-bot inventory (#243). The `admin` bit is a courtesy
 	// for navigation and direct-route UX, sourced solely from `/auth/me`; play-api remains the only
 	// authorization boundary and its 403 is rendered explicitly below.

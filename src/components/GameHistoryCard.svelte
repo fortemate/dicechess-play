@@ -1,4 +1,5 @@
 <script lang="ts">
+	/* eslint-disable local/no-untranslated-text -- i18n debt: not yet migrated (#8) */
 	import { resolve } from '$app/paths';
 	import type { LocalGameRecord } from '$lib/localGamesDB';
 	import { botLabel } from '$lib/bots';

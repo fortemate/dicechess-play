@@ -1,4 +1,5 @@
 <script lang="ts">
+	/* eslint-disable local/no-untranslated-text -- i18n debt: not yet migrated (#8) */
 	// The header's identity slot (ADR-0017). Deliberately quiet: this site is anonymous-first, so a
 	// visitor who never signs in should not be nagged. That shapes each state:
 	//

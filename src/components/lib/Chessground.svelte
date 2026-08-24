@@ -1,4 +1,5 @@
 <script lang="ts">
+	/* eslint-disable local/no-untranslated-text -- i18n debt: not yet migrated (#8) */
 	import { onMount, onDestroy } from 'svelte';
 	import { Chessground as ChessgroundApi } from '@lichess-org/chessground';
 	import type { Api } from '@lichess-org/chessground/api';

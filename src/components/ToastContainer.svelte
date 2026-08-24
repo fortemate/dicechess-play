@@ -1,4 +1,5 @@
 <script lang="ts">
+	/* eslint-disable local/no-untranslated-text -- i18n debt: not yet migrated (#8) */
 	import { toastStore, type ToastType } from '../lib/toastStore.svelte';
 	import { fly, fade } from 'svelte/transition';
 

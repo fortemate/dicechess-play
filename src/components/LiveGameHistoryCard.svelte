@@ -1,4 +1,5 @@
 <script lang="ts">
+	/* eslint-disable local/no-untranslated-text -- i18n debt: not yet migrated (#8) */
 	import { resolve } from '$app/paths';
 	import type { PlayerGame } from '$lib/games/gamesApi';
 	import { parseGameResultsTimeControl } from '$lib/live/timeControls';

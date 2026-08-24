@@ -1,4 +1,5 @@
 <script lang="ts">
+	/* eslint-disable local/no-untranslated-text -- i18n debt: not yet migrated (#8) */
 	// The nav's Play target (#217): a hub over every way to start a game, not a game
 	// surface itself. The offline practice game this route used to host lives at /practice.
 	import GameHub from '../../components/GameHub.svelte';

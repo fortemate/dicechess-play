@@ -1,4 +1,5 @@
 <script lang="ts">
+	/* eslint-disable local/no-untranslated-text -- i18n debt: not yet migrated (#8) */
 	// The rules of the Dice Chess dialect this site plays (#254). Every rule stated here is
 	// verified against the engine's actual behavior (dicechess-engine-scala) and play-api's
 	// server rules — when in doubt, the engine is the source of truth, not other sites' docs.
