@@ -49,10 +49,17 @@ const HAS_WORD = /\p{L}\p{L}/u;
 /** @param {string} raw */
 const preview = (raw) => JSON.stringify(raw.trim().slice(0, 40));
 
+/**
+ * Element-ish parents. `<style>` and `<script>` get their OWN node types rather than the plain
+ * `SvelteElement` — miss them and every stylesheet in the repo is reported as untranslated prose,
+ * because CSS rule bodies parse to `SvelteText` like any other template text.
+ */
+const ELEMENT_NODE_TYPES = new Set(['SvelteElement', 'SvelteStyleElement', 'SvelteScriptElement']);
+
 /** Name of the element a node sits directly inside, or null for components and fragments. */
 const parentElementName = (node) => {
 	const el = node.parent;
-	if (!el || el.type !== 'SvelteElement') return null;
+	if (!el || !ELEMENT_NODE_TYPES.has(el.type)) return null;
 	const name = el.name;
 	return typeof name?.name === 'string' ? name.name.toLowerCase() : null;
 };
@@ -113,16 +120,20 @@ export default {
 				if (typeof name !== 'string') return;
 				if (!USER_FACING_ATTRS.has(name) || ignoredAttributes.has(name)) return;
 
-				// A single SvelteLiteral is a static value: alt="Board". Anything else is already an
-				// expression — alt={m.key()} or alt={dynamic} — and is not this rule's business.
-				const parts = node.value ?? [];
-				if (parts.length !== 1 || parts[0].type !== 'SvelteLiteral') return;
-				if (!isCopy(parts[0].value)) return;
+				// An attribute value is a list of parts: alt="Board" is one SvelteLiteral, while
+				// aria-label="You have {n} moves" mixes literals with SvelteMustacheTag. Checking only
+				// the single-part case would wave the mixed form through — and interpolated copy is
+				// exactly the kind that most needs a catalog key, since a translation has to be free to
+				// move the placeholder. Report the attribute once if ANY literal part is copy;
+				// alt={m.key()} has no literal parts and stays silent.
+				const literals = (node.value ?? []).filter((part) => part.type === 'SvelteLiteral');
+				const offending = literals.find((part) => isCopy(part.value));
+				if (!offending) return;
 
 				context.report({
 					node,
 					messageId: 'attr',
-					data: { name, text: preview(parts[0].value) },
+					data: { name, text: preview(offending.value) },
 				});
 			},
 		};

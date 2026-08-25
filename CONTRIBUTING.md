@@ -113,9 +113,11 @@ ship unguarded — the exact regression the guard exists to prevent.
 > placed **before** `<script>` is ignored with no error and no suppression — it looks right and
 > protects nothing.
 
-The rule skips text inside `<code>` and `<pre>` (identifiers, not prose), anything under two
-consecutive letters (`3W`, `·`, `%`), and attributes that are already expressions
-(`title={m.key()}`). Genuinely non-copy strings can be added to `allowPattern` in
+The rule skips text inside `<style>`, `<code>` and `<pre>` (CSS and identifiers, not prose),
+anything under two consecutive letters (`3W`, `·`, `%`), and attributes that are already
+expressions (`title={m.key()}`). It does **not** skip an attribute that mixes static text with an
+interpolation — `aria-label="You have {n} moves"` is reported, because that is copy a translation
+has to be free to rearrange. Genuinely non-copy strings can be added to `allowPattern` in
 `eslint.config.js` — keep that list short, since reaching for it instead of a catalog key is how a
 guard rots.
 

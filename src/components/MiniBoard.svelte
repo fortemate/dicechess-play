@@ -1,5 +1,4 @@
 <script lang="ts">
-	/* eslint-disable local/no-untranslated-text -- i18n debt: not yet migrated (#8) */
 	// A static, dependency-free board preview for lobby tiles: the same cburnett piece SVGs
 	// as the interactive board, laid out on a plain CSS grid re-rendered on each poll.
 	// Interactive boards stay chessground's job (see Board.svelte).

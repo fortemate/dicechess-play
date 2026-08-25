@@ -49,6 +49,14 @@ describe('no-untranslated-text', () => {
 			{ filename: 'A.svelte', code: svelte('<code>VITE_PLAY_API_URL</code>') },
 			{ filename: 'A.svelte', code: svelte('<pre>npm run build</pre>') },
 
+			// A <style> block is CSS, not copy. It parses to SvelteText under its own node type
+			// (SvelteStyleElement, not SvelteElement) — get that wrong and every stylesheet in the
+			// repo is reported as untranslated prose.
+			{
+				filename: 'A.svelte',
+				code: '<script>let n = 0;</script>\n<style>\n\t.board { min-width: 200px; }\n</style>',
+			},
+
 			// allowPattern carves out non-copy tokens without disabling the rule for the file.
 			{
 				filename: 'A.svelte',
@@ -88,6 +96,20 @@ describe('no-untranslated-text', () => {
 			{
 				filename: 'A.svelte',
 				code: svelte('<button title="Roll three dice">{m.go()}</button>'),
+				errors: [{ messageId: 'attr' }],
+			},
+
+			// An attribute mixing literals with an interpolation must still be caught: this is copy
+			// that most needs a key, since a translation has to be free to move the placeholder.
+			// Reported once for the attribute, not once per literal part.
+			{
+				filename: 'A.svelte',
+				code: svelte('<div aria-label="You have {n} moves"></div>'),
+				errors: [{ messageId: 'attr' }],
+			},
+			{
+				filename: 'A.svelte',
+				code: svelte('<img src="/x.png" alt="Board for {n}" />'),
 				errors: [{ messageId: 'attr' }],
 			},
 
