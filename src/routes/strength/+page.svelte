@@ -121,7 +121,7 @@
 			</p>
 		{/if}
 		<div class="overflow-x-auto rounded-2xl border border-border bg-surface">
-			<table class="w-full text-sm">
+			<table class="w-full table-fixed text-sm sm:table-auto">
 				<caption class="sr-only">
 					Bots ranked by schedule-adjusted Bradley-Terry relative Elo, best first
 				</caption>
@@ -129,9 +129,9 @@
 					<tr
 						class="border-b border-border text-left text-[11px] font-bold uppercase tracking-wider text-content-muted"
 					>
-						<th scope="col" class="px-4 py-3 text-right">#</th>
-						<th scope="col" class="px-4 py-3">Bot</th>
-						<th scope="col" class="px-4 py-3 text-right">Strength</th>
+						<th scope="col" class="w-10 px-2 py-3 text-right sm:w-auto sm:px-4">#</th>
+						<th scope="col" class="px-2 py-3 sm:px-4">Bot</th>
+						<th scope="col" class="w-40 px-2 py-3 text-right sm:w-auto sm:px-4">Strength</th>
 						<th scope="col" class="hidden px-4 py-3 text-right sm:table-cell">Glicko-2</th>
 						<th scope="col" class="hidden px-4 py-3 text-right md:table-cell">Record</th>
 					</tr>

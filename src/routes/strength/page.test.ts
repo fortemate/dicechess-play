@@ -59,7 +59,9 @@ describe('strength page', () => {
 
 	it('uses the report category for secondary bot-ladder context', async () => {
 		const { findByRole } = render(StrengthPage);
-		await findByRole('table');
+		const table = await findByRole('table');
+		expect(table.classList.contains('table-fixed')).toBe(true);
+		expect(table.classList.contains('sm:table-auto')).toBe(true);
 		expect(fetchStrengthReport).toHaveBeenCalledOnce();
 		expect(fetchLeaderboard).toHaveBeenCalledWith('bots', 'blitz');
 	});

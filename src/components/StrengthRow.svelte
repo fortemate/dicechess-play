@@ -19,10 +19,12 @@
 </script>
 
 <tr class="border-b border-border/50 last:border-b-0">
-	<td class="px-4 py-3 text-right font-mono font-bold tabular-nums text-content-muted">
+	<td
+		class="w-10 px-2 py-3 text-right font-mono font-bold tabular-nums text-content-muted sm:w-auto sm:px-4"
+	>
 		{row.rank}
 	</td>
-	<td class="px-4 py-3">
+	<td class="min-w-0 px-2 py-3 sm:px-4">
 		<span class="flex min-w-0 items-center gap-1.5">
 			{#if row.identity}
 				<a
@@ -34,10 +36,10 @@
 			{:else}
 				<span class="truncate font-semibold text-content">{row.player}</span>
 			{/if}
-			<BotBadge />
+			<span class="hidden shrink-0 sm:inline-flex"><BotBadge /></span>
 		</span>
 	</td>
-	<td class="px-4 py-3 text-right font-mono tabular-nums">
+	<td class="w-40 px-2 py-3 text-right font-mono tabular-nums sm:w-auto sm:px-4">
 		<div class="font-bold text-content">
 			<span class="text-base">{formatRelativeElo(row.elo)}</span>
 			<span class="text-[10px] font-semibold uppercase tracking-wide text-content-muted">
