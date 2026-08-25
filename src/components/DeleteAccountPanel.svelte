@@ -1,4 +1,5 @@
 <script lang="ts">
+	/* eslint-disable local/no-untranslated-text -- i18n debt: not yet migrated (#8) */
 	// Self-service account deletion (#237, ADR-0017) — the only irreversible action on this page.
 	//
 	// play-api requires the body to echo the account's own nickname. That is NOT CSRF protection

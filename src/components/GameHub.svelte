@@ -1,4 +1,5 @@
 <script lang="ts">
+	/* eslint-disable local/no-untranslated-text -- i18n debt: not yet migrated (#8) */
 	// The game hub (#217): every way to start a game, in one component. Rendered on the
 	// landing page (under the marketing hero) and on /play (the nav's Play target), so the
 	// two entry points can never drift apart. Card titles match the destination page's own

@@ -1,4 +1,5 @@
 <script lang="ts">
+	/* eslint-disable local/no-untranslated-text -- i18n debt: not yet migrated (#8) */
 	import { resolve } from '$app/paths';
 	import { authStore } from '$lib/authStore.svelte';
 	import type { LeaderRow } from '$lib/leaderboard/leaderboardApi';

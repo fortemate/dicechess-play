@@ -1,4 +1,5 @@
 <script lang="ts">
+	/* eslint-disable local/no-untranslated-text -- i18n debt: not yet migrated (#8) */
 	// First-login onboarding (#194 step 3, ADR-0017): confirm the generated nickname, then offer to
 	// adopt this browser's anonymous history.
 	//

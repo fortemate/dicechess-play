@@ -96,7 +96,9 @@ export default defineConfig({
 	],
 	test: {
 		environment: 'jsdom',
-		include: ['src/**/*.test.ts'],
+		// eslint-local/ holds build tooling rather than app code, so it lives outside src/ — but its
+		// ESLint rule is load-bearing for the i18n epic (#8) and is tested like anything else.
+		include: ['src/**/*.test.ts', 'eslint-local/**/*.test.ts'],
 		setupFiles: ['./vitest-setup.ts'],
 		coverage: {
 			provider: 'v8',

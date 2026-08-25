@@ -1,4 +1,5 @@
 <script lang="ts">
+	/* eslint-disable local/no-untranslated-text -- i18n debt: not yet migrated (#8) */
 	import { onMount } from 'svelte';
 	import { resolve } from '$app/paths';
 	import { localGamesStore } from '$lib/stores/localGamesStore.svelte';

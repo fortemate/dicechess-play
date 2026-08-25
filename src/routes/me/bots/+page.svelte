@@ -1,4 +1,5 @@
 <script lang="ts">
+	/* eslint-disable local/no-untranslated-text -- i18n debt: not yet migrated (#8) */
 	// The signed-in bot-author surface (#242). This route deliberately gates on the settled
 	// `authStore` state BEFORE touching `myBotsStore`: a guest must not even attempt `/me/bots`.
 	// Claim's pasted Bearer token is cleared before the request starts and goes only to ownerApi's

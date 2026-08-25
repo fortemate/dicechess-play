@@ -1,4 +1,5 @@
 <script lang="ts">
+	/* eslint-disable local/no-untranslated-text -- i18n debt: not yet migrated (#8) */
 	import '@lichess-org/chessground/assets/chessground.base.css';
 	import '@lichess-org/chessground/assets/chessground.brown.css';
 	import '@lichess-org/chessground/assets/chessground.cburnett.css';

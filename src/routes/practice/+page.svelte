@@ -1,4 +1,5 @@
 <script lang="ts">
+	/* eslint-disable local/no-untranslated-text -- i18n debt: not yet migrated (#8) */
 	import { onMount } from 'svelte';
 	import { playWithBotStore as store } from '$lib/playWithBot';
 	import Board from '../../components/Board.svelte';

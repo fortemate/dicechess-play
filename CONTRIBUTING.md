@@ -88,6 +88,39 @@ Rules, in the order they get broken:
    `@inlang/paraglide-js-svelte`'s `ParaglideMessage` with snippets, which is not installed
    yet — leave those strings alone and raise it on the epic.
 
+### The guard, and the debt list
+
+`local/no-untranslated-text` (in `eslint-local/`) fails the build on hardcoded user-facing text in
+a Svelte template. It is **on repo-wide**, so a new component is guarded the moment it is created.
+Files that have not been migrated yet each carry an explicit debt suppression:
+
+```svelte
+<script lang="ts">
+	/* eslint-disable local/no-untranslated-text -- i18n debt: not yet migrated (#8) */
+```
+
+**Delete that line as part of migrating the file.** You do not need to remember to: a suppression
+that no longer suppresses anything is an _error_ (`reportUnusedDisableDirectives: 'error'`), so
+leaving it fails CI. The list of files carrying one can only shrink — grep for it to see what is
+left.
+
+The direction matters and is easy to get backwards. Suppress in **un-migrated** files; never keep
+an allowlist of migrated ones, because a brand-new component would fall outside such a list and
+ship unguarded — the exact regression the guard exists to prevent.
+
+> **One placement silently does nothing.** In a Svelte file the directive must be _inside_ the
+> `<script>` block, as above, or in an HTML comment _after_ it. An `<!-- eslint-disable ... -->`
+> placed **before** `<script>` is ignored with no error and no suppression — it looks right and
+> protects nothing.
+
+The rule skips text inside `<style>`, `<code>` and `<pre>` (CSS and identifiers, not prose),
+anything under two consecutive letters (`3W`, `·`, `%`), and attributes that are already
+expressions (`title={m.key()}`). It does **not** skip an attribute that mixes static text with an
+interpolation — `aria-label="You have {n} moves"` is reported, because that is copy a translation
+has to be free to rearrange. Genuinely non-copy strings can be added to `allowPattern` in
+`eslint.config.js` — keep that list short, since reaching for it instead of a catalog key is how a
+guard rots.
+
 ### Adding a namespace
 
 Add the file `messages/<name>.en.json` and one `pathPattern` entry in

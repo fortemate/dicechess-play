@@ -1,4 +1,5 @@
 <script lang="ts">
+	/* eslint-disable local/no-untranslated-text -- i18n debt: not yet migrated (#8) */
 	// The one way a bot is marked across the site (lobby, game views, history, leaderboard):
 	// humans must always see they are facing a machine (transparency, D.3). Extracted from the
 	// lobby's local snippet so every surface renders the identical badge.

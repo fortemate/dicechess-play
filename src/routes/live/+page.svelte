@@ -1,4 +1,5 @@
 <script lang="ts">
+	/* eslint-disable local/no-untranslated-text -- i18n debt: not yet migrated (#8) */
 	import { resolve } from '$app/paths';
 	import { createGame, isLiveEnabled } from '$lib/live/liveApi';
 	import { buildJoinUrl, resolveSeats } from '$lib/live/seatLink';

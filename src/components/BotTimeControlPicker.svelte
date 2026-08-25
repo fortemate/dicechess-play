@@ -1,4 +1,5 @@
 <script lang="ts">
+	/* eslint-disable local/no-untranslated-text -- i18n debt: not yet migrated (#8) */
 	// A flat sibling of TimeControlPicker (which is hardwired to the grouped lobby presets): the
 	// catalog's 6 presets don't need Blitz/Rapid grouping, and this only reads `.label`, so it stays
 	// decoupled from whichever preset shape the caller passes.

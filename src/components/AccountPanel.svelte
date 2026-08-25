@@ -1,4 +1,5 @@
 <script lang="ts">
+	/* eslint-disable local/no-untranslated-text -- i18n debt: not yet migrated (#8) */
 	// The signed-in identity block on /me (ADR-0017): nickname, rating, sign out.
 	//
 	// Nickname validation is deliberately NOT duplicated here. play-api's `Nicknames.validate` owns the

@@ -557,7 +557,6 @@ export class PlayWithBotStore {
 	}
 
 	/** Cached legal moves for Chessground board — recomputed eagerly after state mutations */
-	// eslint-disable-next-line svelte/prefer-svelte-reactivity
 	legalMovesDests = $derived.by<Map<Key, Key[]>>(() => {
 		if (this.isViewingHistory) return new Map();
 		if (

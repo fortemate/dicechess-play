@@ -1,4 +1,5 @@
 <script lang="ts">
+	/* eslint-disable local/no-untranslated-text -- i18n debt: not yet migrated (#8) */
 	// One operator card from the full `/admin/bots` inventory (#243). Unlike the owner surface this
 	// card never exposes ownership transfer: it can repair discoverability and a lost credential,
 	// but an administrator never becomes the bot's owner. A rotated plaintext token lives only in

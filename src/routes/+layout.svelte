@@ -1,4 +1,5 @@
 <script lang="ts">
+	/* eslint-disable local/no-untranslated-text -- i18n debt: not yet migrated (#8) */
 	import '../app.css';
 	import type { Snippet } from 'svelte';
 	import { chromeStore } from '$lib/stores/chromeStore.svelte';

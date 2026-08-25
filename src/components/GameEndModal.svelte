@@ -1,4 +1,5 @@
 <script lang="ts">
+	/* eslint-disable local/no-untranslated-text -- i18n debt: not yet migrated (#8) */
 	// Full-screen result overlay shown when a game ends. Dismissable (backdrop, Escape or
 	// "View board") so the final position and history stay inspectable — the side-rail
 	// result card remains underneath as the fallback, so dismissing never dead-ends.

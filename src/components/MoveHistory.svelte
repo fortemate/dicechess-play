@@ -1,4 +1,5 @@
 <script lang="ts">
+	/* eslint-disable local/no-untranslated-text -- i18n debt: not yet migrated (#8) */
 	import type { TurnBlock } from '$lib/types';
 	import { getPieceImage } from '$lib/utils/getPieceImage';
 

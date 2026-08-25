@@ -1,4 +1,5 @@
 <script lang="ts">
+	/* eslint-disable local/no-untranslated-text -- i18n debt: not yet migrated (#8) */
 	import { page } from '$app/state';
 	import { resolve } from '$app/paths';
 	import { isLiveEnabled } from '$lib/live/liveApi';

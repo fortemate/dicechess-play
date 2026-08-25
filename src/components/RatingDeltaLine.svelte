@@ -1,4 +1,5 @@
 <script lang="ts">
+	/* eslint-disable local/no-untranslated-text -- i18n debt: not yet migrated (#8) */
 	// The one line that tells a player what a finished rated game did to their rating. Rendered on
 	// both finished-game surfaces (the end-of-game modal and the side-rail card), which is why it is
 	// a component rather than a snippet: the two callers must never drift, and the markup is worth

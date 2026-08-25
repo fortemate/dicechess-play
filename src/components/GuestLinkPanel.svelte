@@ -1,4 +1,5 @@
 <script lang="ts">
+	/* eslint-disable local/no-untranslated-text -- i18n debt: not yet migrated (#8) */
 	// Linking anonymous history to an account (#236, ADR-0017).
 	//
 	// Nothing is rewritten by this: `game_results` keeps the `guest:` ids the games were played under,
