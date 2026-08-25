@@ -1,6 +1,6 @@
 <script lang="ts">
 	/* eslint-disable local/no-untranslated-text -- i18n debt: not yet migrated (#8) */
-	import { fetchLeaderboard, type LeaderRow } from '$lib/leaderboard/leaderboardApi';
+	import { fetchLeaderboard } from '$lib/leaderboard/leaderboardApi';
 	import { isLiveEnabled } from '$lib/live/liveApi';
 	import { buildBotStrengthRows, type BotStrengthRow } from '$lib/stats/botStrength';
 	import { fetchStrengthReport, type StrengthReport } from '$lib/strength/strengthApi';
@@ -22,22 +22,22 @@
 		void (async () => {
 			try {
 				const nextReport = await fetchStrengthReport();
-				let leaders: LeaderRow[] = [];
-				let nextLadderUnavailable = false;
+				if (!alive) return;
+
+				// Bradley-Terry is the primary result. Publish it immediately; the secondary
+				// ladder join may be slow, unavailable, or legitimately missing some bots.
+				report = nextReport;
+				rows = buildBotStrengthRows(nextReport.ranking, []);
+				ladderUnavailable = false;
+				loaded = true;
+				error = null;
+
 				try {
 					const board = await fetchLeaderboard('bots', nextReport.category);
-					leaders = board.leaders;
+					if (alive) rows = buildBotStrengthRows(nextReport.ranking, board.leaders);
 				} catch {
 					// Bradley-Terry is the page's result. A failed secondary lookup must not hide it.
-					nextLadderUnavailable = true;
-				}
-
-				if (alive) {
-					report = nextReport;
-					rows = buildBotStrengthRows(nextReport.ranking, leaders);
-					ladderUnavailable = nextLadderUnavailable;
-					loaded = true;
-					error = null;
+					if (alive) ladderUnavailable = true;
 				}
 			} catch {
 				if (alive) error = 'The strength report is unavailable right now — try again in a minute.';

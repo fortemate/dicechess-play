@@ -72,6 +72,16 @@ describe('strength page', () => {
 		expect(getByText('95% CI -49 to +8')).toBeTruthy();
 	});
 
+	it('renders strength-only rows without waiting for the secondary leaderboard', async () => {
+		fetchLeaderboard.mockReturnValue(new Promise<Leaderboard>(() => {}));
+		const { findByText, getByText, getAllByLabelText, queryByText } = render(StrengthPage);
+
+		expect(await findByText('acme/alice')).toBeTruthy();
+		expect(getByText('lab/orphan')).toBeTruthy();
+		expect(getAllByLabelText('No converged Glicko rating')).toHaveLength(2);
+		expect(queryByText('Loading bot strength…')).toBeNull();
+	});
+
 	it('keeps the primary ranking when the secondary leaderboard request fails', async () => {
 		fetchLeaderboard.mockRejectedValue(new Error('secondary down'));
 		const { findByText, findByRole, queryByRole } = render(StrengthPage);

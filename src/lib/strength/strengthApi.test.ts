@@ -43,6 +43,28 @@ describe('strengthApi', () => {
 		await expect(fetchStrengthReport()).rejects.toThrow('fetchStrengthReport failed: 503');
 	});
 
+	it('accepts final ranking rows with an omitted or null LOS', () => {
+		const report = {
+			category: 'blitz',
+			pairwise: [],
+			ranking: [
+				{ player: 'acme/alice', elo: 42, ciLow: 10, ciHigh: 74, losVsNext: 0.91 },
+				{ player: 'acme/bob', elo: -42, ciLow: -74, ciHigh: -10 },
+			],
+			completePairs: 16,
+			singles: 3,
+			excludedRows: 2,
+		};
+
+		expect(parseStrengthReport(report)).toBe(report);
+		expect(
+			parseStrengthReport({
+				...report,
+				ranking: [report.ranking[0], { ...report.ranking[1], losVsNext: null }],
+			}).ranking[1].losVsNext,
+		).toBeNull();
+	});
+
 	it('rejects malformed required fields instead of publishing a broken statistic', () => {
 		expect(() =>
 			parseStrengthReport({
