@@ -118,6 +118,12 @@
 			<h3 class="text-sm font-bold uppercase tracking-wider text-content-muted">Ratings</h3>
 			<!-- One rating per speed (#258); "provisional" is per row. -->
 			<CategoryRatings ratings={profile.ratings ?? []} />
+			<a
+				href={resolve('/strength')}
+				class="w-fit text-xs font-semibold text-content-muted transition-colors hover:text-content"
+			>
+				Compare schedule-adjusted bot strength →
+			</a>
 		</div>
 
 		<div class="flex flex-col gap-3 rounded-2xl border border-border bg-surface p-4">

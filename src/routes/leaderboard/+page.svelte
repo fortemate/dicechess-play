@@ -13,6 +13,7 @@
 		type RatingCategory,
 	} from '$lib/live/ratingCategory';
 	import LeaderboardRow from '../../components/LeaderboardRow.svelte';
+	import RankingViewTabs from '../../components/RankingViewTabs.svelte';
 
 	// The rating board (D.3, #249): a read-only view over play-api's public GET /leaderboard.
 	// One fetch per scope — ratings move on the server's own batch cadence (about a minute),
@@ -105,6 +106,8 @@
 			</p>
 		</div>
 	</div>
+
+	<RankingViewTabs active="ratings" />
 
 	{#if isLiveEnabled()}
 		<div class="flex flex-wrap items-center gap-x-5 gap-y-2">
