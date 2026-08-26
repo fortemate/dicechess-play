@@ -53,12 +53,20 @@
 				game.
 			</p>
 		</div>
-		<a
-			href={resolve('/leaderboard')}
-			class="w-fit text-sm font-semibold text-content-muted transition-colors hover:text-content"
-		>
-			Leaderboard →
-		</a>
+		<div class="flex flex-wrap gap-x-4 gap-y-1">
+			<a
+				href={resolve('/leaderboard')}
+				class="w-fit text-sm font-semibold text-content-muted transition-colors hover:text-content"
+			>
+				Leaderboard →
+			</a>
+			<a
+				href={resolve('/strength')}
+				class="w-fit text-sm font-semibold text-content-muted transition-colors hover:text-content"
+			>
+				Bot strength →
+			</a>
+		</div>
 	</div>
 
 	{#if !isLiveEnabled()}

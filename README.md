@@ -12,9 +12,9 @@ on the leaderboard, and history that follows you across devices. Two ways to pla
   this client only applies versioned events and rolls back optimistic moves.
 
 Around them: the game hub (`/play` — every way to start a game, also rendered on the landing
-page), a bot catalog (`/bots`), the rating ladder (`/leaderboard`), local + server game
-history with replays (`/games`, `/replay/[id]`), and a profile (`/me`) — guest by default, with an
-optional account for a rating.
+page), a bot catalog (`/bots`), the live rating ladder (`/leaderboard`) and its schedule-adjusted
+bot-strength report (`/strength`), local + server game history with replays (`/games`,
+`/replay/[id]`), and a profile (`/me`) — guest by default, with an optional account for a rating.
 
 > Public repo, AGPL-3.0 — external contributors sign the CLA (`CLA.md`). Decisions and roadmap
 > live in the private `dicechess-docs` wiki under **Play Site**; ADRs are referenced by number
@@ -87,6 +87,8 @@ src/
 │   │                          /games/{id}/history, #163) — engine-walked per-turn positions,
 │   │                          board-flip toggle, provably-fair commit/seed section
 │   ├── leaderboard/           bot rating ladder (play-api GET /leaderboard)
+│   ├── strength/              schedule-adjusted bot ranking: Bradley-Terry relative Elo + 95% CI,
+│   │                          with Glicko/W-D-L as secondary context (GET /strength)
 │   ├── bots/                  human-play bot catalog (play-api GET /lobby/bots, ADR-0014)
 │   │   └── [team]/[name]/     bot profile — rating, ladder W-D-L, recent games (#152 Tier 1;
 │   │                          Tier 2/3 — human record, head-to-head vs models, rating history —
@@ -106,6 +108,8 @@ src/
 │   │                     ToastContainer
 │   ├── CategoryRatings        one rating per speed (bullet/blitz/rapid, #258) — shared by both
 │   │                          public profiles; an unplayed speed renders as an explicit dash
+│   ├── RankingViewTabs        /leaderboard ↔ /strength sub-navigation · StrengthRow the
+│   │                          Bradley-Terry-first bot row with optional rating-board context
 │   ├── AuthMenu               header identity slot — Sign in / nickname badge; renders nothing
 │   │                          while loading or when play-api is unreachable (anonymous-first)
 │   ├── GamesFilterBar         /games's source/result pills + opponent search+chip (#151)
@@ -138,6 +142,8 @@ src/
 │   │                          shareable (token-free) URL for it (#216)
 │   ├── leaderboard/           leaderboardApi — rating-ladder + bot-profile read client (play-api
 │   │                          wire mirror; GET /bots/{team}/{name}, #152)
+│   ├── strength/              strengthApi — GET /strength wire mirror (Bradley-Terry ranking,
+│   │                          bootstrap confidence bounds, pairwise SPRT contract)
 │   ├── catalog/               catalogApi — bot-catalog read/wake/play-bot client (play-api wire mirror);
 │   │                          botChallenge — starting a game + how a failure reads, shared by the
 │   │                          challenge panel and the rematch button; lastBotGame — the setup of the
@@ -161,7 +167,9 @@ src/
 │   ├── history/               move-history reconstruction for replays: reconstructHistoryMap
 │   │                          (local IndexedDB games) · reconstructServerHistory (play-api's
 │   │                          per-turn archive → the same historyMap shape, #163)
-│   ├── stats/                 playerRecord (local W-D-L) · lobbyRecord (play-api opponents
+│   ├── stats/                 botStrength (left-joins Bradley-Terry ranks to optional Glicko
+│   │                          context without dropping strength-only rows) · playerRecord
+│   │                          (local W-D-L) · lobbyRecord (play-api opponents
 │   │                          aggregate + /me's "In the lobby" label/link helpers, head-to-head
 │   │                          lookup by ?vs=)
 │   ├── stores/                singleton rune stores (themeStore 7 themes · localGamesStore ·

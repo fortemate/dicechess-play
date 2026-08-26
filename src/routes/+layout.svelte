@@ -46,11 +46,13 @@
 		page.url.pathname === path || page.url.pathname.startsWith(`${path}/`);
 	// Pages without a nav item of their own light the hub they belong to (#217): /practice
 	// and /bots are ways to start a game (the Play hub); /live (friend-by-link setup and
-	// live boards) is part of the lobby.
+	// live boards) is part of the lobby; /strength is the rating leaderboard's statistical
+	// companion and therefore keeps that desktop item selected.
 	const isActive = (path: string) =>
 		matches(path) ||
 		(path === '/play' && (matches('/practice') || matches('/bots'))) ||
-		(path === '/lobby' && matches('/live'));
+		(path === '/lobby' && matches('/live')) ||
+		(path === '/leaderboard' && matches('/strength'));
 
 	const links = [
 		{ path: '/play', label: 'Play' },
