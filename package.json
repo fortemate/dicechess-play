@@ -35,7 +35,7 @@
 		"@lichess-org/chessground": "^10.1.1",
 		"@sentry/sveltekit": "^10.70.0",
 		"idb": "^8.0.3",
-		"uuid": "^14.0.1"
+		"uuid": "^14.0.2"
 	},
 	"devDependencies": {
 		"@eslint/js": "^10.0.1",
