@@ -21,6 +21,7 @@ const END_REASON_TO_TERMINATION: Record<GameEndReason, string> = {
 	timeout: 'timeout',
 	resign: 'resign',
 	agreement: 'draw_agreement',
+	double_declined: 'double_declined',
 };
 
 // Dice piece-letter (from the DFEN 7th field) → contract number (1=pawn .. 6=king).
@@ -103,6 +104,33 @@ export function toGameIngest(record: LocalGameRecord, guestExternalId: string): 
 	const bot = botPlayer(record.bot_id);
 	const playerIsWhite = record.player_color === 'WHITE';
 
+	const baseStake = record.base_bet ?? record.baseBet;
+	const finalStake = record.bet;
+	const hasStake = (baseStake ?? finalStake ?? 0) > 0;
+	const initialStakeAmount = hasStake ? (baseStake ?? finalStake ?? null) : null;
+	const finalStakeAmount = hasStake ? (finalStake ?? null) : null;
+	const stakeCurrency = hasStake ? 'DCC' : null;
+
+	let whiteMoneyDelta: number | null = null;
+	let blackMoneyDelta: number | null = null;
+	if (
+		hasStake &&
+		finalStakeAmount !== null &&
+		record.result !== undefined &&
+		record.result !== null
+	) {
+		if (record.result === 1) {
+			whiteMoneyDelta = finalStakeAmount;
+			blackMoneyDelta = -finalStakeAmount;
+		} else if (record.result === -1) {
+			whiteMoneyDelta = -finalStakeAmount;
+			blackMoneyDelta = finalStakeAmount;
+		} else if (record.result === 0) {
+			whiteMoneyDelta = 0;
+			blackMoneyDelta = 0;
+		}
+	}
+
 	return {
 		id: uuidv5(`playsite/game/${record.id}`, URL_NAMESPACE),
 		source: 'playsite',
@@ -116,14 +144,15 @@ export function toGameIngest(record: LocalGameRecord, guestExternalId: string): 
 		started_at: record.start_time,
 		time_initial_sec: record.time_limit ?? null,
 		time_increment_sec: record.time_bonus ?? null,
-		// Free guest games: stake fields stay NULL so profit/stake analytics exclude them.
-		initial_stake_amount: null,
-		final_stake_amount: null,
-		stake_currency: null,
+		initial_stake_amount: initialStakeAmount,
+		final_stake_amount: finalStakeAmount,
+		white_money_delta: whiteMoneyDelta,
+		black_money_delta: blackMoneyDelta,
+		stake_currency: stakeCurrency,
 		white_player: playerIsWhite ? guest : bot,
 		black_player: playerIsWhite ? bot : guest,
 		initial_fen: initialFen(record.moves_history),
 		turns,
-		events: [],
+		events: record.events ?? [],
 	};
 }

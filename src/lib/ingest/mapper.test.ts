@@ -36,6 +36,9 @@ describe('toGameIngest termination', () => {
 		expect(toGameIngest(record({ end_reason: 'agreement' }), GUEST).termination).toBe(
 			'draw_agreement',
 		);
+		expect(toGameIngest(record({ end_reason: 'double_declined' }), GUEST).termination).toBe(
+			'double_declined',
+		);
 	});
 
 	it('falls back to the board heuristic for legacy records without end_reason', () => {
@@ -68,5 +71,50 @@ describe('toGameIngest basics', () => {
 		expect(wire.white_player?.external_id).toBe(GUEST);
 		expect(wire.black_player?.external_id).toBe('bot:greedy');
 		expect(wire.initial_stake_amount).toBeNull();
+		expect(wire.final_stake_amount).toBeNull();
+		expect(wire.stake_currency).toBeNull();
+		expect(wire.white_money_delta).toBeNull();
+		expect(wire.black_money_delta).toBeNull();
+		expect(wire.events).toEqual([]);
+	});
+
+	it('maps stakes, money deltas, and events for a doubled x2 game', () => {
+		const wire = toGameIngest(
+			record({
+				mode: 'x2',
+				base_bet: 10,
+				bet: 20,
+				result: 1, // White won
+				end_reason: 'double_declined',
+				events: [
+					{
+						sequence_number: 1,
+						turn_number: 1,
+						event_type: 'DOUBLE_OFFER',
+						actor_color: 'w',
+						payload: { value: 20 },
+					},
+					{
+						sequence_number: 2,
+						turn_number: 1,
+						event_type: 'DOUBLE_DECLINE',
+						actor_color: 'b',
+						payload: { value: 20 },
+					},
+				],
+			}),
+			GUEST,
+		);
+
+		expect(wire.mode).toBe('x2');
+		expect(wire.termination).toBe('double_declined');
+		expect(wire.initial_stake_amount).toBe(10);
+		expect(wire.final_stake_amount).toBe(20);
+		expect(wire.stake_currency).toBe('DCC');
+		expect(wire.white_money_delta).toBe(20);
+		expect(wire.black_money_delta).toBe(-20);
+		expect(wire.events).toHaveLength(2);
+		expect(wire.events[0].event_type).toBe('DOUBLE_OFFER');
+		expect(wire.events[1].event_type).toBe('DOUBLE_DECLINE');
 	});
 });

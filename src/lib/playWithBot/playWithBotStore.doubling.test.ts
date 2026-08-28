@@ -165,11 +165,28 @@ describe('doubling mode and game-end correctness (issue #37)', () => {
 			await offered;
 
 			expect(store.gameStatus).toBe('victory');
-			expect(store.gameEndReason).toBe('resign');
+			expect(store.gameEndReason).toBe('double_declined');
 			expect(store.bet).toBe(10); // decline settles at the pre-double stake
 			expect(authMock.adjustBalance).toHaveBeenCalledWith(20); // 2 * bet payout
 			expect(savedGames()).toHaveLength(1);
 			expect(savedGames()[0].result).toBe(1);
+			expect(savedGames()[0].base_bet).toBe(10);
+			expect(savedGames()[0].events).toEqual([
+				{
+					sequence_number: 1,
+					turn_number: 1,
+					event_type: 'DOUBLE_OFFER',
+					actor_color: 'w',
+					payload: { value: 20, stake: 20 },
+				},
+				{
+					sequence_number: 2,
+					turn_number: 1,
+					event_type: 'DOUBLE_DECLINE',
+					actor_color: 'b',
+					payload: { value: 20, stake: 20 },
+				},
+			]);
 		});
 
 		it('withdraws the offer instead of resigning the bot when the engine call fails', async () => {

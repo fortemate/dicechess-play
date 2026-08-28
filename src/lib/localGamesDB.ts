@@ -1,10 +1,11 @@
 import { openDB, type DBSchema, type IDBPDatabase } from 'idb';
+import type { GameEventInputWire } from '$lib/ingest/types';
 
 export type SyncStatus = 'pending' | 'synced' | 'quarantined';
 export type PlayerColor = 'WHITE' | 'BLACK';
 
 /** Why a game ended, as known by the play store (not inferred from the board). */
-export type GameEndReason = 'mate' | 'timeout' | 'resign' | 'agreement';
+export type GameEndReason = 'mate' | 'timeout' | 'resign' | 'agreement' | 'double_declined';
 
 export interface DiceChessTurnHistory {
 	turn_number: number;
@@ -26,7 +27,10 @@ export interface LocalGameRecord {
 	time_limit?: number | null;
 	time_bonus?: number | null;
 	bet?: number;
+	base_bet?: number;
+	baseBet?: number;
 	mode?: 'classic' | 'x2';
+	events?: GameEventInputWire[];
 }
 
 interface LocalGamesDBSchema extends DBSchema {

@@ -40,6 +40,8 @@ export function endReasonLabel(reason: GameEndReason | null | undefined): string
 			return 'Resigned';
 		case 'agreement':
 			return 'Draw agreed';
+		case 'double_declined':
+			return 'Double declined';
 		default:
 			return '';
 	}
