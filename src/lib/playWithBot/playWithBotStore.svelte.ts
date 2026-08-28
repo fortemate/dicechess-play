@@ -249,6 +249,9 @@ export class PlayWithBotStore {
 		this.cubeOwner = null;
 		this.insufficientFundsForfeit = false;
 		this.doubleDeclined = false;
+		// A session change mid roll-animation leaves this stuck true otherwise, permanently
+		// blocking canUserRoll/canUserDouble in the next game.
+		this.isAnimatingRoll = false;
 
 		if (colorPref === 'random') {
 			this.playerColor = Math.random() < 0.5 ? 'w' : 'b';
@@ -399,7 +402,10 @@ export class PlayWithBotStore {
 			this.currentTurnRecord = null;
 		}
 
-		this.saveGameRecord(playerTimedOut ? -1 : 1);
+		// Result is white-POV (1 = White won, -1 = Black won), like every other end path: the
+		// timed-out color loses. The old player-POV value inverted records whenever the player
+		// was Black — and with stakes it paid the player who lost on time.
+		this.saveGameRecord(color === 'w' ? -1 : 1);
 	}
 
 	private getInitialDice(activeColor: 'w' | 'b'): DieState[] {
@@ -439,7 +445,21 @@ export class PlayWithBotStore {
 		this.botCanOfferDraw = true;
 		this.activeDrawOffer = null;
 
+		// Reset doubling and roll-animation state too — a stale offer or a stuck animation flag
+		// would leak into (and block) the next session.
+		this.activeDoubleOffer = null;
+		this.cubeOwner = null;
+		this.doubleDeclined = false;
+		this.insufficientFundsForfeit = false;
+		this.isAnimatingRoll = false;
+
 		this.bot.terminateWorker();
+	}
+
+	/** Whether the game is still being played — no terminal screen, no idle session. Guards the
+	 * async offer flows against restarting the clock on a finished game. */
+	private get isGameLive(): boolean {
+		return !['idle', 'victory', 'defeat', 'draw'].includes(this.gameStatus);
 	}
 
 	/** Roll 3 random dice for Human */
@@ -460,7 +480,8 @@ export class PlayWithBotStore {
 			this.bet < this.baseBet * 64 &&
 			this.activeDrawOffer === null &&
 			this.activeDoubleOffer === null &&
-			authStore.user !== null &&
+			// isAuthenticated, not `user !== null`: the user getter always returns the guest stub.
+			authStore.isAuthenticated &&
 			authStore.user.balance >= this.bet,
 	);
 
@@ -767,7 +788,11 @@ export class PlayWithBotStore {
 				this.turnHistory.push(this.currentTurnRecord as DiceChessTurnHistory);
 				this.currentTurnRecord = null;
 			}
+			const gameId = this.startTime;
 			setTimeout(() => {
+				// Resign/new-game inside the dwell already settled (or replaced) this game; firing
+				// anyway would record it twice or stamp the fresh game with the old ending.
+				if (this.startTime !== gameId || this.gameStatus !== 'playing') return;
 				this.gameStatus = 'victory';
 				botStatsStore.recordResult(this.botAlgorithm, 'win');
 				toastStore.success('Victory! You captured the opponent king!');
@@ -783,7 +808,9 @@ export class PlayWithBotStore {
 			if (this.toggleActiveColorInFen()) {
 				this.updateStateInHistory({ fen: this.liveBoardFen });
 
+				const gameId = this.startTime;
 				setTimeout(() => {
+					if (this.startTime !== gameId || this.gameStatus !== 'bot_thinking') return;
 					this.liveActiveColor = this.botColor;
 					this.botTurn();
 				}, 800);
@@ -977,7 +1004,10 @@ export class PlayWithBotStore {
 
 		for (const move of botMoves) {
 			await new Promise((resolve) => setTimeout(resolve, 1000));
+			// startTime guard: a new game started during the pacing sleep must not receive the
+			// previous game's bot moves.
 			if (
+				this.startTime !== gameId ||
 				(this.gameStatus as GameStatus) === 'defeat' ||
 				(this.gameStatus as GameStatus) === 'victory'
 			)
@@ -1069,6 +1099,7 @@ export class PlayWithBotStore {
 					this.currentTurnRecord = null;
 				}
 				await new Promise((resolve) => setTimeout(resolve, 800));
+				if (this.startTime !== gameId || this.gameStatus !== 'bot_thinking') return;
 				this.gameStatus = 'defeat';
 				botStatsStore.recordResult(this.botAlgorithm, 'loss');
 				toastStore.error('Defeat! The bot captured your king.');
@@ -1077,6 +1108,7 @@ export class PlayWithBotStore {
 			}
 		}
 
+		if (this.startTime !== gameId || this.gameStatus !== 'bot_thinking') return;
 		this.gameStatus = 'rolling';
 		if (this.toggleActiveColorInFen()) {
 			this.liveActiveColor = this.playerColor;
@@ -1106,6 +1138,9 @@ export class PlayWithBotStore {
 		if (this.gameStatus === 'idle' || ['victory', 'defeat', 'draw'].includes(this.gameStatus))
 			return;
 		this.stopTimer();
+		// Clear pending offers so their responders cannot fire on the settled game.
+		this.activeDrawOffer = null;
+		this.activeDoubleOffer = null;
 		this.gameEndReason = 'resign';
 		this.gameStatus = 'defeat';
 		botStatsStore.recordResult(this.botAlgorithm, 'loss');
@@ -1146,11 +1181,16 @@ export class PlayWithBotStore {
 			return;
 		}
 
-		const currentDfen = buildDfen(this.liveBoardFen, this.availableDiceValues, this.playerColor);
+		// Same perspective rule as offerDouble: the engine evaluates the dfen's ACTIVE color, so
+		// flip the turn to ask the BOT. The remaining dice are the player's and are dropped —
+		// the engine's draw hooks evaluate the position statically with an empty pool.
 		let botAccepts = false;
 		try {
-			if (typeof DiceChess?.shouldBotAcceptDraw === 'function') {
-				botAccepts = DiceChess.shouldBotAcceptDraw(currentDfen, { algorithm: this.botAlgorithm });
+			const botFen =
+				typeof DiceChess?.endTurn === 'function' ? DiceChess.endTurn(this.liveBoardFen) : null;
+			if (botFen && typeof DiceChess?.shouldBotAcceptDraw === 'function') {
+				const botDfen = botFen.trim().split(/\s+/).slice(0, 6).join(' ');
+				botAccepts = DiceChess.shouldBotAcceptDraw(botDfen, { algorithm: this.botAlgorithm });
 			}
 		} catch (e) {
 			logger.error('Error checking bot accept draw', e as Error);
@@ -1204,16 +1244,22 @@ export class PlayWithBotStore {
 			this.activeDoubleOffer !== 'player'
 		) {
 			this.activeDoubleOffer = null;
-			this.startTimer();
+			if (this.isGameLive) this.startTimer();
 			return;
 		}
 
 		const proposedBet = 2 * this.bet;
-		const currentDfen = buildDfen(this.liveBoardFen, [], this.playerColor);
-		let botAccepts = false;
+		// The engine hooks evaluate the dfen's ACTIVE color — the deciding side. It is the
+		// player's (pre-roll) turn here, so hand the position over from the bot's perspective by
+		// flipping the turn first; asking with the player active inverts the decision (the bot
+		// would resign the stake exactly when the player is losing).
+		let botAccepts: boolean | null = null;
 		try {
-			if (typeof DiceChess?.shouldBotAcceptDouble === 'function') {
-				botAccepts = DiceChess.shouldBotAcceptDouble(currentDfen, proposedBet, {
+			const botFen =
+				typeof DiceChess?.endTurn === 'function' ? DiceChess.endTurn(this.liveBoardFen) : null;
+			if (botFen && typeof DiceChess?.shouldBotAcceptDouble === 'function') {
+				const botDfen = botFen.trim().split(/\s+/).slice(0, 6).join(' ');
+				botAccepts = DiceChess.shouldBotAcceptDouble(botDfen, proposedBet, {
 					algorithm: this.botAlgorithm,
 				});
 			}
@@ -1222,6 +1268,14 @@ export class PlayWithBotStore {
 		}
 
 		this.activeDoubleOffer = null;
+
+		if (botAccepts === null) {
+			// Engine unavailable or failed: withdraw the offer. Defaulting to "declined" here would
+			// resign the game to the player on a mere engine hiccup.
+			toastStore.info('Double offer withdrawn.');
+			if (this.isGameLive) this.startTimer();
+			return;
+		}
 
 		if (botAccepts) {
 			toastStore.success('The bot accepted the double! 🎲');
@@ -1237,7 +1291,13 @@ export class PlayWithBotStore {
 	}
 
 	acceptBotDouble() {
-		if (this.activeDoubleOffer !== 'bot') return;
+		if (this.activeDoubleOffer !== 'bot' || this.gameStatus !== 'bot_thinking') return;
+		if (authStore.user.balance < this.bet) {
+			// Cannot afford the increment — accepting would under-collect (adjustBalance clamps
+			// at 0). Treat as a decline, the same outcome the pre-offer forfeit enforces.
+			this.declineBotDouble();
+			return;
+		}
 		toastStore.success('You accepted the double! 🎲');
 		const increment = this.bet;
 		this.bet = 2 * this.bet;
@@ -1249,7 +1309,7 @@ export class PlayWithBotStore {
 	}
 
 	declineBotDouble() {
-		if (this.activeDoubleOffer !== 'bot') return;
+		if (this.activeDoubleOffer !== 'bot' || this.gameStatus !== 'bot_thinking') return;
 		toastStore.info('You declined the double and resigned.');
 		this.activeDoubleOffer = null;
 		this.doubleDeclined = true;
@@ -1369,6 +1429,17 @@ export class PlayWithBotStore {
 	}
 
 	private async saveGameRecord(result: number) {
+		// Settle the stake before persisting: the winner's payout (or the draw refund) must not
+		// silently vanish because the IndexedDB write failed.
+		if (this.bet > 0) {
+			const playerWon =
+				(this.playerColor === 'w' && result === 1) || (this.playerColor === 'b' && result === -1);
+			if (playerWon) {
+				authStore.adjustBalance(2 * this.bet);
+			} else if (result === 0) {
+				authStore.adjustBalance(this.bet);
+			}
+		}
 		try {
 			const gameRecord: LocalGameRecord = {
 				id:
@@ -1389,17 +1460,6 @@ export class PlayWithBotStore {
 			};
 			await saveLocalGame(gameRecord);
 			logger.info('Game successfully saved to IndexedDB');
-
-			// Adjust player balance based on result if there is a bet
-			if (this.bet > 0) {
-				const playerWon =
-					(this.playerColor === 'w' && result === 1) || (this.playerColor === 'b' && result === -1);
-				if (playerWon) {
-					authStore.adjustBalance(2 * this.bet);
-				} else if (result === 0) {
-					authStore.adjustBalance(this.bet);
-				}
-			}
 		} catch (e) {
 			logger.error('Failed to save local game record', e as Error);
 		}
