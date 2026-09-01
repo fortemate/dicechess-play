@@ -9,7 +9,7 @@ import type { AdminBot } from './adminApi';
 export type LadderFilter = 'all' | 'on' | 'off';
 export type CatalogFilter = 'all' | 'open' | 'closed';
 export type OwnershipFilter = 'all' | 'owned' | 'unowned';
-export type WebhookFilter = 'all' | 'configured' | 'none';
+export type WebhookFilter = 'all' | 'configured' | 'verified' | 'unverified' | 'none';
 export type ProvisionalFilter = 'all' | 'provisional' | 'established';
 export type CapacityFilter = 'all' | 'reached' | 'available';
 
@@ -45,11 +45,21 @@ export const DEFAULT_ADMIN_BOTS_QUERY: AdminBotsQuery = {
 const LADDER_VALUES: readonly LadderFilter[] = ['all', 'on', 'off'];
 const CATALOG_VALUES: readonly CatalogFilter[] = ['all', 'open', 'closed'];
 const OWNERSHIP_VALUES: readonly OwnershipFilter[] = ['all', 'owned', 'unowned'];
-const WEBHOOK_VALUES: readonly WebhookFilter[] = ['all', 'configured', 'none'];
+const WEBHOOK_VALUES: readonly WebhookFilter[] = [
+	'all',
+	'configured',
+	'verified',
+	'unverified',
+	'none',
+];
 const PROVISIONAL_VALUES: readonly ProvisionalFilter[] = ['all', 'provisional', 'established'];
 const CAPACITY_VALUES: readonly CapacityFilter[] = ['all', 'reached', 'available'];
 const SORT_KEYS: readonly AdminBotSortKey[] = ['identity', 'rating', 'utilization'];
 const SORT_DIRS: readonly SortDirection[] = ['asc', 'desc'];
+
+function normalizeString(val: string): string {
+	return val.normalize('NFC').trim().toLowerCase();
+}
 
 export function parseAdminBotsQuery(input: URLSearchParams | URL | string): AdminBotsQuery {
 	const params =
@@ -137,22 +147,27 @@ export function isCapacityReached(bot: AdminBot): boolean {
 
 /** Computes load utilization ratio for a bot (0 to 1+). */
 export function computeUtilization(bot: AdminBot): number {
-	if (bot.maxConcurrentGames <= 0) return 0;
-	return bot.activeGames / bot.maxConcurrentGames;
+	if (!bot.maxConcurrentGames || bot.maxConcurrentGames <= 0) return 0;
+	const active = bot.activeGames && bot.activeGames > 0 ? bot.activeGames : 0;
+	return active / bot.maxConcurrentGames;
 }
 
 /** Applies search, filters, and deterministic sorting to a fleet of AdminBots. */
 export function applyAdminBotsQuery(bots: AdminBot[], query: AdminBotsQuery): AdminBot[] {
-	const searchLower = query.search.trim().toLowerCase();
+	const searchNorm = normalizeString(query.search);
 
 	const filtered = bots.filter((bot) => {
-		// Search matches team, bot name, and webhook URL case-insensitively
-		if (searchLower) {
-			const matchesTeam = bot.team.toLowerCase().includes(searchLower);
-			const matchesName = bot.name.toLowerCase().includes(searchLower);
-			const matchesCombined = `${bot.team}/${bot.name}`.toLowerCase().includes(searchLower);
-			const matchesWebhook =
-				bot.webhook?.url !== undefined && bot.webhook.url.toLowerCase().includes(searchLower);
+		// Search matches team, bot name, and webhook URL case-insensitively with NFC normalization
+		if (searchNorm) {
+			const teamNorm = normalizeString(bot.team);
+			const nameNorm = normalizeString(bot.name);
+			const combinedNorm = normalizeString(`${bot.team}/${bot.name}`);
+			const webhookNorm = bot.webhook?.url ? normalizeString(bot.webhook.url) : '';
+
+			const matchesTeam = teamNorm.includes(searchNorm);
+			const matchesName = nameNorm.includes(searchNorm);
+			const matchesCombined = combinedNorm.includes(searchNorm);
+			const matchesWebhook = webhookNorm !== '' && webhookNorm.includes(searchNorm);
 
 			if (!matchesTeam && !matchesName && !matchesCombined && !matchesWebhook) {
 				return false;
@@ -173,6 +188,18 @@ export function applyAdminBotsQuery(bots: AdminBot[], query: AdminBotsQuery): Ad
 
 		// Webhook filter
 		if (query.webhook === 'configured' && !bot.webhook) return false;
+		if (
+			query.webhook === 'verified' &&
+			(!bot.webhook || !bot.webhook.verifiedAt || bot.webhook.verifiedAt.trim() === '')
+		) {
+			return false;
+		}
+		if (
+			query.webhook === 'unverified' &&
+			(!bot.webhook || Boolean(bot.webhook.verifiedAt && bot.webhook.verifiedAt.trim() !== ''))
+		) {
+			return false;
+		}
 		if (query.webhook === 'none' && bot.webhook !== null) return false;
 
 		// Provisional filter
@@ -185,9 +212,9 @@ export function applyAdminBotsQuery(bots: AdminBot[], query: AdminBotsQuery): Ad
 
 		// Capability filter
 		if (query.capability !== 'all' && query.capability.trim() !== '') {
-			const targetCap = query.capability.trim().toLowerCase();
+			const targetCap = normalizeString(query.capability);
 			const hasCap =
-				bot.webhook?.capabilities.some((c) => c.trim().toLowerCase() === targetCap) ?? false;
+				bot.webhook?.capabilities.some((c) => normalizeString(c) === targetCap) ?? false;
 			if (!hasCap) return false;
 		}
 
@@ -199,8 +226,8 @@ export function applyAdminBotsQuery(bots: AdminBot[], query: AdminBotsQuery): Ad
 
 	return filtered.slice().sort((a, b) => {
 		if (query.sort === 'rating') {
-			const rA = Number.isFinite(a.rating) ? a.rating : 0;
-			const rB = Number.isFinite(b.rating) ? b.rating : 0;
+			const rA = typeof a.rating === 'number' && Number.isFinite(a.rating) ? a.rating : 0;
+			const rB = typeof b.rating === 'number' && Number.isFinite(b.rating) ? b.rating : 0;
 			const diff = rA - rB;
 			if (diff !== 0) return diff * sign;
 		} else if (query.sort === 'utilization') {

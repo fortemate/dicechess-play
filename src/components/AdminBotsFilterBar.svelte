@@ -172,6 +172,8 @@
 			>
 				<option value="all">All</option>
 				<option value="configured">Configured</option>
+				<option value="verified">Verified</option>
+				<option value="unverified">Unverified</option>
 				<option value="none">No webhook</option>
 			</select>
 		</div>
