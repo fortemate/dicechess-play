@@ -93,6 +93,31 @@ const testBots: AdminBot[] = [
 	},
 ];
 
+/** Minimal bot for focused fixtures, so the shared `testBots` expectations stay readable. */
+function makeBot(overrides: Partial<AdminBot>): AdminBot {
+	return {
+		team: 'acme',
+		name: 'bot',
+		rating: 1500,
+		rd: 60,
+		provisional: false,
+		onLadder: true,
+		openToHumans: true,
+		description: null,
+		maxConcurrentGames: 4,
+		ladderAllowance: 4,
+		activeGames: 0,
+		owned: true,
+		webhook: {
+			url: 'https://acme.org/hooks/bot',
+			verifiedAt: '2026-01-01T00:00:00Z',
+			capabilities: [],
+			lastFailure: null,
+		},
+		...overrides,
+	};
+}
+
 describe('adminBotsFilter', () => {
 	describe('search matching', () => {
 		it.each([
@@ -242,7 +267,7 @@ describe('adminBotsFilter', () => {
 			expect(isCapacityReached(testBots[3])).toBe(false); // 0/0
 		});
 
-		it('computeUtilization computes utilization ratio with safe fallbacks', () => {
+		it('computeUtilization computes utilization ratio, treating zero capacity as idle', () => {
 			expect(computeUtilization(testBots[0])).toBe(1.0);
 			expect(computeUtilization(testBots[1])).toBe(0);
 			expect(computeUtilization(testBots[2])).toBe(0.25);
@@ -260,6 +285,64 @@ describe('adminBotsFilter', () => {
 				capability: 'draws',
 			};
 			expect(countActiveFilters(query)).toBe(3);
+		});
+	});
+
+	describe('unicode and blank-value normalization', () => {
+		// `testBots` is written entirely in precomposed (NFC) form, so it cannot exercise the search
+		// normalization at all. Decomposed input is what a paste out of a macOS filename looks like.
+		const decomposed = 'A\u0301cme'; // 'A' + U+0301 COMBINING ACUTE ACCENT
+		const precomposed = '\u00C1cme'; // U+00C1 LATIN CAPITAL LETTER A WITH ACUTE
+
+		it.each([
+			['decomposed data, precomposed query', decomposed, precomposed],
+			['precomposed data, decomposed query', precomposed, decomposed],
+			['decomposed data, decomposed query', decomposed, decomposed],
+		])('matches search across NFC forms: %s', (_, storedTeam, searchTerm) => {
+			const bot = makeBot({ team: storedTeam, name: 'nfc' });
+			const res = applyAdminBotsQuery([bot], { ...DEFAULT_ADMIN_BOTS_QUERY, search: searchTerm });
+			expect(res.map((b) => b.name)).toEqual(['nfc']);
+		});
+
+		it('treats a blank verifiedAt as unverified rather than verified', () => {
+			const blank = makeBot({
+				name: 'blank',
+				webhook: {
+					url: 'https://acme.org/hooks/blank',
+					verifiedAt: '   ', // whitespace-only timestamp off the wire
+					capabilities: [],
+					lastFailure: null,
+				},
+			});
+			const base = DEFAULT_ADMIN_BOTS_QUERY;
+			expect(applyAdminBotsQuery([blank], { ...base, webhook: 'verified' })).toEqual([]);
+			expect(applyAdminBotsQuery([blank], { ...base, webhook: 'unverified' })).toEqual([blank]);
+			expect(applyAdminBotsQuery([blank], { ...base, webhook: 'configured' })).toEqual([blank]);
+		});
+
+		it('offers one capability option per distinct match, not per spelling', () => {
+			const spell = (name: string, capability: string) =>
+				makeBot({
+					name,
+					webhook: {
+						url: `https://acme.org/hooks/${name}`,
+						verifiedAt: '2026-01-01T00:00:00Z',
+						capabilities: [capability],
+						lastFailure: null,
+					},
+				});
+			const upper = spell('upper', 'Draws');
+			const lower = spell('lower', '  draws  ');
+
+			// The dropdown must not offer two entries that select an identical set of bots.
+			expect(extractAvailableCapabilities([upper, lower])).toEqual(['Draws']);
+			for (const capability of ['Draws', 'draws']) {
+				const res = applyAdminBotsQuery([upper, lower], {
+					...DEFAULT_ADMIN_BOTS_QUERY,
+					capability,
+				});
+				expect(res.map((b) => b.name)).toEqual(['lower', 'upper']);
+			}
 		});
 	});
 
