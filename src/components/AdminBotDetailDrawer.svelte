@@ -88,21 +88,19 @@
 	}
 
 	function errorFor(result: AdminBotFailure | { outcome: 'mismatch'; reason: string }): string {
-		switch (result.outcome) {
-			case 'signed-out':
-				return 'You are no longer signed in.';
-			case 'forbidden':
-				return 'The server denied administrator access (403).';
-			case 'no-such-bot':
-				return 'No such registered bot exists.';
-			case 'invalid':
-			case 'mismatch':
-				return result.reason;
-			case 'unavailable':
-				return 'Could not reach the server. Try again.';
+		if (result.outcome === 'forbidden') {
+			return 'Administrator access denied by play-api (403).';
 		}
-		const unhandled: never = result;
-		return unhandled;
+		if (result.outcome === 'signed-out') {
+			return 'Administrator session expired. Please sign in again.';
+		}
+		if (result.outcome === 'no-such-bot') {
+			return 'Target bot was not found in the play-api registry.';
+		}
+		if (result.outcome === 'invalid' || result.outcome === 'mismatch') {
+			return result.reason;
+		}
+		return 'Unable to reach play-api. Please check your network and retry.';
 	}
 
 	async function changed(message: string) {
@@ -587,45 +585,48 @@
 				</div>
 
 				{#if rotateOpen}
-					<div class="flex flex-col gap-3 rounded-xl border border-danger/30 bg-danger/10 p-3.5">
-						<p class="text-xs text-content">
-							Rotating the token invalidates the active bot session immediately.
+					<div class="rounded-xl border border-danger/30 bg-danger/5 p-4">
+						<p class="text-xs text-danger font-medium">
+							Warning: Generating a new bot token revokes the previous token immediately.
 						</p>
-						<label
-							for={`drawer-rotate-confirm-${bot.team}-${bot.name}`}
-							class="text-xs font-bold text-content-muted"
-						>
-							Type <span class="font-mono text-content">{bot.name}</span> to confirm:
-						</label>
 						<form
 							onsubmit={(e) => {
 								e.preventDefault();
 								void rotate();
 							}}
-							class="flex flex-wrap items-center gap-2"
+							class="mt-3 flex flex-col gap-2.5"
 						>
-							<input
-								id={`drawer-rotate-confirm-${bot.team}-${bot.name}`}
-								bind:value={confirmInput}
-								spellcheck="false"
-								autocomplete="off"
-								class="min-w-36 flex-1 rounded-lg border border-border bg-surface px-2.5 py-1.5 font-mono text-xs text-content outline-none transition-colors focus:border-danger"
-							/>
-							<button
-								type="submit"
-								disabled={!confirmsBotName || pending !== null}
-								class="rounded-lg border border-danger/30 bg-danger/15 px-3 py-1.5 text-xs font-bold text-danger transition-colors hover:bg-danger/25 disabled:cursor-not-allowed disabled:opacity-40"
+							<label
+								for={`drawer-rotate-confirm-${bot.team}-${bot.name}`}
+								class="text-xs font-semibold text-content-muted"
 							>
-								{pending === 'rotate' ? 'Rotating…' : 'Confirm rotation'}
-							</button>
-							<button
-								type="button"
-								bind:this={rotateCancelButton}
-								onclick={closeRotation}
-								class="rounded-lg border border-border bg-surface px-2.5 py-1.5 text-xs font-bold text-content-muted transition-colors hover:text-content"
-							>
-								Cancel
-							</button>
+								Type <span class="font-mono font-bold text-content">{bot.name}</span> to proceed:
+							</label>
+							<div class="flex flex-wrap items-center gap-2">
+								<input
+									id={`drawer-rotate-confirm-${bot.team}-${bot.name}`}
+									bind:value={confirmInput}
+									spellcheck="false"
+									autocomplete="off"
+									placeholder={bot.name}
+									class="min-w-40 flex-1 rounded-lg border border-border bg-surface px-3 py-1.5 font-mono text-xs text-content outline-none transition-colors focus:border-danger"
+								/>
+								<button
+									type="submit"
+									disabled={!confirmsBotName || pending !== null}
+									class="rounded-lg bg-danger px-3.5 py-1.5 text-xs font-bold text-white transition-opacity hover:opacity-90 disabled:cursor-not-allowed disabled:opacity-40"
+								>
+									{pending === 'rotate' ? 'Rotating…' : 'Confirm rotation'}
+								</button>
+								<button
+									type="button"
+									bind:this={rotateCancelButton}
+									onclick={closeRotation}
+									class="rounded-lg border border-border bg-surface px-3 py-1.5 text-xs font-semibold text-content-muted transition-colors hover:text-content"
+								>
+									Cancel
+								</button>
+							</div>
 						</form>
 					</div>
 				{/if}

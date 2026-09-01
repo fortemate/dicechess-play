@@ -169,7 +169,7 @@ describe('AdminBotDetailDrawer', () => {
 		});
 
 		await fireEvent.click(view.getByRole('button', { name: /rotate token/i }));
-		const confirmInput = view.getByRole('textbox', { name: /type alice to confirm:/i });
+		const confirmInput = view.getByRole('textbox', { name: /type alice to proceed:/i });
 		const confirmBtn = view.getByRole('button', { name: /confirm rotation/i }) as HTMLButtonElement;
 
 		expect(confirmBtn.disabled).toBe(true);
