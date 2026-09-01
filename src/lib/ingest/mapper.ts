@@ -21,7 +21,14 @@ const END_REASON_TO_TERMINATION: Record<GameEndReason, string> = {
 	timeout: 'timeout',
 	resign: 'resign',
 	agreement: 'draw_agreement',
+	double_declined: 'double_declined',
 };
+
+// Stake currency label. An IN-GAME currency, not an ISO 4217 code: analytics pins the label
+// to GOLD and the amounts to whole numbers (its "Domain Conventions" doc), and the analytics
+// UI renders the string verbatim as a suffix — an invented code would ship straight to the
+// screen. dicechess-observer, the other producer, leaves it unset entirely.
+const STAKE_CURRENCY = 'GOLD';
 
 // Dice piece-letter (from the DFEN 7th field) → contract number (1=pawn .. 6=king).
 const DICE_LETTER_TO_NUM: Record<string, number> = { p: 1, n: 2, b: 3, r: 4, q: 5, k: 6 };
@@ -103,6 +110,35 @@ export function toGameIngest(record: LocalGameRecord, guestExternalId: string): 
 	const bot = botPlayer(record.bot_id);
 	const playerIsWhite = record.player_color === 'WHITE';
 
+	// base_bet is the stake the game started at; bet is what it settled at. They differ only on
+	// an ACCEPTED double — a declined double settles at the pre-double stake, so both stay equal.
+	// Free guest games have no stake at all: their fields stay NULL so profit/stake analytics
+	// exclude them. NULL is deliberate, not 0 — upstream a stake of 0 means a tournament game.
+	const baseStake = record.base_bet;
+	const finalStake = record.bet;
+	const hasStake = (baseStake ?? finalStake ?? 0) > 0;
+	const initialStakeAmount = hasStake ? (baseStake ?? finalStake ?? null) : null;
+	const finalStakeAmount = hasStake ? (finalStake ?? null) : null;
+	const stakeCurrency = hasStake ? STAKE_CURRENCY : null;
+
+	// Bot games take no rake, so settlement is symmetric: the winner nets the stake it played
+	// for, the loser the same amount negative. The wire permits asymmetry because the live site
+	// DOES take a rake (see types.ts) — that asymmetry just never arises on this surface.
+	let whiteMoneyDelta: number | null = null;
+	let blackMoneyDelta: number | null = null;
+	if (hasStake && finalStakeAmount !== null) {
+		if (record.result === 1) {
+			whiteMoneyDelta = finalStakeAmount;
+			blackMoneyDelta = -finalStakeAmount;
+		} else if (record.result === -1) {
+			whiteMoneyDelta = -finalStakeAmount;
+			blackMoneyDelta = finalStakeAmount;
+		} else if (record.result === 0) {
+			whiteMoneyDelta = 0;
+			blackMoneyDelta = 0;
+		}
+	}
+
 	return {
 		id: uuidv5(`playsite/game/${record.id}`, URL_NAMESPACE),
 		source: 'playsite',
@@ -116,14 +152,15 @@ export function toGameIngest(record: LocalGameRecord, guestExternalId: string): 
 		started_at: record.start_time,
 		time_initial_sec: record.time_limit ?? null,
 		time_increment_sec: record.time_bonus ?? null,
-		// Free guest games: stake fields stay NULL so profit/stake analytics exclude them.
-		initial_stake_amount: null,
-		final_stake_amount: null,
-		stake_currency: null,
+		initial_stake_amount: initialStakeAmount,
+		final_stake_amount: finalStakeAmount,
+		white_money_delta: whiteMoneyDelta,
+		black_money_delta: blackMoneyDelta,
+		stake_currency: stakeCurrency,
 		white_player: playerIsWhite ? guest : bot,
 		black_player: playerIsWhite ? bot : guest,
 		initial_fen: initialFen(record.moves_history),
 		turns,
-		events: [],
+		events: record.events ?? [],
 	};
 }

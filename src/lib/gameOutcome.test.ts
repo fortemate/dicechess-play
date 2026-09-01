@@ -32,6 +32,7 @@ describe('endReasonLabel', () => {
 		expect(endReasonLabel('timeout')).toBe('On time');
 		expect(endReasonLabel('resign')).toBe('Resigned');
 		expect(endReasonLabel('agreement')).toBe('Draw agreed');
+		expect(endReasonLabel('double_declined')).toBe('Double declined');
 	});
 
 	it('returns an empty string for a missing reason (legacy records)', () => {

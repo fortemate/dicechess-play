@@ -6,7 +6,7 @@
 // same copy in their src/types.ts. Do NOT diverge: a payload either replays cleanly
 // under the backend's pinned engine version or it is rejected with 422. This mirror
 // carries EVERY contract field, including optional ones this repo's mapper never
-// populates (money deltas, per-turn timing, event clocks) — a stale partial copy is
+// populates (per-turn thinking time, per-turn fen_after) — a stale partial copy is
 // exactly how pl#113's drift happened. See the wiki:
 // "Data Acquisition / 07 Контракт ingest и валидация движком" and
 // "08 Идентичность, источники и дедупликация".

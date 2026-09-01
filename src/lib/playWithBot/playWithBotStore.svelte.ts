@@ -55,6 +55,7 @@ import {
 	type GameEndReason,
 	type LocalGameRecord,
 } from '../localGamesDB';
+import type { Color, GameEventInputWire } from '../ingest/types';
 import { PlayWithBotHistory, type BotMoveHistoryState } from './playWithBotHistory.svelte';
 import { PlayWithBotDice, type DieState } from './playWithBotDice.svelte';
 
@@ -111,6 +112,31 @@ export class PlayWithBotStore {
 	activeDoubleOffer = $state<'player' | 'bot' | null>(null);
 	insufficientFundsForfeit = $state<boolean>(false);
 	doubleDeclined = $state<boolean>(false);
+	events = $state<GameEventInputWire[]>([]);
+
+	/**
+	 * Append one cube event to the ingest event stream.
+	 *
+	 * `bank` is the stake key dicechess-observer — the other producer feeding the same analytics
+	 * table — already writes on DOUBLE_* payloads; keep the vocabulary identical so one query
+	 * reads both sources. Clocks stay NULL in an untimed game rather than reporting a bogus 0.
+	 */
+	private recordDoubleEvent(
+		eventType: 'DOUBLE_OFFER' | 'DOUBLE_ACCEPT' | 'DOUBLE_DECLINE',
+		actorColor: Color,
+		stake: number,
+		payloadExtra?: Record<string, unknown>,
+	) {
+		this.events.push({
+			sequence_number: this.events.length + 1,
+			turn_number: this.turnHistory.length + 1,
+			event_type: eventType,
+			actor_color: actorColor,
+			clock_white_ms: this.timeLimit === null ? null : this.whiteTimeLeft,
+			clock_black_ms: this.timeLimit === null ? null : this.blackTimeLeft,
+			payload: { bank: stake, ...payloadExtra },
+		});
+	}
 
 	// Training overrides
 	customDfen = $state<string>('');
@@ -275,6 +301,7 @@ export class PlayWithBotStore {
 		this.timeBonus = preferencesStore.timeBonus;
 		// Fix the human identity for the whole game — see the field's declaration for why.
 		this.humanExternalId = authStore.externalId;
+		this.events = [];
 		// For now in dicechess-play, games are played without stakes (always 0 bet).
 		// In the future, stakes might be introduced for registered users.
 		this.bet = 0;
@@ -452,6 +479,7 @@ export class PlayWithBotStore {
 		this.doubleDeclined = false;
 		this.insufficientFundsForfeit = false;
 		this.isAnimatingRoll = false;
+		this.events = [];
 
 		this.bot.terminateWorker();
 	}
@@ -845,7 +873,15 @@ export class PlayWithBotStore {
 			}
 
 			if (botWantsToDouble) {
+				const proposedBet = 2 * this.bet;
+				this.recordDoubleEvent('DOUBLE_OFFER', this.botColor, proposedBet);
 				if (authStore.user && authStore.user.balance < this.bet) {
+					// Not a cube decision: the client forfeits because the player cannot cover the
+					// increment, and the player never saw the offer. Tag the event so analytics can
+					// keep it out of decline-rate and cube-quality stats.
+					this.recordDoubleEvent('DOUBLE_DECLINE', this.playerColor, proposedBet, {
+						reason: 'insufficient_funds',
+					});
 					this.triggerInsufficientFundsForfeit();
 					return;
 				} else {
@@ -1271,7 +1307,10 @@ export class PlayWithBotStore {
 
 		if (botAccepts === null) {
 			// Engine unavailable or failed: withdraw the offer. Defaulting to "declined" here would
-			// resign the game to the player on a mere engine hiccup.
+			// resign the game to the player on a mere engine hiccup. Nothing is recorded either —
+			// the contract has no DOUBLE_WITHDRAW, and a lone DOUBLE_OFFER would read downstream as
+			// an offer the bot ignored. That is why the player's DOUBLE_OFFER is recorded together
+			// with the bot's reply below rather than when the offer is made.
 			toastStore.info('Double offer withdrawn.');
 			if (this.isGameLive) this.startTimer();
 			return;
@@ -1279,6 +1318,8 @@ export class PlayWithBotStore {
 
 		if (botAccepts) {
 			toastStore.success('The bot accepted the double! 🎲');
+			this.recordDoubleEvent('DOUBLE_OFFER', this.playerColor, proposedBet);
+			this.recordDoubleEvent('DOUBLE_ACCEPT', this.botColor, proposedBet);
 			const increment = this.bet;
 			this.bet = proposedBet;
 			authStore.adjustBalance(-increment);
@@ -1286,6 +1327,8 @@ export class PlayWithBotStore {
 			this.startTimer();
 		} else {
 			toastStore.info('The bot declined the double and resigned.');
+			this.recordDoubleEvent('DOUBLE_OFFER', this.playerColor, proposedBet);
+			this.recordDoubleEvent('DOUBLE_DECLINE', this.botColor, proposedBet);
 			this.triggerDoubleDeclinedVictory();
 		}
 	}
@@ -1299,8 +1342,10 @@ export class PlayWithBotStore {
 			return;
 		}
 		toastStore.success('You accepted the double! 🎲');
+		const proposedBet = 2 * this.bet;
+		this.recordDoubleEvent('DOUBLE_ACCEPT', this.playerColor, proposedBet);
 		const increment = this.bet;
-		this.bet = 2 * this.bet;
+		this.bet = proposedBet;
 		authStore.adjustBalance(-increment);
 		this.cubeOwner = this.playerColor;
 		this.activeDoubleOffer = null;
@@ -1311,6 +1356,8 @@ export class PlayWithBotStore {
 	declineBotDouble() {
 		if (this.activeDoubleOffer !== 'bot' || this.gameStatus !== 'bot_thinking') return;
 		toastStore.info('You declined the double and resigned.');
+		const proposedBet = 2 * this.bet;
+		this.recordDoubleEvent('DOUBLE_DECLINE', this.playerColor, proposedBet);
 		this.activeDoubleOffer = null;
 		this.doubleDeclined = true;
 		this.triggerDoubleDeclinedDefeat();
@@ -1318,7 +1365,7 @@ export class PlayWithBotStore {
 
 	private triggerDoubleDeclinedVictory() {
 		this.stopTimer();
-		this.gameEndReason = 'resign';
+		this.gameEndReason = 'double_declined';
 		this.gameStatus = 'victory';
 		botStatsStore.recordResult(this.botAlgorithm, 'win');
 
@@ -1333,7 +1380,7 @@ export class PlayWithBotStore {
 
 	private triggerDoubleDeclinedDefeat() {
 		this.stopTimer();
-		this.gameEndReason = 'resign';
+		this.gameEndReason = 'double_declined';
 		this.gameStatus = 'defeat';
 		botStatsStore.recordResult(this.botAlgorithm, 'loss');
 
@@ -1349,7 +1396,7 @@ export class PlayWithBotStore {
 	private triggerInsufficientFundsForfeit() {
 		this.stopTimer();
 		this.insufficientFundsForfeit = true;
-		this.gameEndReason = 'resign';
+		this.gameEndReason = 'double_declined';
 		this.gameStatus = 'defeat';
 		botStatsStore.recordResult(this.botAlgorithm, 'loss');
 		toastStore.error(
@@ -1456,7 +1503,9 @@ export class PlayWithBotStore {
 				time_limit: this.timeLimit,
 				time_bonus: this.timeBonus,
 				bet: this.bet,
+				base_bet: this.baseBet,
 				mode: this.mode,
+				events: $state.snapshot(this.events),
 			};
 			await saveLocalGame(gameRecord);
 			logger.info('Game successfully saved to IndexedDB');

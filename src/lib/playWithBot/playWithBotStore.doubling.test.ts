@@ -165,11 +165,34 @@ describe('doubling mode and game-end correctness (issue #37)', () => {
 			await offered;
 
 			expect(store.gameStatus).toBe('victory');
-			expect(store.gameEndReason).toBe('resign');
+			expect(store.gameEndReason).toBe('double_declined');
 			expect(store.bet).toBe(10); // decline settles at the pre-double stake
 			expect(authMock.adjustBalance).toHaveBeenCalledWith(20); // 2 * bet payout
 			expect(savedGames()).toHaveLength(1);
 			expect(savedGames()[0].result).toBe(1);
+			expect(savedGames()[0].base_bet).toBe(10);
+			// Clocks are null because this suite runs untimed games; `bank` matches the stake key
+			// dicechess-observer writes for the same events.
+			expect(savedGames()[0].events).toEqual([
+				{
+					sequence_number: 1,
+					turn_number: 1,
+					event_type: 'DOUBLE_OFFER',
+					actor_color: 'w',
+					clock_white_ms: null,
+					clock_black_ms: null,
+					payload: { bank: 20 },
+				},
+				{
+					sequence_number: 2,
+					turn_number: 1,
+					event_type: 'DOUBLE_DECLINE',
+					actor_color: 'b',
+					clock_white_ms: null,
+					clock_black_ms: null,
+					payload: { bank: 20 },
+				},
+			]);
 		});
 
 		it('withdraws the offer instead of resigning the bot when the engine call fails', async () => {
@@ -264,6 +287,25 @@ describe('doubling mode and game-end correctness (issue #37)', () => {
 			expect(store.bet).toBe(10); // never doubled
 			expect(store.gameStatus).toBe('defeat'); // decline = resign at the current stake
 			expect(store.doubleDeclined).toBe(true);
+		});
+
+		it('tags the insufficient-funds forfeit so it is not read as a cube decision', async () => {
+			startStakedGame('black'); // bot plays white and is on move
+			store.gameStatus = 'bot_thinking';
+			authMock.user.balance = 5; // below the increment (bet = 10)
+			mock.shouldBotOfferDouble.mockReturnValue(true);
+
+			await store.botTurn();
+
+			expect(store.insufficientFundsForfeit).toBe(true);
+			expect(store.gameEndReason).toBe('double_declined');
+			// The player never saw the offer, so the DECLINE carries a reason that lets analytics
+			// exclude it from decline-rate stats — the OFFER, which really happened, does not.
+			expect(store.events.map((e) => e.payload)).toEqual([
+				{ bank: 20 },
+				{ bank: 20, reason: 'insufficient_funds' },
+			]);
+			expect(store.events.map((e) => e.actor_color)).toEqual(['w', 'b']);
 		});
 	});
 
