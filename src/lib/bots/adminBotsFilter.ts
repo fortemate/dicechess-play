@@ -186,7 +186,8 @@ export function applyAdminBotsQuery(bots: AdminBot[], query: AdminBotsQuery): Ad
 		// Capability filter
 		if (query.capability !== 'all' && query.capability.trim() !== '') {
 			const targetCap = query.capability.trim().toLowerCase();
-			const hasCap = bot.webhook?.capabilities.some((c) => c.toLowerCase() === targetCap) ?? false;
+			const hasCap =
+				bot.webhook?.capabilities.some((c) => c.trim().toLowerCase() === targetCap) ?? false;
 			if (!hasCap) return false;
 		}
 

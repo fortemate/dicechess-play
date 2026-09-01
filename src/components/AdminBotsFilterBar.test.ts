@@ -25,7 +25,7 @@ describe('AdminBotsFilterBar', () => {
 		});
 	});
 
-	it('allows changing filter dropdowns', async () => {
+	it('allows changing filter dropdowns across all dimensions', async () => {
 		const onChange = vi.fn();
 		const view = render(AdminBotsFilterBar, {
 			query: DEFAULT_ADMIN_BOTS_QUERY,
@@ -49,20 +49,50 @@ describe('AdminBotsFilterBar', () => {
 			catalog: 'open',
 		});
 
+		const ownershipSelect = view.getByLabelText(/ownership:/i);
+		await fireEvent.change(ownershipSelect, { target: { value: 'owned' } });
+		expect(onChange).toHaveBeenCalledWith({
+			...DEFAULT_ADMIN_BOTS_QUERY,
+			ownership: 'owned',
+		});
+
 		const webhookSelect = view.getByLabelText(/webhook:/i);
 		await fireEvent.change(webhookSelect, { target: { value: 'configured' } });
 		expect(onChange).toHaveBeenCalledWith({
 			...DEFAULT_ADMIN_BOTS_QUERY,
 			webhook: 'configured',
 		});
+
+		const provisionalSelect = view.getByLabelText(/^rating:/i);
+		await fireEvent.change(provisionalSelect, { target: { value: 'established' } });
+		expect(onChange).toHaveBeenCalledWith({
+			...DEFAULT_ADMIN_BOTS_QUERY,
+			provisional: 'established',
+		});
+
+		const capacitySelect = view.getByLabelText(/capacity:/i);
+		await fireEvent.change(capacitySelect, { target: { value: 'reached' } });
+		expect(onChange).toHaveBeenCalledWith({
+			...DEFAULT_ADMIN_BOTS_QUERY,
+			capacity: 'reached',
+		});
+
+		const capabilitySelect = view.getByLabelText(/capability:/i);
+		await fireEvent.change(capabilitySelect, { target: { value: 'draws' } });
+		expect(onChange).toHaveBeenCalledWith({
+			...DEFAULT_ADMIN_BOTS_QUERY,
+			capability: 'draws',
+		});
 	});
 
-	it('shows clear filters button when filters are active and clears on click', async () => {
+	it('shows clear filters button when filters are active and clears while preserving sort and dir', async () => {
 		const onChange = vi.fn();
 		const activeQuery: AdminBotsQuery = {
 			...DEFAULT_ADMIN_BOTS_QUERY,
 			search: 'test',
 			ladder: 'on',
+			sort: 'rating',
+			dir: 'desc',
 		};
 
 		const view = render(AdminBotsFilterBar, {
@@ -77,7 +107,11 @@ describe('AdminBotsFilterBar', () => {
 		expect(clearBtn).toBeTruthy();
 		await fireEvent.click(clearBtn);
 
-		expect(onChange).toHaveBeenCalledWith(DEFAULT_ADMIN_BOTS_QUERY);
+		expect(onChange).toHaveBeenCalledWith({
+			...DEFAULT_ADMIN_BOTS_QUERY,
+			sort: 'rating',
+			dir: 'desc',
+		});
 	});
 
 	it('allows changing sort key and toggling sort direction', async () => {
@@ -97,7 +131,7 @@ describe('AdminBotsFilterBar', () => {
 			sort: 'rating',
 		});
 
-		const toggleDirBtn = view.getByRole('button', { name: /sort ascending/i });
+		const toggleDirBtn = view.getByRole('button', { name: /sort descending/i });
 		await fireEvent.click(toggleDirBtn);
 		expect(onChange).toHaveBeenCalledWith({
 			...DEFAULT_ADMIN_BOTS_QUERY,

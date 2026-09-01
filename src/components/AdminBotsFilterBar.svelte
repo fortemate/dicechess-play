@@ -242,7 +242,7 @@
 			<button
 				type="button"
 				onclick={toggleSortDir}
-				aria-label={`Sort ${query.dir === 'asc' ? 'ascending' : 'descending'}`}
+				aria-label={`Sort ${query.dir === 'asc' ? 'descending' : 'ascending'}`}
 				class="rounded-lg border border-border bg-surface px-2.5 py-1.5 font-bold text-content-muted transition-colors hover:border-primary hover:text-primary"
 			>
 				{query.dir === 'asc' ? '↑ Asc' : '↓ Desc'}

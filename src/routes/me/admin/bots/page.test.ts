@@ -179,4 +179,21 @@ describe('/me/admin/bots', () => {
 			expect.objectContaining({ noScroll: true, keepFocus: true }),
 		);
 	});
+
+	it('clears active filters while preserving custom sort and dir parameters', async () => {
+		pageState.url = new URL('http://localhost:3000/me/admin/bots?ladder=on&sort=rating&dir=desc');
+		const view = render(AdminBotsPage);
+
+		const clearBtn = view.getByRole('button', { name: /clear filters/i });
+		await fireEvent.click(clearBtn);
+
+		expect(nav.goto).toHaveBeenCalledWith(
+			expect.stringContaining('sort=rating&dir=desc'),
+			expect.objectContaining({ noScroll: true, keepFocus: true }),
+		);
+		expect(nav.goto).toHaveBeenCalledWith(
+			expect.not.stringContaining('ladder=on'),
+			expect.objectContaining({ noScroll: true, keepFocus: true }),
+		);
+	});
 });

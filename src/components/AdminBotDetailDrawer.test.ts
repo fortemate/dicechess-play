@@ -115,17 +115,30 @@ describe('AdminBotDetailDrawer', () => {
 		expect(onChanged).toHaveBeenCalledOnce();
 	});
 
-	it('toggles open/close to humans', async () => {
+	it('toggles open/close to humans with description validation', async () => {
 		const onChanged = vi.fn();
 		const view = render(AdminBotDetailDrawer, {
-			bot: makeBot({ openToHumans: false }),
+			bot: makeBot({ openToHumans: false, description: 'Friendly bot' }),
 			onClose: vi.fn(),
 			onChanged,
 		});
 
 		await fireEvent.click(view.getByRole('button', { name: /open to humans/i }));
-		await waitFor(() => expect(api.openAdminToHumans).toHaveBeenCalledWith('acme', 'alice', ''));
+		await waitFor(() =>
+			expect(api.openAdminToHumans).toHaveBeenCalledWith('acme', 'alice', 'Friendly bot'),
+		);
 		expect(onChanged).toHaveBeenCalledOnce();
+
+		// Validation when opening with empty description
+		view.rerender({
+			bot: makeBot({ openToHumans: false, description: null }),
+			onClose: vi.fn(),
+			onChanged,
+		});
+		const textarea = view.getByRole('textbox', { name: /catalog description/i });
+		await fireEvent.input(textarea, { target: { value: '' } });
+		await fireEvent.click(view.getByRole('button', { name: /open to humans/i }));
+		expect(view.getByRole('alert').textContent).toContain('Enter a catalog description');
 	});
 
 	it('updates capacity with validation, server readback, and error reporting', async () => {
@@ -142,6 +155,59 @@ describe('AdminBotDetailDrawer', () => {
 
 		await waitFor(() => expect(api.setAdminCapacity).toHaveBeenCalledWith('acme', 'alice', 8));
 		expect(onChanged).toHaveBeenCalledOnce();
+
+		// Non-ok error reporting
+		api.setAdminCapacity.mockResolvedValueOnce({
+			outcome: 'invalid',
+			reason: 'Capacity exceeds system limit.',
+		});
+		await fireEvent.input(capacityInput, { target: { value: '16' } });
+		await fireEvent.click(view.getByRole('button', { name: /save capacity/i }));
+		await waitFor(() => {
+			expect(view.getByRole('alert').textContent).toContain('Capacity exceeds system limit.');
+		});
+	});
+
+	it('resets edit fields, secret token, and error state when switching selected bot', async () => {
+		const botA = makeBot({
+			team: 'acme',
+			name: 'alice',
+			description: 'Original A',
+			maxConcurrentGames: 4,
+		});
+		const botB = makeBot({
+			team: 'beta',
+			name: 'bob',
+			description: 'Original B',
+			maxConcurrentGames: 6,
+		});
+
+		const view = render(AdminBotDetailDrawer, {
+			bot: botA,
+			onClose: vi.fn(),
+			onChanged: vi.fn(),
+		});
+
+		// User edits fields for bot A
+		const descInput = view.getByRole('textbox', { name: /catalog description/i });
+		const capInput = view.getByLabelText(/max concurrent games:/i);
+		await fireEvent.input(descInput, { target: { value: 'Dirty A edit' } });
+		await fireEvent.input(capInput, { target: { value: '20' } });
+
+		// Switch to bot B
+		view.rerender({
+			bot: botB,
+			onClose: vi.fn(),
+			onChanged: vi.fn(),
+		});
+
+		// Verify bot B values are freshly populated
+		const updatedDesc = view.getByRole('textbox', {
+			name: /catalog description/i,
+		}) as HTMLTextAreaElement;
+		const updatedCap = view.getByLabelText(/max concurrent games:/i) as HTMLInputElement;
+		expect(updatedDesc.value).toBe('Original B');
+		expect(updatedCap.value).toBe('6');
 	});
 
 	it('validates capacity range (1..32)', async () => {

@@ -104,6 +104,7 @@ describe('adminBotsFilter', () => {
 			['capacity reached', { capacity: 'reached' as const }, ['alpha']],
 			['capacity available', { capacity: 'available' as const }, ['charlie', 'bravo']],
 			['capability draws', { capability: 'draws' }, ['alpha']],
+			['capability draws with whitespace', { capability: '  draws  ' }, ['alpha']],
 			['capability custom', { capability: 'custom' }, ['charlie']],
 		])('filters by %s', (_, filterOverride, expectedBotNames) => {
 			const res = applyAdminBotsQuery(testBots, {
@@ -230,7 +231,7 @@ describe('adminBotsFilter', () => {
 			expect(params.get('dir')).toBe('desc');
 		});
 
-		it('round-trips full query through parseAdminBotsQuery', () => {
+		it('round-trips full query through parseAdminBotsQuery with URLSearchParams and URL object', () => {
 			const query: AdminBotsQuery = {
 				search: 'alpha',
 				ladder: 'off',
@@ -244,8 +245,12 @@ describe('adminBotsFilter', () => {
 				dir: 'desc',
 			};
 			const params = serializeAdminBotsQuery(query);
-			const parsed = parseAdminBotsQuery(params);
-			expect(parsed).toEqual(query);
+			const parsedFromParams = parseAdminBotsQuery(params);
+			expect(parsedFromParams).toEqual(query);
+
+			const url = new URL(`http://localhost:3000/me/admin/bots?${params.toString()}`);
+			const parsedFromUrl = parseAdminBotsQuery(url);
+			expect(parsedFromUrl).toEqual(query);
 		});
 
 		it('handles malformed or unrecognised query params safely', () => {

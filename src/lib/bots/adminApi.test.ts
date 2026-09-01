@@ -61,6 +61,28 @@ describe('adminApi transport', () => {
 		});
 	});
 
+	it('normalizes missing or omitted webhook field to null', async () => {
+		const botWithoutWebhook = {
+			team: 'acme',
+			name: 'charlie',
+			rating: 1600,
+			rd: 75,
+			provisional: false,
+			onLadder: false,
+			openToHumans: false,
+			description: null,
+			maxConcurrentGames: 2,
+			ladderAllowance: 2,
+			activeGames: 0,
+			owned: true,
+		};
+		fetchMock.mockResolvedValue(fakeJsonResponse({ bots: [botWithoutWebhook] }));
+		expect(await fetchAdminBots()).toEqual({
+			outcome: 'ok',
+			bots: [{ ...botWithoutWebhook, webhook: null }],
+		});
+	});
+
 	it('keeps server-side 403 separate from a missing session', async () => {
 		fetchMock.mockResolvedValueOnce(fakeTextResponse('admin only', 403));
 		expect(await fetchAdminBots()).toEqual({ outcome: 'forbidden' });

@@ -48,31 +48,49 @@
 		bot !== null && confirmInput.trim().toLowerCase() === bot.name.toLowerCase(),
 	);
 
+	let lastBotKey = $state<string | null>(null);
+	let lastActiveElement = $state<HTMLElement | null>(null);
+
 	// Synchronize local edit fields when a new bot is selected or after server refresh
 	$effect(() => {
-		if (bot) {
-			if (pending === null) {
-				if (bot.description !== lastServerDescription) {
-					description = bot.description ?? '';
-					lastServerDescription = bot.description;
+		const currentKey = bot ? `${bot.team}/${bot.name}` : null;
+		if (currentKey !== lastBotKey) {
+			lastBotKey = currentKey;
+			revealedToken = null;
+			tokenCopied = false;
+			rotateOpen = false;
+			confirmInput = '';
+			error = null;
+
+			if (bot) {
+				if (typeof document !== 'undefined' && document.activeElement instanceof HTMLElement) {
+					lastActiveElement = document.activeElement;
 				}
-				if (bot.maxConcurrentGames !== lastServerCapacity) {
-					capacityInput = String(bot.maxConcurrentGames);
-					lastServerCapacity = bot.maxConcurrentGames;
+				description = bot.description ?? '';
+				capacityInput = String(bot.maxConcurrentGames);
+				lastServerDescription = bot.description;
+				lastServerCapacity = bot.maxConcurrentGames;
+				closeButton?.focus();
+			} else {
+				if (lastActiveElement) {
+					lastActiveElement.focus();
+					lastActiveElement = null;
 				}
 			}
-		} else {
-			clearRevealedToken();
-			rotateOpen = false;
-			error = null;
+		} else if (bot && pending === null) {
+			if (bot.description !== lastServerDescription) {
+				description = bot.description ?? '';
+				lastServerDescription = bot.description;
+			}
+			if (bot.maxConcurrentGames !== lastServerCapacity) {
+				capacityInput = String(bot.maxConcurrentGames);
+				lastServerCapacity = bot.maxConcurrentGames;
+			}
 		}
 	});
 
-	// Focus close button when drawer opens
 	$effect(() => {
-		if (bot && !rotateOpen) {
-			closeButton?.focus();
-		} else if (rotateOpen) {
+		if (rotateOpen) {
 			rotateCancelButton?.focus();
 		}
 	});
@@ -109,6 +127,7 @@
 	}
 
 	function handleKeydown(event: KeyboardEvent) {
+		if (!bot) return;
 		if (event.key === 'Escape') {
 			if (rotateOpen) {
 				closeRotation();
@@ -122,8 +141,8 @@
 		if (!bot) return;
 		beginAction();
 		pending = 'ladder';
-		const result = await setAdminLadder(bot.team, bot.name, !bot.onLadder);
 		try {
+			const result = await setAdminLadder(bot.team, bot.name, !bot.onLadder);
 			if (result.outcome === 'ok') {
 				await changed(bot.onLadder ? 'Bot removed from the ladder.' : 'Bot added to the ladder.');
 			} else {
@@ -143,8 +162,8 @@
 			return;
 		}
 		pending = 'description';
-		const result = await setAdminDescription(bot.team, bot.name, next);
 		try {
+			const result = await setAdminDescription(bot.team, bot.name, next);
 			if (result.outcome === 'ok') {
 				await changed('Catalog description updated.');
 			} else {
@@ -158,18 +177,35 @@
 	async function toggleCatalog() {
 		if (!bot) return;
 		beginAction();
-		pending = 'catalog';
-		const result = bot.openToHumans
-			? await closeAdminToHumans(bot.team, bot.name)
-			: await openAdminToHumans(bot.team, bot.name, description);
-		try {
-			if (result.outcome === 'ok') {
-				await changed(bot.openToHumans ? 'Bot closed to human games.' : 'Bot opened to humans.');
-			} else {
-				error = errorFor(result);
+		if (!bot.openToHumans) {
+			const next = description.trim();
+			if (!next) {
+				error = 'Enter a catalog description before opening the bot to humans.';
+				return;
 			}
-		} finally {
-			pending = null;
+			pending = 'catalog';
+			try {
+				const result = await openAdminToHumans(bot.team, bot.name, next);
+				if (result.outcome === 'ok') {
+					await changed('Bot opened to humans.');
+				} else {
+					error = errorFor(result);
+				}
+			} finally {
+				pending = null;
+			}
+		} else {
+			pending = 'catalog';
+			try {
+				const result = await closeAdminToHumans(bot.team, bot.name);
+				if (result.outcome === 'ok') {
+					await changed('Bot closed to human games.');
+				} else {
+					error = errorFor(result);
+				}
+			} finally {
+				pending = null;
+			}
 		}
 	}
 
@@ -182,8 +218,8 @@
 			return;
 		}
 		pending = 'capacity';
-		const result = await setAdminCapacity(bot.team, bot.name, games);
 		try {
+			const result = await setAdminCapacity(bot.team, bot.name, games);
 			if (result.outcome === 'ok') {
 				capacityInput = String(result.capacity.maxConcurrentGames);
 				lastServerCapacity = result.capacity.maxConcurrentGames;
@@ -212,14 +248,18 @@
 		if (!bot) return;
 		clearRevealedToken();
 		error = null;
+		if (!confirmsBotName) {
+			error = `Type ${bot.name} to confirm rotation.`;
+			return;
+		}
 		pending = 'rotate';
-		const result = await rotateAdminToken(bot.team, bot.name, confirmInput.trim());
 		try {
+			const result = await rotateAdminToken(bot.team, bot.name, confirmInput.trim());
 			if (result.outcome === 'rotated') {
 				revealedToken = result.token;
 				rotateOpen = false;
 				confirmInput = '';
-				await onChanged();
+				await changed('Rotated bot token.');
 			} else {
 				error = errorFor(result);
 			}

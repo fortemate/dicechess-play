@@ -70,17 +70,8 @@
 					<tbody class="divide-y divide-border/60">
 						{#each bots as bot (`${bot.team}/${bot.name}`)}
 							<tr
-								tabindex="0"
-								role="button"
-								aria-label={`Inspect ${bot.team} ${bot.name}`}
 								onclick={() => onSelect(bot)}
-								onkeydown={(e) => {
-									if (e.key === 'Enter' || e.key === ' ') {
-										e.preventDefault();
-										onSelect(bot);
-									}
-								}}
-								class={`group cursor-pointer transition-colors hover:bg-surface-elevated/70 focus:bg-surface-elevated/80 focus:outline-none ${
+								class={`group cursor-pointer transition-colors hover:bg-surface-elevated/70 ${
 									isSelected(bot) ? 'bg-primary/10 hover:bg-primary/15' : ''
 								}`}
 							>
@@ -304,6 +295,20 @@
 							>
 								Webhook
 							</span>
+							{#if bot.webhook.capabilities && bot.webhook.capabilities.length > 0}
+								{#each bot.webhook.capabilities.slice(0, 2) as cap (cap)}
+									<span
+										class="rounded border border-border bg-surface px-1.5 py-0.5 font-mono text-[9px] font-bold text-content-muted"
+									>
+										{cap}
+									</span>
+								{/each}
+								{#if bot.webhook.capabilities.length > 2}
+									<span class="text-[9px] font-bold text-content-muted">
+										+{bot.webhook.capabilities.length - 2}
+									</span>
+								{/if}
+							{/if}
 						{/if}
 					</div>
 

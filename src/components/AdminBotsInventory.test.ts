@@ -62,7 +62,7 @@ describe('AdminBotsInventory', () => {
 		expect(view.getAllByText('draws').length).toBeGreaterThan(0);
 	});
 
-	it('calls onSelect when clicking a row or Inspect button', async () => {
+	it('calls onSelect when clicking the Inspect button', async () => {
 		const onSelect = vi.fn();
 		const view = render(AdminBotsInventory, {
 			bots: [bot1],
@@ -75,6 +75,24 @@ describe('AdminBotsInventory', () => {
 		const inspectBtn = view.getByRole('button', { name: /inspect →/i });
 		await fireEvent.click(inspectBtn);
 		expect(onSelect).toHaveBeenCalledWith(bot1);
+	});
+
+	it('calls onSelect when clicking or keying a mobile card', async () => {
+		const onSelect = vi.fn();
+		const view = render(AdminBotsInventory, {
+			bots: [bot1],
+			totalCount: 1,
+			selectedBot: null,
+			onSelect,
+			onClearFilters: vi.fn(),
+		});
+
+		const card = view.getByRole('button', { name: /inspect acme alice/i });
+		await fireEvent.click(card);
+		expect(onSelect).toHaveBeenCalledWith(bot1);
+
+		await fireEvent.keyDown(card, { key: 'Enter' });
+		expect(onSelect).toHaveBeenCalledTimes(2);
 	});
 
 	it('shows empty state when totalCount is 0', () => {
