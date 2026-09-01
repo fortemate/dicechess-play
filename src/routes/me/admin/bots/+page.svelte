@@ -1,13 +1,28 @@
 <script lang="ts">
 	/* eslint-disable local/no-untranslated-text -- i18n debt: not yet migrated (#8) */
-	// Operator-only view for the full registered-bot inventory (#243). The `admin` bit is a courtesy
+	// Operator-only view for the full registered-bot inventory (#243, #47). The `admin` bit is a courtesy
 	// for navigation and direct-route UX, sourced solely from `/auth/me`; play-api remains the only
 	// authorization boundary and its 403 is rendered explicitly below.
 	import { untrack } from 'svelte';
+	import { goto } from '$app/navigation';
+	import { page } from '$app/state';
 	import { resolve } from '$app/paths';
-	import AdminBotCard from '../../../../components/AdminBotCard.svelte';
 	import { authStore } from '$lib/authStore.svelte';
 	import { adminBotsStore } from '$lib/bots/adminBotsStore.svelte';
+	import {
+		applyAdminBotsQuery,
+		DEFAULT_ADMIN_BOTS_QUERY,
+		extractAvailableCapabilities,
+		parseAdminBotsQuery,
+		serializeAdminBotsQuery,
+		type AdminBotsQuery,
+	} from '$lib/bots/adminBotsFilter';
+	import type { AdminBot } from '$lib/bots/adminApi';
+	import AdminBotsFilterBar from '../../../../components/AdminBotsFilterBar.svelte';
+	import AdminBotsInventory from '../../../../components/AdminBotsInventory.svelte';
+	import AdminBotDetailDrawer from '../../../../components/AdminBotDetailDrawer.svelte';
+
+	let selectedBotKey = $state<string | null>(null);
 
 	$effect(() => {
 		if (authStore.status === 'signed-in' && authStore.account?.admin === true) {
@@ -16,16 +31,57 @@
 			untrack(() => void adminBotsStore.load());
 		} else if (authStore.status !== 'loading') {
 			adminBotsStore.reset();
+			selectedBotKey = null;
 		}
+	});
+
+	// Derived query from URL parameters
+	const query = $derived(parseAdminBotsQuery(page.url));
+
+	// All available capabilities across loaded bots
+	const capabilities = $derived(extractAvailableCapabilities(adminBotsStore.bots));
+
+	// Filtered and sorted bots
+	const filteredBots = $derived(applyAdminBotsQuery(adminBotsStore.bots, query));
+
+	// Derived selected bot based on key
+	const selectedBot = $derived.by(() => {
+		if (!selectedBotKey) return null;
+		return adminBotsStore.bots.find((b) => `${b.team}/${b.name}` === selectedBotKey) ?? null;
 	});
 
 	async function refreshBots() {
 		if (authStore.status !== 'signed-in' || authStore.account?.admin !== true) return;
 		await adminBotsStore.refresh();
 	}
+
+	function updateQuery(next: AdminBotsQuery) {
+		const serialized = serializeAdminBotsQuery(next).toString();
+		const target = serialized ? resolve(`/me/admin/bots?${serialized}`) : resolve('/me/admin/bots');
+		void goto(target, {
+			noScroll: true,
+			keepFocus: true,
+		});
+	}
+
+	function clearFilters() {
+		updateQuery({
+			...DEFAULT_ADMIN_BOTS_QUERY,
+			sort: query.sort,
+			dir: query.dir,
+		});
+	}
+
+	function handleSelectBot(bot: AdminBot) {
+		selectedBotKey = `${bot.team}/${bot.name}`;
+	}
+
+	function handleCloseDrawer() {
+		selectedBotKey = null;
+	}
 </script>
 
-<section class="flex flex-col gap-8">
+<section class="flex flex-col gap-6">
 	<div class="flex flex-col gap-2">
 		<a
 			href={resolve('/me')}
@@ -89,16 +145,24 @@
 			<div class="rounded-2xl border border-danger/30 bg-danger/10 p-6 text-danger" role="alert">
 				{adminBotsStore.error}
 			</div>
-		{:else if adminBotsStore.loaded && adminBotsStore.bots.length === 0}
-			<div class="rounded-2xl border border-border bg-surface/60 p-6 text-content-muted">
-				No registered bots were returned by play-api.
-			</div>
 		{:else}
-			<div class="grid gap-5">
-				{#each adminBotsStore.bots as bot (`${bot.team}/${bot.name}`)}
-					<AdminBotCard {bot} onChanged={refreshBots} />
-				{/each}
-			</div>
+			<AdminBotsFilterBar
+				{query}
+				{capabilities}
+				totalCount={adminBotsStore.bots.length}
+				filteredCount={filteredBots.length}
+				onChange={updateQuery}
+			/>
+
+			<AdminBotsInventory
+				bots={filteredBots}
+				totalCount={adminBotsStore.bots.length}
+				{selectedBot}
+				onSelect={handleSelectBot}
+				onClearFilters={clearFilters}
+			/>
+
+			<AdminBotDetailDrawer bot={selectedBot} onClose={handleCloseDrawer} onChanged={refreshBots} />
 		{/if}
 	{/if}
 </section>

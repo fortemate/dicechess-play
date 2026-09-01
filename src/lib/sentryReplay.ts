@@ -19,7 +19,7 @@ export function startReplay(): void {
 			// Text stays masked, which is the default. Unmasking is tempting — the move list, the
 			// clocks and the coordinates are what make a replay worth watching, and play is anonymous
 			// — but /bots reveals a freshly rotated bot token as a `<code>` text node exactly once
-			// (AdminBotCard, OwnedBotCard) and `maskAllInputs` does not cover a text node. One
+			// (AdminBotDetailDrawer, OwnedBotCard) and `maskAllInputs` does not cover a text node. One
 			// credential in one replay costs more than every replay being duller. Unmasking specific
 			// reviewed elements with `unmask` is the safe direction if replays turn out too redacted.
 			//
