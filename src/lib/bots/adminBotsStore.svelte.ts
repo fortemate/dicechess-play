@@ -1,6 +1,6 @@
-// Reactive inventory for `/me/admin/bots` (#243). This store deliberately contains only public-ish
-// bot metadata; a rotated plaintext token belongs to its `AdminBotCard` component and cannot outlive
-// that card, a route navigation, or a reload.
+// Reactive inventory for `/me/admin/bots` (#243, #47). This store deliberately contains only public-ish
+// bot metadata; a rotated plaintext token belongs to its `AdminBotDetailDrawer` component and cannot outlive
+// that drawer, a route navigation, or a reload.
 
 import { fetchAdminBots, type AdminBot } from './adminApi';
 

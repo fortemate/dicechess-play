@@ -1,6 +1,6 @@
-// Transport for the administrator's `/admin/bots` surface (#243). This module deliberately stays
-// rune-free: it mirrors play-api's HTTP contract while `adminBotsStore` owns reactive inventory
-// state and `AdminBotCard` keeps a rotated plaintext token component-local.
+// Transport for the administrator's `/admin/bots` surface (#243, #47). This module deliberately
+// stays rune-free: it mirrors play-api's HTTP contract while `adminBotsStore` owns reactive
+// inventory state and detail components keep rotated plaintext tokens component-local.
 //
 // The session is the HttpOnly account cookie, so every request has `credentials: 'include'`. There
 // is no client-side authority here: `GET /auth/me` merely decides whether to offer the route; every
@@ -8,6 +8,27 @@
 
 import { isAuthEnabled } from '$lib/auth/authApi';
 import { apiBase } from '$lib/live/liveApi';
+
+export interface AdminWebhookFailure {
+	at: string;
+	reason: string;
+}
+
+/** Summary of a bot's webhook registration for administrator inspection (#34). Secret is never exposed. */
+export interface AdminWebhook {
+	url: string;
+	verifiedAt: string;
+	capabilities: string[];
+	lastFailure?: AdminWebhookFailure | null;
+}
+
+/** The per-bot capacity wire from `BotRoutes.Capacity`, including its live occupancy. */
+export interface BotCapacity {
+	maxConcurrentGames: number;
+	openToHumans: boolean;
+	ladderAllowance: number;
+	activeGames: number;
+}
 
 /** One row from play-api's full administrator inventory (`GET /admin/bots`). */
 export interface AdminBot {
@@ -19,8 +40,12 @@ export interface AdminBot {
 	onLadder: boolean;
 	openToHumans: boolean;
 	description: string | null;
+	maxConcurrentGames: number;
+	ladderAllowance: number;
+	activeGames: number;
 	/** Whether any account owns the bot; the identity and ownership controls stay private. */
 	owned: boolean;
+	webhook: AdminWebhook | null;
 }
 
 export interface AdminBots {
@@ -39,6 +64,8 @@ export type FetchAdminBotsResult =
 	| Exclude<AdminBotFailure, { outcome: 'no-such-bot' } | { outcome: 'invalid' }>;
 
 export type AdminBotActionResult = { outcome: 'ok' } | AdminBotFailure;
+
+export type SetAdminCapacityResult = { outcome: 'ok'; capacity: BotCapacity } | AdminBotFailure;
 
 export type RotateAdminTokenResult =
 	| { outcome: 'rotated'; token: string }
@@ -66,6 +93,33 @@ async function readText(res: Response, fallback: string): Promise<string> {
 	}
 }
 
+function isCapacity(value: unknown): value is BotCapacity {
+	if (typeof value !== 'object' || value === null) return false;
+	const cap = value as Record<string, unknown>;
+	return (
+		typeof cap.maxConcurrentGames === 'number' &&
+		typeof cap.openToHumans === 'boolean' &&
+		typeof cap.ladderAllowance === 'number' &&
+		typeof cap.activeGames === 'number'
+	);
+}
+
+function isAdminWebhook(value: unknown): value is AdminWebhook {
+	if (typeof value !== 'object' || value === null) return false;
+	const hook = value as Record<string, unknown>;
+	return (
+		typeof hook.url === 'string' &&
+		typeof hook.verifiedAt === 'string' &&
+		Array.isArray(hook.capabilities) &&
+		hook.capabilities.every((c) => typeof c === 'string') &&
+		(hook.lastFailure === undefined ||
+			hook.lastFailure === null ||
+			(typeof hook.lastFailure === 'object' &&
+				typeof (hook.lastFailure as Record<string, unknown>).at === 'string' &&
+				typeof (hook.lastFailure as Record<string, unknown>).reason === 'string'))
+	);
+}
+
 function isAdminBot(value: unknown): value is AdminBot {
 	if (typeof value !== 'object' || value === null) return false;
 	const bot = value as Record<string, unknown>;
@@ -78,7 +132,11 @@ function isAdminBot(value: unknown): value is AdminBot {
 		typeof bot.onLadder === 'boolean' &&
 		typeof bot.openToHumans === 'boolean' &&
 		(bot.description === null || typeof bot.description === 'string') &&
-		typeof bot.owned === 'boolean'
+		typeof bot.maxConcurrentGames === 'number' &&
+		typeof bot.ladderAllowance === 'number' &&
+		typeof bot.activeGames === 'number' &&
+		typeof bot.owned === 'boolean' &&
+		(bot.webhook === null || bot.webhook === undefined || isAdminWebhook(bot.webhook))
 	);
 }
 
@@ -117,7 +175,34 @@ export async function fetchAdminBots(): Promise<FetchAdminBotsResult> {
 			: failure;
 	}
 	const body = await readJson<unknown>(res);
-	return isAdminBots(body) ? { outcome: 'ok', bots: body.bots } : { outcome: 'unavailable' };
+	if (!isAdminBots(body)) return { outcome: 'unavailable' };
+	const normalizedBots: AdminBot[] = body.bots.map((b) => ({
+		...b,
+		webhook: b.webhook ?? null,
+	}));
+	return { outcome: 'ok', bots: normalizedBots };
+}
+
+async function sendAdminRequest(
+	path: string,
+	method: 'POST' | 'PUT',
+	body?: unknown,
+): Promise<Response | { outcome: 'unavailable' }> {
+	if (!isAuthEnabled()) return { outcome: 'unavailable' };
+	try {
+		return await fetch(path, {
+			method,
+			credentials: 'include',
+			...(body !== undefined
+				? {
+						headers: { 'content-type': 'application/json' },
+						body: JSON.stringify(body),
+					}
+				: {}),
+		});
+	} catch {
+		return { outcome: 'unavailable' };
+	}
 }
 
 export async function setAdminLadder(
@@ -125,16 +210,11 @@ export async function setAdminLadder(
 	name: string,
 	onLadder: boolean,
 ): Promise<AdminBotActionResult> {
-	if (!isAuthEnabled()) return { outcome: 'unavailable' };
-	let res: Response;
-	try {
-		res = await fetch(`${botPath(team, name)}/ladder/${onLadder ? 'join' : 'leave'}`, {
-			method: 'POST',
-			credentials: 'include',
-		});
-	} catch {
-		return { outcome: 'unavailable' };
-	}
+	const res = await sendAdminRequest(
+		`${botPath(team, name)}/ladder/${onLadder ? 'join' : 'leave'}`,
+		'POST',
+	);
+	if ('outcome' in res) return res;
 	return res.ok ? { outcome: 'ok' } : adminFailure(res);
 }
 
@@ -144,23 +224,13 @@ export async function openAdminToHumans(
 	name: string,
 	description: string,
 ): Promise<AdminBotActionResult> {
-	if (!isAuthEnabled()) return { outcome: 'unavailable' };
 	const trimmed = description.trim();
-	let res: Response;
-	try {
-		res = await fetch(`${botPath(team, name)}/open-to-humans`, {
-			method: 'POST',
-			credentials: 'include',
-			...(trimmed
-				? {
-						headers: { 'content-type': 'application/json' },
-						body: JSON.stringify({ description: trimmed }),
-					}
-				: {}),
-		});
-	} catch {
-		return { outcome: 'unavailable' };
-	}
+	const res = await sendAdminRequest(
+		`${botPath(team, name)}/open-to-humans`,
+		'POST',
+		trimmed ? { description: trimmed } : undefined,
+	);
+	if ('outcome' in res) return res;
 	return res.ok ? { outcome: 'ok' } : adminFailure(res);
 }
 
@@ -168,16 +238,8 @@ export async function closeAdminToHumans(
 	team: string,
 	name: string,
 ): Promise<AdminBotActionResult> {
-	if (!isAuthEnabled()) return { outcome: 'unavailable' };
-	let res: Response;
-	try {
-		res = await fetch(`${botPath(team, name)}/open-to-humans/leave`, {
-			method: 'POST',
-			credentials: 'include',
-		});
-	} catch {
-		return { outcome: 'unavailable' };
-	}
+	const res = await sendAdminRequest(`${botPath(team, name)}/open-to-humans/leave`, 'POST');
+	if ('outcome' in res) return res;
 	return res.ok ? { outcome: 'ok' } : adminFailure(res);
 }
 
@@ -187,19 +249,26 @@ export async function setAdminDescription(
 	name: string,
 	description: string,
 ): Promise<AdminBotActionResult> {
-	if (!isAuthEnabled()) return { outcome: 'unavailable' };
-	let res: Response;
-	try {
-		res = await fetch(`${botPath(team, name)}/description`, {
-			method: 'PUT',
-			credentials: 'include',
-			headers: { 'content-type': 'application/json' },
-			body: JSON.stringify({ description: description.trim() }),
-		});
-	} catch {
-		return { outcome: 'unavailable' };
-	}
+	const res = await sendAdminRequest(`${botPath(team, name)}/description`, 'PUT', {
+		description: description.trim(),
+	});
+	if ('outcome' in res) return res;
 	return res.ok ? { outcome: 'ok' } : adminFailure(res);
+}
+
+/** Sets declared capacity for a bot in an audited admin operation (#47). */
+export async function setAdminCapacity(
+	team: string,
+	name: string,
+	maxConcurrentGames: number,
+): Promise<SetAdminCapacityResult> {
+	const res = await sendAdminRequest(`${botPath(team, name)}/capacity`, 'POST', {
+		maxConcurrentGames,
+	});
+	if ('outcome' in res) return res;
+	if (!res.ok) return adminFailure(res);
+	const body = await readJson<unknown>(res);
+	return isCapacity(body) ? { outcome: 'ok', capacity: body } : { outcome: 'unavailable' };
 }
 
 /** Rotates a credential after the name echo. The plaintext token must remain in the calling card only. */
@@ -208,18 +277,8 @@ export async function rotateAdminToken(
 	name: string,
 	confirm: string,
 ): Promise<RotateAdminTokenResult> {
-	if (!isAuthEnabled()) return { outcome: 'unavailable' };
-	let res: Response;
-	try {
-		res = await fetch(`${botPath(team, name)}/token`, {
-			method: 'POST',
-			credentials: 'include',
-			headers: { 'content-type': 'application/json' },
-			body: JSON.stringify({ confirm }),
-		});
-	} catch {
-		return { outcome: 'unavailable' };
-	}
+	const res = await sendAdminRequest(`${botPath(team, name)}/token`, 'POST', { confirm });
+	if ('outcome' in res) return res;
 	if (res.status === 400)
 		return {
 			outcome: 'mismatch',

@@ -96,8 +96,8 @@ src/
 │   └── me/                    guest profile + restore code; W-D-L on this device + in the lobby
 │       ├── bots/              signed-in author's owned-bot surface: claim with one-time Bearer
 │       │                      token, ladder/catalog/capacity, rotate token, release (#242)
-│       └── admin/bots/        administrator-only full registry: ladder/catalog/description and
-│                              one-time token recovery; ownership is display-only (#243)
+│       └── admin/bots/        administrator-only full registry: searchable inventory table, filter
+│                              bar, detail drawer with capacity (1–32), ladder, catalog, token recovery (#243, #47)
 ├── components/                shared UI
 │   ├── Board.svelte           thin chessground wrapper driven by either game store
 │   ├── GameHub                the ways-to-start-a-game cards shared by the landing and /play
@@ -106,6 +106,8 @@ src/
 │   ├── GameHistoryCard · LiveGameHistoryCard · BotProfileGameCard · WdlBar · WdlCounts
 │   │                     WdlSummaryCard · MiniBoard · TimeControlPicker · ThemeMenu
 │   │                     ToastContainer
+│   ├── AdminBotsFilterBar · AdminBotsInventory · AdminBotDetailDrawer — /me/admin/bots
+│   │                          inventory, pure filter bar, and action drawer (#47)
 │   ├── CategoryRatings        one rating per speed (bullet/blitz/rapid, #258) — shared by both
 │   │                          public profiles; an unplayed speed renders as an explicit dash
 │   ├── RankingViewTabs        /leaderboard ↔ /strength sub-navigation · StrengthRow the
@@ -150,8 +152,9 @@ src/
 │   │                          bot game this browser started, so a finished board can replay it (#215)
 │   ├── bots/                  ownerApi + myBotsStore — credentialed `/me/bots` transport and
 │   │                          account-scoped state; only claim receives a pasted Bearer token (#242);
-│   │                          adminApi + adminBotsStore — credentialed `/admin/bots` inventory and
-│   │                          operations; rotated tokens stay component-local (#243)
+│   │                          adminApi + adminBotsStore + adminBotsFilter — credentialed `/admin/bots`
+│   │                          inventory, pure filter/sort engine, and operations; rotated tokens stay
+│   │                          component-local (#243, #47)
 │   ├── games/                 gamesApi — GET /players/{guestId}/games (vs/result/before filters +
 │   │                          hasMore, #173) + /opponents client (play-api wire mirror) + the
 │   │                          signed-in account's union, GET /me/opponents, credentialed (#226);
