@@ -61,6 +61,16 @@ function normalizeString(val: string): string {
 	return val.normalize('NFC').trim().toLowerCase();
 }
 
+// Identity ordering is part of this module's deterministic contract, so it must not depend on
+// the runtime's default locale the way a bare `localeCompare` does. The collator is built once
+// instead of per comparison, which is what `localeCompare` costs inside a sort.
+const IDENTITY_COLLATOR = new Intl.Collator('en');
+
+/** A webhook counts as verified only when it carries a non-blank `verifiedAt` timestamp. */
+function isWebhookVerified(webhook: AdminBot['webhook']): boolean {
+	return Boolean(webhook?.verifiedAt?.trim());
+}
+
 export function parseAdminBotsQuery(input: URLSearchParams | URL | string): AdminBotsQuery {
 	const params =
 		typeof input === 'string'
@@ -128,16 +138,20 @@ export function countActiveFilters(query: AdminBotsQuery): number {
 
 /** Extracts all unique capability names present across the given bots list, sorted alphabetically. */
 export function extractAvailableCapabilities(bots: AdminBot[]): string[] {
-	const set = new Set<string>();
+	// Keyed by the same normalization the capability filter matches on, so the dropdown cannot
+	// offer two entries ('Draws' and 'draws') that select an identical set of bots. First wins.
+	const byKey = new Map<string, string>();
 	for (const bot of bots) {
 		if (bot.webhook?.capabilities) {
 			for (const cap of bot.webhook.capabilities) {
 				const trimmed = cap.trim();
-				if (trimmed) set.add(trimmed);
+				if (!trimmed) continue;
+				const key = normalizeString(cap);
+				if (!byKey.has(key)) byKey.set(key, trimmed);
 			}
 		}
 	}
-	return Array.from(set).sort((a, b) => a.localeCompare(b));
+	return Array.from(byKey.values()).sort(IDENTITY_COLLATOR.compare);
 }
 
 /** Determines if a bot's capacity is fully reached. */
@@ -147,9 +161,8 @@ export function isCapacityReached(bot: AdminBot): boolean {
 
 /** Computes load utilization ratio for a bot (0 to 1+). */
 export function computeUtilization(bot: AdminBot): number {
-	if (!bot.maxConcurrentGames || bot.maxConcurrentGames <= 0) return 0;
-	const active = bot.activeGames && bot.activeGames > 0 ? bot.activeGames : 0;
-	return active / bot.maxConcurrentGames;
+	if (bot.maxConcurrentGames <= 0) return 0;
+	return bot.activeGames / bot.maxConcurrentGames;
 }
 
 /** Applies search, filters, and deterministic sorting to a fleet of AdminBots. */
@@ -188,16 +201,9 @@ export function applyAdminBotsQuery(bots: AdminBot[], query: AdminBotsQuery): Ad
 
 		// Webhook filter
 		if (query.webhook === 'configured' && !bot.webhook) return false;
-		if (
-			query.webhook === 'verified' &&
-			(!bot.webhook || !bot.webhook.verifiedAt || bot.webhook.verifiedAt.trim() === '')
-		) {
-			return false;
-		}
-		if (
-			query.webhook === 'unverified' &&
-			(!bot.webhook || Boolean(bot.webhook.verifiedAt && bot.webhook.verifiedAt.trim() !== ''))
-		) {
+		if (query.webhook === 'verified' && !isWebhookVerified(bot.webhook)) return false;
+		// 'unverified' is configured-but-not-yet-verified, so a bot with no webhook is excluded too.
+		if (query.webhook === 'unverified' && (!bot.webhook || isWebhookVerified(bot.webhook))) {
 			return false;
 		}
 		if (query.webhook === 'none' && bot.webhook !== null) return false;
@@ -226,8 +232,8 @@ export function applyAdminBotsQuery(bots: AdminBot[], query: AdminBotsQuery): Ad
 
 	return filtered.slice().sort((a, b) => {
 		if (query.sort === 'rating') {
-			const rA = typeof a.rating === 'number' && Number.isFinite(a.rating) ? a.rating : 0;
-			const rB = typeof b.rating === 'number' && Number.isFinite(b.rating) ? b.rating : 0;
+			const rA = Number.isFinite(a.rating) ? a.rating : 0;
+			const rB = Number.isFinite(b.rating) ? b.rating : 0;
 			const diff = rA - rB;
 			if (diff !== 0) return diff * sign;
 		} else if (query.sort === 'utilization') {
@@ -236,14 +242,14 @@ export function applyAdminBotsQuery(bots: AdminBot[], query: AdminBotsQuery): Ad
 			const diff = uA - uB;
 			if (diff !== 0) return diff * sign;
 		} else {
-			const teamComp = a.team.localeCompare(b.team);
+			const teamComp = IDENTITY_COLLATOR.compare(a.team, b.team);
 			if (teamComp !== 0) return teamComp * sign;
-			return a.name.localeCompare(b.name) * sign;
+			return IDENTITY_COLLATOR.compare(a.name, b.name) * sign;
 		}
 
 		// Always break ties deterministically by team then name (ascending for stability)
-		const teamComp = a.team.localeCompare(b.team);
+		const teamComp = IDENTITY_COLLATOR.compare(a.team, b.team);
 		if (teamComp !== 0) return teamComp;
-		return a.name.localeCompare(b.name);
+		return IDENTITY_COLLATOR.compare(a.name, b.name);
 	});
 }
