@@ -26,11 +26,10 @@ export interface LocalGameRecord {
 	end_reason?: GameEndReason | null; // why the game ended (absent on legacy records)
 	time_limit?: number | null;
 	time_bonus?: number | null;
-	bet?: number;
-	base_bet?: number;
-	baseBet?: number;
+	bet?: number; // stake the game settled at (a declined double settles at the PRE-double stake)
+	base_bet?: number; // stake the game started at, before any doubling
 	mode?: 'classic' | 'x2';
-	events?: GameEventInputWire[];
+	events?: GameEventInputWire[]; // non-move events (doubling), already in ingest wire shape
 }
 
 interface LocalGamesDBSchema extends DBSchema {
