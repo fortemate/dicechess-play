@@ -352,5 +352,38 @@
 		</div>
 	</div>
 
+	<div class="flex flex-col gap-3">
+		<h3 class="text-sm font-bold uppercase tracking-wider text-content-muted">
+			About & Open Source
+		</h3>
+		<div class="rounded-2xl border border-border bg-surface/60 p-5 flex flex-col gap-4">
+			<p class="text-sm text-content-muted">
+				Dice Chess Play is free and open-source software licensed under AGPL-3.0.
+			</p>
+			<div class="flex flex-wrap items-center gap-3 text-sm font-semibold">
+				<a
+					href={resolve('/licenses')}
+					class="rounded-xl border border-border bg-surface px-4 py-2 text-content transition-colors hover:border-primary hover:text-primary"
+				>
+					Open source licenses →
+				</a>
+				<a
+					href={resolve('/rules')}
+					class="rounded-xl border border-border bg-surface px-4 py-2 text-content transition-colors hover:border-primary hover:text-primary"
+				>
+					Game rules →
+				</a>
+				<a
+					href="https://github.com/fortemate/dicechess-play"
+					target="_blank"
+					rel="noopener noreferrer"
+					class="rounded-xl border border-border bg-surface px-4 py-2 text-content transition-colors hover:border-primary hover:text-primary"
+				>
+					Source code (GitHub) ↗
+				</a>
+			</div>
+		</div>
+	</div>
+
 	<DeleteAccountPanel />
 </section>

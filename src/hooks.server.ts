@@ -13,7 +13,7 @@
 import type { Handle } from '@sveltejs/kit';
 
 /** Routes that render a complete head of their own and must not inherit app.html defaults. */
-const OWNS_OWN_HEAD = new Set(['/rules']);
+const OWNS_OWN_HEAD = new Set(['/rules', '/licenses']);
 
 const DEFAULT_HEAD_BLOCK = /[\t ]*<!-- default-head -->[\s\S]*?<!-- \/default-head -->\n?/;
 

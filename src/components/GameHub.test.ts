@@ -20,9 +20,13 @@ describe('GameHub', () => {
 		expect(getByRole('link', { name: /open a table/i }).getAttribute('href')).toBe('/lobby');
 	});
 
-	it('keeps the quiet links to spectating and the leaderboard', () => {
+	it('keeps the quiet links to spectating, leaderboard, and licenses', () => {
 		const { getByRole } = render(GameHub);
 
+		expect(getByRole('link', { name: /how to play/i }).getAttribute('href')).toBe('/rules');
+		expect(getByRole('link', { name: /open source licenses/i }).getAttribute('href')).toBe(
+			'/licenses',
+		);
 		expect(getByRole('link', { name: /watch live games/i }).getAttribute('href')).toBe('/lobby');
 		expect(getByRole('link', { name: /leaderboard/i }).getAttribute('href')).toBe('/leaderboard');
 	});
