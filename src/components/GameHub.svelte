@@ -104,6 +104,12 @@
 			How to play →
 		</a>
 		<a
+			href={resolve('/licenses')}
+			class="font-semibold text-content-muted transition-colors hover:text-content"
+		>
+			Open source licenses →
+		</a>
+		<a
 			href={resolve('/lobby')}
 			class="font-semibold text-content-muted transition-colors hover:text-content"
 		>

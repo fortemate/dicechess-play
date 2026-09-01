@@ -74,9 +74,9 @@ src/
 ├── routes/                    SPA pages (ssr/prerender disabled in +layout.ts)
 │   ├── +layout.svelte         themed shell: nav, theme switcher, toasts, zen chrome
 │   ├── +page.svelte           landing — marketing hero over the game hub
-│   ├── rules/                 prerendered rules page (#254) — the only route with ssr/prerender
-│   │                          re-enabled, so crawlers get real HTML + OG tags
-│   │                          (src/hooks.server.ts strips app.html's default-head block there)
+│   ├── rules/                 prerendered rules page (#254) — ssr/prerender re-enabled, so crawlers
+│   │                          get real HTML + OG tags (src/hooks.server.ts strips default head)
+│   ├── licenses/              prerendered open-source licenses disclosure page (#14)
 │   ├── play/                  game hub: every way to start a game (#217)
 │   ├── practice/              vs-bot game (client-authoritative; engine in a Web Worker)
 │   ├── lobby/                 seek list + live-board wall (polls play-api)

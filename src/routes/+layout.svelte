@@ -171,7 +171,7 @@
 
 	{#if !chromeStore.zen}
 		<footer
-			class="hidden sm:block w-full border-t border-border bg-surface/40 py-5 text-center text-xs text-content-muted"
+			class="w-full border-t border-border bg-surface/40 py-5 mb-14 sm:mb-0 text-center text-xs text-content-muted"
 		>
 			<div
 				class="max-w-5xl mx-auto px-4 flex flex-col sm:flex-row items-center justify-between gap-2"
@@ -179,18 +179,35 @@
 				<p>
 					Dice Chess — Play · anonymous, free ·
 					<a class="hover:text-content hover:underline" href={resolve('/rules')}>How to play</a>
+					·
+					<a class="hover:text-content hover:underline" href={resolve('/licenses')}>
+						Open source licenses
+					</a>
 				</p>
 				<p class="text-[10px] text-content-muted/60">
 					<a
 						class="hover:text-content hover:underline"
 						href="https://github.com/fortemate/dicechess-play/blob/main/LICENSE"
+						target="_blank"
+						rel="noopener noreferrer"
 					>
 						AGPL-3.0
+					</a>
+					·
+					<a
+						class="hover:text-content hover:underline"
+						href="https://github.com/fortemate/dicechess-play"
+						target="_blank"
+						rel="noopener noreferrer"
+					>
+						Source code
 					</a>
 					· powered by the open-source
 					<a
 						class="hover:text-content hover:underline"
 						href="https://github.com/fortemate/dicechess-engine"
+						target="_blank"
+						rel="noopener noreferrer"
 					>
 						Dice Chess engine
 					</a>

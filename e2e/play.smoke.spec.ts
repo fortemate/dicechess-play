@@ -131,3 +131,31 @@ test('the built bundle opens My bots safely without owner authentication', async
 	expect(errors).toEqual([]);
 	expect(ownerRequests).toEqual([]);
 });
+
+test('the built bundle serves the open-source licenses page on desktop', async ({ page }) => {
+	await page.goto('/licenses');
+	await expect(page.getByRole('heading', { name: 'Open Source Licenses', level: 1 })).toBeVisible();
+	await expect(page.getByRole('heading', { name: 'Chessground', level: 2 })).toBeVisible();
+	await expect(page.getByText('@lichess-org/chessground 10.1.1')).toBeVisible();
+	await expect(
+		page.getByRole('heading', { name: 'Dice Chess Play Client', level: 2 }),
+	).toBeVisible();
+	await expect(
+		page.locator('a[href="https://github.com/fortemate/dicechess-play"]').first(),
+	).toBeVisible();
+});
+
+test('open-source license disclosures are reachable on mobile viewport', async ({ page }) => {
+	await page.setViewportSize({ width: 375, height: 667 });
+	await page.goto('/me');
+	await expect(page.getByRole('heading', { name: 'Your profile' })).toBeVisible();
+
+	const licenseLink = page.getByRole('link', { name: 'Open source licenses →' });
+	await expect(licenseLink).toBeVisible();
+	await licenseLink.click();
+
+	await expect(page).toHaveURL(/\/licenses$/);
+	await expect(page.getByRole('heading', { name: 'Open Source Licenses', level: 1 })).toBeVisible();
+	await expect(page.getByText('GPL-3.0-or-later', { exact: true })).toBeVisible();
+	await expect(page.getByText('AGPL-3.0').first()).toBeVisible();
+});
