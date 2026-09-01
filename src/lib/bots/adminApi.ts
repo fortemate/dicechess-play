@@ -183,21 +183,38 @@ export async function fetchAdminBots(): Promise<FetchAdminBotsResult> {
 	return { outcome: 'ok', bots: normalizedBots };
 }
 
+async function sendAdminRequest(
+	path: string,
+	method: 'POST' | 'PUT',
+	body?: unknown,
+): Promise<Response | { outcome: 'unavailable' }> {
+	if (!isAuthEnabled()) return { outcome: 'unavailable' };
+	try {
+		return await fetch(path, {
+			method,
+			credentials: 'include',
+			...(body !== undefined
+				? {
+						headers: { 'content-type': 'application/json' },
+						body: JSON.stringify(body),
+					}
+				: {}),
+		});
+	} catch {
+		return { outcome: 'unavailable' };
+	}
+}
+
 export async function setAdminLadder(
 	team: string,
 	name: string,
 	onLadder: boolean,
 ): Promise<AdminBotActionResult> {
-	if (!isAuthEnabled()) return { outcome: 'unavailable' };
-	let res: Response;
-	try {
-		res = await fetch(`${botPath(team, name)}/ladder/${onLadder ? 'join' : 'leave'}`, {
-			method: 'POST',
-			credentials: 'include',
-		});
-	} catch {
-		return { outcome: 'unavailable' };
-	}
+	const res = await sendAdminRequest(
+		`${botPath(team, name)}/ladder/${onLadder ? 'join' : 'leave'}`,
+		'POST',
+	);
+	if ('outcome' in res) return res;
 	return res.ok ? { outcome: 'ok' } : adminFailure(res);
 }
 
@@ -207,23 +224,13 @@ export async function openAdminToHumans(
 	name: string,
 	description: string,
 ): Promise<AdminBotActionResult> {
-	if (!isAuthEnabled()) return { outcome: 'unavailable' };
 	const trimmed = description.trim();
-	let res: Response;
-	try {
-		res = await fetch(`${botPath(team, name)}/open-to-humans`, {
-			method: 'POST',
-			credentials: 'include',
-			...(trimmed
-				? {
-						headers: { 'content-type': 'application/json' },
-						body: JSON.stringify({ description: trimmed }),
-					}
-				: {}),
-		});
-	} catch {
-		return { outcome: 'unavailable' };
-	}
+	const res = await sendAdminRequest(
+		`${botPath(team, name)}/open-to-humans`,
+		'POST',
+		trimmed ? { description: trimmed } : undefined,
+	);
+	if ('outcome' in res) return res;
 	return res.ok ? { outcome: 'ok' } : adminFailure(res);
 }
 
@@ -231,16 +238,8 @@ export async function closeAdminToHumans(
 	team: string,
 	name: string,
 ): Promise<AdminBotActionResult> {
-	if (!isAuthEnabled()) return { outcome: 'unavailable' };
-	let res: Response;
-	try {
-		res = await fetch(`${botPath(team, name)}/open-to-humans/leave`, {
-			method: 'POST',
-			credentials: 'include',
-		});
-	} catch {
-		return { outcome: 'unavailable' };
-	}
+	const res = await sendAdminRequest(`${botPath(team, name)}/open-to-humans/leave`, 'POST');
+	if ('outcome' in res) return res;
 	return res.ok ? { outcome: 'ok' } : adminFailure(res);
 }
 
@@ -250,18 +249,10 @@ export async function setAdminDescription(
 	name: string,
 	description: string,
 ): Promise<AdminBotActionResult> {
-	if (!isAuthEnabled()) return { outcome: 'unavailable' };
-	let res: Response;
-	try {
-		res = await fetch(`${botPath(team, name)}/description`, {
-			method: 'PUT',
-			credentials: 'include',
-			headers: { 'content-type': 'application/json' },
-			body: JSON.stringify({ description: description.trim() }),
-		});
-	} catch {
-		return { outcome: 'unavailable' };
-	}
+	const res = await sendAdminRequest(`${botPath(team, name)}/description`, 'PUT', {
+		description: description.trim(),
+	});
+	if ('outcome' in res) return res;
 	return res.ok ? { outcome: 'ok' } : adminFailure(res);
 }
 
@@ -271,18 +262,10 @@ export async function setAdminCapacity(
 	name: string,
 	maxConcurrentGames: number,
 ): Promise<SetAdminCapacityResult> {
-	if (!isAuthEnabled()) return { outcome: 'unavailable' };
-	let res: Response;
-	try {
-		res = await fetch(`${botPath(team, name)}/capacity`, {
-			method: 'POST',
-			credentials: 'include',
-			headers: { 'content-type': 'application/json' },
-			body: JSON.stringify({ maxConcurrentGames }),
-		});
-	} catch {
-		return { outcome: 'unavailable' };
-	}
+	const res = await sendAdminRequest(`${botPath(team, name)}/capacity`, 'POST', {
+		maxConcurrentGames,
+	});
+	if ('outcome' in res) return res;
 	if (!res.ok) return adminFailure(res);
 	const body = await readJson<unknown>(res);
 	return isCapacity(body) ? { outcome: 'ok', capacity: body } : { outcome: 'unavailable' };
@@ -294,18 +277,8 @@ export async function rotateAdminToken(
 	name: string,
 	confirm: string,
 ): Promise<RotateAdminTokenResult> {
-	if (!isAuthEnabled()) return { outcome: 'unavailable' };
-	let res: Response;
-	try {
-		res = await fetch(`${botPath(team, name)}/token`, {
-			method: 'POST',
-			credentials: 'include',
-			headers: { 'content-type': 'application/json' },
-			body: JSON.stringify({ confirm }),
-		});
-	} catch {
-		return { outcome: 'unavailable' };
-	}
+	const res = await sendAdminRequest(`${botPath(team, name)}/token`, 'POST', { confirm });
+	if ('outcome' in res) return res;
 	if (res.status === 400)
 		return {
 			outcome: 'mismatch',

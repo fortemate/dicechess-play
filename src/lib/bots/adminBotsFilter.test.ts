@@ -73,145 +73,44 @@ const testBots: AdminBot[] = [
 ];
 
 describe('adminBotsFilter', () => {
-	describe('search', () => {
-		it('matches team name case-insensitively', () => {
+	describe('search matching', () => {
+		it.each([
+			['team name case-insensitively', 'BETA', ['bravo']],
+			['bot name case-insensitively', 'Alpha', ['alpha']],
+			['combined team/name query', 'acme/charlie', ['charlie']],
+			['webhook URL case-insensitively', 'HOOKS/ALPHA', ['alpha']],
+			['non-matching query returning empty', 'nonexistent', []],
+		])('evaluates search for %s', (_, searchTerm, expectedBotNames) => {
 			const res = applyAdminBotsQuery(testBots, {
 				...DEFAULT_ADMIN_BOTS_QUERY,
-				search: 'BETA',
+				search: searchTerm,
 			});
-			expect(res.map((b) => b.name)).toEqual(['bravo']);
-		});
-
-		it('matches bot name case-insensitively', () => {
-			const res = applyAdminBotsQuery(testBots, {
-				...DEFAULT_ADMIN_BOTS_QUERY,
-				search: 'Alpha',
-			});
-			expect(res.map((b) => b.name)).toEqual(['alpha']);
-		});
-
-		it('matches combined team/name', () => {
-			const res = applyAdminBotsQuery(testBots, {
-				...DEFAULT_ADMIN_BOTS_QUERY,
-				search: 'acme/charlie',
-			});
-			expect(res.map((b) => b.name)).toEqual(['charlie']);
-		});
-
-		it('matches webhook URL case-insensitively', () => {
-			const res = applyAdminBotsQuery(testBots, {
-				...DEFAULT_ADMIN_BOTS_QUERY,
-				search: 'HOOKS/ALPHA',
-			});
-			expect(res.map((b) => b.name)).toEqual(['alpha']);
-		});
-
-		it('returns empty list when search does not match any bot', () => {
-			const res = applyAdminBotsQuery(testBots, {
-				...DEFAULT_ADMIN_BOTS_QUERY,
-				search: 'nonexistent',
-			});
-			expect(res).toEqual([]);
+			expect(res.map((b) => b.name)).toEqual(expectedBotNames);
 		});
 	});
 
-	describe('filters', () => {
-		it('filters by ladder status', () => {
-			const on = applyAdminBotsQuery(testBots, {
+	describe('multi-attribute filtering', () => {
+		it.each([
+			['ladder on', { ladder: 'on' as const }, ['alpha', 'charlie']],
+			['ladder off', { ladder: 'off' as const }, ['bravo']],
+			['catalog open', { catalog: 'open' as const }, ['alpha']],
+			['catalog closed', { catalog: 'closed' as const }, ['charlie', 'bravo']],
+			['ownership owned', { ownership: 'owned' as const }, ['alpha', 'charlie']],
+			['ownership unowned', { ownership: 'unowned' as const }, ['bravo']],
+			['webhook configured', { webhook: 'configured' as const }, ['alpha', 'charlie']],
+			['webhook none', { webhook: 'none' as const }, ['bravo']],
+			['provisional true', { provisional: 'provisional' as const }, ['bravo']],
+			['provisional established', { provisional: 'established' as const }, ['alpha', 'charlie']],
+			['capacity reached', { capacity: 'reached' as const }, ['alpha']],
+			['capacity available', { capacity: 'available' as const }, ['charlie', 'bravo']],
+			['capability draws', { capability: 'draws' }, ['alpha']],
+			['capability custom', { capability: 'custom' }, ['charlie']],
+		])('filters by %s', (_, filterOverride, expectedBotNames) => {
+			const res = applyAdminBotsQuery(testBots, {
 				...DEFAULT_ADMIN_BOTS_QUERY,
-				ladder: 'on',
+				...filterOverride,
 			});
-			expect(on.map((b) => b.name)).toEqual(['alpha', 'charlie']);
-
-			const off = applyAdminBotsQuery(testBots, {
-				...DEFAULT_ADMIN_BOTS_QUERY,
-				ladder: 'off',
-			});
-			expect(off.map((b) => b.name)).toEqual(['bravo']);
-		});
-
-		it('filters by catalog open/closed', () => {
-			const open = applyAdminBotsQuery(testBots, {
-				...DEFAULT_ADMIN_BOTS_QUERY,
-				catalog: 'open',
-			});
-			expect(open.map((b) => b.name)).toEqual(['alpha']);
-
-			const closed = applyAdminBotsQuery(testBots, {
-				...DEFAULT_ADMIN_BOTS_QUERY,
-				catalog: 'closed',
-			});
-			expect(closed.map((b) => b.name)).toEqual(['charlie', 'bravo']);
-		});
-
-		it('filters by ownership', () => {
-			const owned = applyAdminBotsQuery(testBots, {
-				...DEFAULT_ADMIN_BOTS_QUERY,
-				ownership: 'owned',
-			});
-			expect(owned.map((b) => b.name)).toEqual(['alpha', 'charlie']);
-
-			const unowned = applyAdminBotsQuery(testBots, {
-				...DEFAULT_ADMIN_BOTS_QUERY,
-				ownership: 'unowned',
-			});
-			expect(unowned.map((b) => b.name)).toEqual(['bravo']);
-		});
-
-		it('filters by webhook configured vs none', () => {
-			const configured = applyAdminBotsQuery(testBots, {
-				...DEFAULT_ADMIN_BOTS_QUERY,
-				webhook: 'configured',
-			});
-			expect(configured.map((b) => b.name)).toEqual(['alpha', 'charlie']);
-
-			const none = applyAdminBotsQuery(testBots, {
-				...DEFAULT_ADMIN_BOTS_QUERY,
-				webhook: 'none',
-			});
-			expect(none.map((b) => b.name)).toEqual(['bravo']);
-		});
-
-		it('filters by provisional status', () => {
-			const prov = applyAdminBotsQuery(testBots, {
-				...DEFAULT_ADMIN_BOTS_QUERY,
-				provisional: 'provisional',
-			});
-			expect(prov.map((b) => b.name)).toEqual(['bravo']);
-
-			const est = applyAdminBotsQuery(testBots, {
-				...DEFAULT_ADMIN_BOTS_QUERY,
-				provisional: 'established',
-			});
-			expect(est.map((b) => b.name)).toEqual(['alpha', 'charlie']);
-		});
-
-		it('filters by capacity reached vs available', () => {
-			const reached = applyAdminBotsQuery(testBots, {
-				...DEFAULT_ADMIN_BOTS_QUERY,
-				capacity: 'reached',
-			});
-			expect(reached.map((b) => b.name)).toEqual(['alpha']);
-
-			const avail = applyAdminBotsQuery(testBots, {
-				...DEFAULT_ADMIN_BOTS_QUERY,
-				capacity: 'available',
-			});
-			expect(avail.map((b) => b.name)).toEqual(['charlie', 'bravo']);
-		});
-
-		it('filters by capability', () => {
-			const draws = applyAdminBotsQuery(testBots, {
-				...DEFAULT_ADMIN_BOTS_QUERY,
-				capability: 'draws',
-			});
-			expect(draws.map((b) => b.name)).toEqual(['alpha']);
-
-			const custom = applyAdminBotsQuery(testBots, {
-				...DEFAULT_ADMIN_BOTS_QUERY,
-				capability: 'custom',
-			});
-			expect(custom.map((b) => b.name)).toEqual(['charlie']);
+			expect(res.map((b) => b.name)).toEqual(expectedBotNames);
 		});
 	});
 

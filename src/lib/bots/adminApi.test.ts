@@ -31,18 +31,15 @@ const bot: AdminBot = {
 	},
 };
 
-function jsonResponse(status: number, body: unknown): Response {
-	return new Response(JSON.stringify(body), {
+const fakeJsonResponse = (data: unknown, status = 200) =>
+	new Response(JSON.stringify(data), {
 		status,
 		headers: { 'content-type': 'application/json' },
 	});
-}
 
-function textResponse(status: number, body: string): Response {
-	return new Response(body, { status });
-}
+const fakeTextResponse = (content: string, status = 200) => new Response(content, { status });
 
-describe('adminApi', () => {
+describe('adminApi transport', () => {
 	let fetchMock: ReturnType<typeof vi.fn>;
 
 	beforeEach(() => {
@@ -52,12 +49,12 @@ describe('adminApi', () => {
 	});
 
 	afterEach(() => {
-		vi.unstubAllEnvs();
 		vi.unstubAllGlobals();
+		vi.unstubAllEnvs();
 	});
 
 	it('reads the complete inventory with the session cookie, including non-public state, capacity, and webhook', async () => {
-		fetchMock.mockResolvedValue(jsonResponse(200, { bots: [bot] }));
+		fetchMock.mockResolvedValue(fakeJsonResponse({ bots: [bot] }));
 		expect(await fetchAdminBots()).toEqual({ outcome: 'ok', bots: [bot] });
 		expect(fetchMock).toHaveBeenCalledWith('http://localhost:8080/admin/bots', {
 			credentials: 'include',
@@ -65,27 +62,27 @@ describe('adminApi', () => {
 	});
 
 	it('keeps server-side 403 separate from a missing session', async () => {
-		fetchMock.mockResolvedValueOnce(textResponse(403, 'admin only'));
+		fetchMock.mockResolvedValueOnce(fakeTextResponse('admin only', 403));
 		expect(await fetchAdminBots()).toEqual({ outcome: 'forbidden' });
-		fetchMock.mockResolvedValueOnce(textResponse(401, 'Not signed in'));
+		fetchMock.mockResolvedValueOnce(fakeTextResponse('Not signed in', 401));
 		expect(await fetchAdminBots()).toEqual({ outcome: 'signed-out' });
 	});
 
 	it('reports an unreachable server and malformed inventory as unavailable', async () => {
 		fetchMock.mockRejectedValueOnce(new TypeError('network down'));
 		expect(await fetchAdminBots()).toEqual({ outcome: 'unavailable' });
-		fetchMock.mockResolvedValueOnce(jsonResponse(200, { bots: [{ team: 'acme' }] }));
+		fetchMock.mockResolvedValueOnce(fakeJsonResponse({ bots: [{ team: 'acme' }] }));
 		expect(await fetchAdminBots()).toEqual({ outcome: 'unavailable' });
 	});
 
 	it('uses the audited admin endpoints with encoded names and the intended methods', async () => {
 		fetchMock
-			.mockResolvedValueOnce(jsonResponse(200, { onLadder: true }))
-			.mockResolvedValueOnce(jsonResponse(200, { openToHumans: true, description: 'calm' }))
-			.mockResolvedValueOnce(jsonResponse(200, { openToHumans: false, description: 'calm' }))
-			.mockResolvedValueOnce(jsonResponse(200, { openToHumans: false, description: 'retired' }))
+			.mockResolvedValueOnce(fakeJsonResponse({ onLadder: true }))
+			.mockResolvedValueOnce(fakeJsonResponse({ openToHumans: true, description: 'calm' }))
+			.mockResolvedValueOnce(fakeJsonResponse({ openToHumans: false, description: 'calm' }))
+			.mockResolvedValueOnce(fakeJsonResponse({ openToHumans: false, description: 'retired' }))
 			.mockResolvedValueOnce(
-				jsonResponse(200, {
+				fakeJsonResponse({
 					maxConcurrentGames: 8,
 					openToHumans: false,
 					ladderAllowance: 8,
@@ -138,7 +135,7 @@ describe('adminApi', () => {
 	});
 
 	it('returns a rotated token only after the echoed name request succeeds', async () => {
-		fetchMock.mockResolvedValue(jsonResponse(200, { token: 'fresh-secret' }));
+		fetchMock.mockResolvedValue(fakeJsonResponse({ token: 'fresh-secret' }));
 		expect(await rotateAdminToken('acme', 'alice', 'alice')).toEqual({
 			outcome: 'rotated',
 			token: 'fresh-secret',
@@ -152,7 +149,7 @@ describe('adminApi', () => {
 	});
 
 	it('renders a bad rotation echo as a retryable mismatch', async () => {
-		fetchMock.mockResolvedValue(textResponse(400, "confirm must be the bot's name"));
+		fetchMock.mockResolvedValue(fakeTextResponse("confirm must be the bot's name", 400));
 		expect(await rotateAdminToken('acme', 'alice', 'wrong')).toEqual({
 			outcome: 'mismatch',
 			reason: "confirm must be the bot's name",
@@ -160,7 +157,9 @@ describe('adminApi', () => {
 	});
 
 	it('handles capacity validation failure', async () => {
-		fetchMock.mockResolvedValue(textResponse(400, 'maxConcurrentGames must be between 1 and 32'));
+		fetchMock.mockResolvedValue(
+			fakeTextResponse('maxConcurrentGames must be between 1 and 32', 400),
+		);
 		expect(await setAdminCapacity('acme', 'alice', 50)).toEqual({
 			outcome: 'invalid',
 			reason: 'maxConcurrentGames must be between 1 and 32',
@@ -168,9 +167,9 @@ describe('adminApi', () => {
 	});
 
 	it('keeps a missing bot distinct on mutations but not on the inventory read', async () => {
-		fetchMock.mockResolvedValueOnce(textResponse(404, 'no such bot'));
+		fetchMock.mockResolvedValueOnce(fakeTextResponse('no such bot', 404));
 		expect(await setAdminLadder('acme', 'ghost', true)).toEqual({ outcome: 'no-such-bot' });
-		fetchMock.mockResolvedValueOnce(textResponse(404, 'no such bot'));
+		fetchMock.mockResolvedValueOnce(fakeTextResponse('no such bot', 404));
 		expect(await fetchAdminBots()).toEqual({ outcome: 'unavailable' });
 	});
 });
