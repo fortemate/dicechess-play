@@ -31,7 +31,7 @@
 		"test:e2e": "playwright test"
 	},
 	"dependencies": {
-		"@fortemate/dicechess-engine": "^0.4.1",
+		"@fortemate/dicechess-engine": "^0.7.2",
 		"@lichess-org/chessground": "^10.1.1",
 		"@sentry/sveltekit": "^10.70.0",
 		"idb": "^8.0.3",
