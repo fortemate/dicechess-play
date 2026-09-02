@@ -6,6 +6,7 @@
 	"plugin.inlang.messageFormat": {
 		"pathPattern": [
 			"./messages/common.{locale}.json",
+			"./messages/home.{locale}.json",
 			"./messages/nav.{locale}.json",
 			"./messages/game.{locale}.json",
 			"./messages/lobby.{locale}.json",
