@@ -56,5 +56,11 @@
 	"home_outcome_winner": "{winner} wins by {reason}",
 	"home_outcome_draw": "Game drawn by {reason}",
 	"home_resetting_countdown": "Next game opens in {seconds}s",
-	"home_reset_now": "Reset table now"
+	"home_reset_now": "Reset table now",
+	"home_brand_name": "Fortemate",
+	"home_brand_mark_label": "Fortemate",
+	"home_nav_play_bots": "Play Bots & Friends",
+	"home_nav_how_to_play": "How to Play",
+	"home_nav_licenses": "Licenses",
+	"home_footer_summary": "Showcase Table · Free, anonymous play · No account required"
 }
