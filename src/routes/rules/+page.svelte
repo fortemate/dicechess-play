@@ -38,8 +38,11 @@
 		content="Roll three dice, make up to three moves, capture the king. The complete rules of Dice Chess, as enforced by our open-source engine."
 	/>
 	<meta property="og:url" content="{SITE_ORIGIN}/rules" />
-	<meta property="og:image" content="{SITE_ORIGIN}/pwa-512x512.png" />
-	<meta name="twitter:card" content="summary" />
+	<meta property="og:image" content="{SITE_ORIGIN}/social-preview-1200x630.png" />
+	<meta property="og:image:width" content="1200" />
+	<meta property="og:image:height" content="630" />
+	<meta property="og:image:alt" content="Fortemate" />
+	<meta name="twitter:card" content="summary_large_image" />
 </svelte:head>
 
 <article class="mx-auto flex w-full max-w-3xl flex-col gap-10">

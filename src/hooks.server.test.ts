@@ -17,7 +17,7 @@ describe('stripDefaultHead', () => {
 			'\t<title>Dice Chess — Play</title>',
 			'\t<meta property="og:title" content="Dice Chess — Play" />',
 			'\t<!-- /default-head -->',
-			'\t<link rel="icon" href="/favicon.png" />',
+			'\t<link rel="icon" href="/favicon.svg" />',
 			'</head>',
 		].join('\n');
 
@@ -27,7 +27,7 @@ describe('stripDefaultHead', () => {
 		expect(stripped).not.toContain('<title>');
 		expect(stripped).not.toContain('og:title');
 		expect(stripped).toContain('<meta charset="UTF-8" />');
-		expect(stripped).toContain('<link rel="icon" href="/favicon.png" />');
+		expect(stripped).toContain('<link rel="icon" href="/favicon.svg" />');
 	});
 
 	it('leaves HTML without the markers untouched', () => {

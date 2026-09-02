@@ -82,11 +82,13 @@ export default defineConfig({
 				start_url: '/',
 				scope: '/',
 				categories: ['games', 'entertainment'],
+				// Approved Fortemate identity icons from fortemate/brand dist/identity/web (#65). The
+				// maskable variants keep the mark inside the 80 % safe zone; the `any` ones are larger.
 				icons: [
-					{ src: 'pwa-192x192.png', sizes: '192x192', type: 'image/png', purpose: 'any' },
-					{ src: 'pwa-192x192.png', sizes: '192x192', type: 'image/png', purpose: 'maskable' },
-					{ src: 'pwa-512x512.png', sizes: '512x512', type: 'image/png', purpose: 'any' },
-					{ src: 'pwa-512x512.png', sizes: '512x512', type: 'image/png', purpose: 'maskable' },
+					{ src: 'pwa-192.png', sizes: '192x192', type: 'image/png', purpose: 'any' },
+					{ src: 'pwa-512.png', sizes: '512x512', type: 'image/png', purpose: 'any' },
+					{ src: 'pwa-maskable-192.png', sizes: '192x192', type: 'image/png', purpose: 'maskable' },
+					{ src: 'pwa-maskable-512.png', sizes: '512x512', type: 'image/png', purpose: 'maskable' },
 				],
 			},
 			workbox: {
