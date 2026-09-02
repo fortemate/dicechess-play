@@ -2,6 +2,7 @@ import { describe, expect, it, vi } from 'vitest';
 import { render, fireEvent } from '@testing-library/svelte';
 import ShowcaseShell from './ShowcaseShell.svelte';
 import {
+	allFixtures,
 	fixtureOpenWhite,
 	fixtureOpenBlack,
 	fixtureClaiming,
@@ -33,8 +34,9 @@ describe('ShowcaseShell', () => {
 		// Brand mark & name
 		expect(getAllByText(m.home_brand_name()).length).toBeGreaterThan(0);
 
-		// Players
-		expect(getAllByText('Waiting for challenger').length).toBeGreaterThan(0);
+		// Featured bot & player
+		expect(getAllByText('DeepDiceBot').length).toBeGreaterThan(0);
+		expect(getAllByText('Open seat').length).toBeGreaterThan(0);
 		expect(getAllByText('You (Guest)').length).toBeGreaterThan(0);
 
 		// Clocks (formatted as 5:00)
@@ -206,14 +208,28 @@ describe('ShowcaseShell', () => {
 		expect(openingBtn.getAttribute('aria-disabled')).toBe('true');
 	});
 
-	it('ensures no move-history or game list is rendered across all states', () => {
-		const { container } = render(ShowcaseShell, {
-			state: fixtureLivePlayerWhiteTurn,
-		});
+	it('ensures no move-history or game list is rendered across all states, and dice are absent outside live play', () => {
+		for (const [key, fixture] of Object.entries(allFixtures)) {
+			const { container, queryByLabelText, unmount } = render(ShowcaseShell, {
+				state: fixture,
+			});
 
-		expect(container.querySelector('#move-history-panel')).toBeNull();
-		expect(container.querySelector('.move-history')).toBeNull();
-		expect(container.querySelector('.game-list')).toBeNull();
+			expect(
+				container.querySelector('#move-history-panel'),
+				`#move-history-panel found in ${key}`,
+			).toBeNull();
+			expect(container.querySelector('.move-history'), `.move-history found in ${key}`).toBeNull();
+			expect(container.querySelector('.game-list'), `.game-list found in ${key}`).toBeNull();
+
+			if (fixture.kind !== 'live-player' && fixture.kind !== 'live-spectator') {
+				expect(
+					queryByLabelText(/Rolled:/i),
+					`live dice region found in non-live fixture ${key}`,
+				).toBeNull();
+			}
+
+			unmount();
+		}
 	});
 
 	it('always provides the alternative link to /play', () => {

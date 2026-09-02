@@ -6,15 +6,24 @@
 
 	let selectedKey = $state<string>('open-white');
 	let customState = $state<ShowcaseState | null>(null);
+	let claimTimer: ReturnType<typeof setTimeout> | undefined;
 
 	const currentState = $derived(
 		customState ?? allFixtures[selectedKey] ?? allFixtures['open-white'],
 	);
 
 	function selectFixture(key: string) {
+		if (claimTimer) {
+			clearTimeout(claimTimer);
+			claimTimer = undefined;
+		}
 		selectedKey = key;
 		customState = null;
 	}
+
+	$effect(() => () => {
+		if (claimTimer) clearTimeout(claimTimer);
+	});
 
 	function handleIntent(intent: ShowcaseIntent) {
 		console.log('[ShowcasePreview] Received intent:', intent);
@@ -23,7 +32,8 @@
 			case 'claim':
 				// Simulate claim -> claiming -> live
 				selectFixture('claiming');
-				setTimeout(() => {
+				if (claimTimer) clearTimeout(claimTimer);
+				claimTimer = setTimeout(() => {
 					selectFixture('live-player-white-turn');
 				}, 1200);
 				break;

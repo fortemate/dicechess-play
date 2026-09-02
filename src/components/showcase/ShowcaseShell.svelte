@@ -120,7 +120,7 @@
 		>
 			<!-- Board Column: Left -->
 			<div
-				class="w-full flex flex-col items-center gap-2 sm:gap-2.5 mx-auto max-w-[min(100vw-24px,calc(100dvh-380px))] md:max-w-[min(480px,calc(100dvh-180px))] lg:max-w-[min(560px,calc(100dvh-200px))]"
+				class="w-full flex flex-col items-center gap-2 sm:gap-2.5 mx-auto max-w-[min(100vw-24px,max(240px,calc(100dvh-380px)))] md:max-w-[min(480px,max(240px,calc(100dvh-180px)))] lg:max-w-[min(560px,max(240px,calc(100dvh-200px)))]"
 			>
 				<div class="w-full {isReconnecting ? 'opacity-60 transition-opacity' : ''}">
 					<PlayerStrip

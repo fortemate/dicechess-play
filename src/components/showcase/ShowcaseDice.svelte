@@ -11,15 +11,11 @@
 	let { state }: Props = $props();
 
 	const isLive = $derived(state.kind === 'live-player' || state.kind === 'live-spectator');
-	const isFinishing = $derived(state.kind === 'finishing');
 	const isResetting = $derived(state.kind === 'reset');
 
 	const diceList = $derived.by<DieState[]>(() => {
 		if (state.kind === 'live-player' || state.kind === 'live-spectator') {
 			return state.dice ?? [];
-		}
-		if (state.kind === 'finishing' && state.dice) {
-			return state.dice;
 		}
 		return [];
 	});
@@ -60,12 +56,12 @@
 	class="flex h-11 md:h-[104px] items-center justify-between md:justify-center md:flex-col gap-2 md:gap-3 rounded-xl border border-border bg-surface px-2.5 md:p-3 transition-colors"
 	aria-label={diceAriaLabel}
 >
-	{#if (isLive || isFinishing) && diceList.length > 0}
+	{#if isLive && diceList.length > 0}
 		<div class="flex items-center gap-2 md:gap-3">
 			{#each diceList as d, i (i)}
 				<div
 					class="flex h-8 w-8 md:h-14 md:w-14 items-center justify-center rounded-lg md:rounded-xl border border-border bg-dice-surface transition-all duration-200
-						{d.used || isFinishing
+						{d.used
 						? 'scale-95 opacity-30 grayscale'
 						: 'shadow-sm md:shadow-md ring-1 md:ring-2 ring-primary/40'}"
 				>
@@ -78,7 +74,7 @@
 			{/each}
 		</div>
 		<span class="text-[11px] font-medium text-content-muted md:hidden">
-			{isLive ? liveTurnText : m.home_status_finished()}
+			{liveTurnText}
 		</span>
 	{:else}
 		<div class="flex items-center gap-2 md:gap-3 opacity-25" aria-hidden="true">

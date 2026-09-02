@@ -19,7 +19,7 @@ export const fixtureOpenWhite: ShowcaseStateOpen = {
 	assignedColor: 'w',
 	timeControl: '5 + 3 Blitz',
 	topPlayer: {
-		name: 'Waiting for challenger',
+		name: 'DeepDiceBot',
 		sub: 'Open seat',
 		bot: true,
 	},
@@ -36,7 +36,7 @@ export const fixtureOpenBlack: ShowcaseStateOpen = {
 	assignedColor: 'b',
 	timeControl: '5 + 3 Blitz',
 	topPlayer: {
-		name: 'Waiting for challenger',
+		name: 'DeepDiceBot',
 		sub: 'Open seat',
 		bot: true,
 	},
