@@ -266,3 +266,10 @@ a git tag; `package.json` stays at `0.0.0`.
 
 AGPL-3.0 (inherited from the Dice Chess engine; the public site distributes the engine
 bundle). See `LICENSE`.
+
+The Fortemate name and mark (`static/favicon*.{svg,png}`, `static/apple-touch-icon-180.png`,
+`static/pwa-*.png`, `static/social-preview-1200x630.png`, `static/fortemate-mark.svg`, and the
+inline mark in `src/components/showcase/ShowcaseMark.svelte`) are brand assets, not software: the
+AGPL-3.0 license does not cover them, and they identify only Fortemate and its projects. They are
+verbatim exports from the private `fortemate/brand` repository (`dist/identity/web`); regenerate
+them there rather than editing the copies here.

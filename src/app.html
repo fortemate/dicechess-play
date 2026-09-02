@@ -4,8 +4,12 @@
 		<meta charset="UTF-8" />
 		<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
 		<meta id="theme-color-meta" name="theme-color" content="#020617" />
-		<link rel="icon" type="image/png" href="/favicon.png" />
-		<link rel="apple-touch-icon" href="/apple-touch-icon.png" />
+		<!-- Fortemate identity assets (#65): verbatim copies of fortemate/brand dist/identity/web at
+		     brand commit d1faf10. Regenerate there, never edit here; the name stays live text. -->
+		<link rel="icon" href="/favicon.svg" type="image/svg+xml" />
+		<link rel="icon" href="/favicon-32.png" type="image/png" sizes="32x32" />
+		<link rel="icon" href="/favicon-16.png" type="image/png" sizes="16x16" />
+		<link rel="apple-touch-icon" href="/apple-touch-icon-180.png" sizes="180x180" />
 		<!-- The default-head block is the site-wide fallback metadata (#254). Crawlers and
 		     unfurl bots do not run JS, so every route served by the SPA fallback — the landing
 		     page included — unfurls from exactly these tags. The prerendered content page
@@ -26,8 +30,11 @@
 			content="Roll the dice, move your pieces, capture the king. A full Dice Chess game right in your browser — no sign-up, nothing to install."
 		/>
 		<meta property="og:url" content="https://fortemate.com/" />
-		<meta property="og:image" content="https://fortemate.com/pwa-512x512.png" />
-		<meta name="twitter:card" content="summary" />
+		<meta property="og:image" content="https://fortemate.com/social-preview-1200x630.png" />
+		<meta property="og:image:width" content="1200" />
+		<meta property="og:image:height" content="630" />
+		<meta property="og:image:alt" content="Fortemate" />
+		<meta name="twitter:card" content="summary_large_image" />
 		<!-- /default-head -->
 		<script>
 			(function () {
