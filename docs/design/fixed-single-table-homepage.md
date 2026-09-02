@@ -37,15 +37,17 @@ Provide the authoritative, implementation-ready visual and interaction specifica
 
 ## 2. The 7-State Matrix
 
-| #     | State             | Status Badge                  | Top Player Strip                                             | Bottom Player Strip                                             | Clocks (Top / Bottom)                                                              | Primary Action Slot                                      | Board Orientation & Interaction                                                        | Dice Slot                                                 | Recovery & Status Message                                                                                   |
-| :---- | :---------------- | :---------------------------- | :----------------------------------------------------------- | :-------------------------------------------------------------- | :--------------------------------------------------------------------------------- | :------------------------------------------------------- | :------------------------------------------------------------------------------------- | :-------------------------------------------------------- | :---------------------------------------------------------------------------------------------------------- |
-| **1** | **Open**          | `TABLE OPEN`<br>(Emerald dot) | Name: _Waiting for challenger_<br>Sub: _Open seat_           | Name: _You (Guest)_<br>Sub: _Assigned color · Claimable_        | `05:00` / `05:00`<br>(Static unstarted)                                            | **Claim [Color] Seat**<br>(Primary blue, 5+3 indicator)  | Assigned color POV.<br>Standard initial setup.<br>Interaction: None                    | Pre-reserved empty slots<br>(3 dim outlines, 25% opacity) | _"Public Showcase Table. Claim your seat to play a 5+3 Blitz game against any challenger."_                 |
-| **2** | **Claiming**      | `CLAIMING…`<br>(Blue ping)    | Name: _Waiting for challenger_<br>Sub: _Connecting…_         | Name: _You (Guest)_<br>Sub: _Reserving seat…_                   | `05:00` / `05:00`<br>(Static)                                                      | **Claiming Seat…**<br>(Disabled button, spinner)         | Assigned color POV.<br>Standard initial setup.<br>Interaction: Locked                  | Pre-reserved empty slots                                  | _"Connecting to server. Reserving seat… (First claim wins)."_                                               |
-| **3** | **Seated Player** | `LIVE GAME`<br>(Rose pulse)   | Name: Opponent name/ID<br>Sub: _Playing as [Color]_          | Name: _You ([Color])_<br>Sub: _Your move_ / _Opponent thinking_ | Active ticking (5+3).<br>Active border highlight.<br>Danger tone if $< 30\text{s}$ | **Resign Game**<br>(Outline button; confirmation gate)   | Player's color POV.<br>Live board position.<br>Interaction: Legal moves on select/drag | Active piece dice.<br>Dimmed/grayscale when used.         | In-rail turn prompt:<br>_"Your turn to move"_ / _"Opponent is thinking…"_                                   |
-| **4** | **Spectator**     | `IN PLAY`<br>(Amber dot)      | Name: Black player<br>Sub: _Black Seat_                      | Name: White player<br>Sub: _White Seat_                         | Active ticking for players.<br>Border highlights active turn                       | **Play on /play instead**<br>(Secondary link to `/play`) | White POV (broadcast view).<br>Live board position.<br>Interaction: View-only          | Active piece dice of current active player                | _"Table claimed by another visitor. Watching live. The next game will open automatically without a queue."_ |
-| **5** | **Reconnecting**  | `OFFLINE`<br>(Amber dot)      | Dimmed strips with offline/reconnecting indicator            | Dimmed strips with offline/reconnecting indicator               | Paused at last received timestamp                                                  | **Retry Connection**<br>(Amber button) + link to `/play` | Frozen on last known position.<br>Interaction: Disabled                                | Retains last known state (frozen)                         | In-rail alert banner:<br>_"Connection interrupted. Reconnecting (attempt 1/5)…"_                            |
-| **6** | **Finished**      | `GAME OVER`<br>(Slate dot)    | Name: Opponent<br>Sub: _Checkmated / Resigned / Out of time_ | Name: You (or player)<br>Sub: _Victor / Defeated / Drawn_       | Clocks frozen at end timestamp                                                     | **Reset Table Now**<br>(Auto-countdown indicator)        | Final board position.<br>Checkmate square highlighted.<br>Interaction: View-only       | Final turn dice (dimmed)                                  | Outcome banner in rail:<br>_"White won by checkmate. Next game opens in 15s."_                              |
-| **7** | **Reset-to-Open** | `RESETTING…`<br>(Blue pulse)  | Name: _Resetting table…_<br>Sub: _Alternating seat_          | Name: _Next game_<br>Sub: _Readying pieces_                     | Resetting to `05:00` / `05:00`                                                     | **Opening soon…**<br>(Disabled during reset)             | Board resets to standard starting position                                             | Fading out last dice, fading in empty placeholders        | _"Table reset complete. Alternating assigned color for the next visitor."_                                  |
+All text labels, status badges, and messages map 1:1 to keys in `messages/home.en.json` to satisfy the `no-untranslated-text` guard and support future localized catalogs:
+
+| #     | State             | Status Badge                                          | Top Player Strip                                                         | Bottom Player Strip                                                                      | Clocks (Top / Bottom)                                                              | Primary Action Slot                                                           | Board Orientation & Interaction                                                        | Dice Slot                                                          | Recovery & Status Message                                                                                                              |
+| :---- | :---------------- | :---------------------------------------------------- | :----------------------------------------------------------------------- | :--------------------------------------------------------------------------------------- | :--------------------------------------------------------------------------------- | :---------------------------------------------------------------------------- | :------------------------------------------------------------------------------------- | :----------------------------------------------------------------- | :------------------------------------------------------------------------------------------------------------------------------------- |
+| **1** | **Open**          | `home_status_open`<br>(`TABLE OPEN`, Emerald dot)     | Name: `home_player_waiting_challenger`<br>Sub: `home_player_open_seat`   | Name: `home_player_guest`<br>Sub: `home_player_claimable`                                | `05:00` / `05:00`<br>(Static unstarted)                                            | `home_action_claim_white` or `home_action_claim_black`<br>(Primary blue, 5+3) | Assigned color POV.<br>Standard initial setup.<br>Interaction: None                    | Pre-reserved empty slots<br>(`home_cue_dice_reserved`, 3 outlines) | `home_open_body`<br>(_"The table is open. Claim your seat to start a 5+3 game against any challenger."_)                               |
+| **2** | **Claiming**      | `home_status_claiming`<br>(`CLAIMING…`, Blue ping)    | Name: `home_player_waiting_challenger`<br>Sub: `home_player_connecting`  | Name: `home_player_guest`<br>Sub: `home_player_reserving`                                | `05:00` / `05:00`<br>(Static)                                                      | `home_action_claiming`<br>(`aria-disabled="true"`, spinner)                   | Assigned color POV.<br>Standard initial setup.<br>Interaction: Locked                  | Pre-reserved empty slots<br>(`home_cue_dice_reserved`)             | `home_player_reserving`<br>(_"Connecting to server. Reserving seat… (First claim wins)."_)                                             |
+| **3** | **Seated Player** | `home_status_live`<br>(`LIVE GAME`, Rose pulse)       | Name: Opponent name/ID<br>Sub: `home_player_playing_black` (or white)    | Name: `You ([Color])`<br>Sub: `home_player_your_turn` or `home_player_opponent_thinking` | Active ticking (5+3).<br>Active border highlight.<br>Danger tone if $< 30\text{s}$ | `home_action_resign`<br>(`Resign Game`, outline button)                       | Player's color POV.<br>Live board position.<br>Interaction: Legal moves on select/drag | Active piece dice.<br>Dimmed/grayscale when used.                  | In-rail turn prompt:<br>`home_cue_your_move` / `home_cue_opponent_thinking`                                                            |
+| **4** | **Spectator**     | `home_status_in_play`<br>(`IN PLAY`, Amber dot)       | Name: Black player<br>Sub: `home_player_seat_black`                      | Name: White player<br>Sub: `home_player_seat_white`                                      | Active ticking for players.<br>Border highlights active turn                       | `home_action_play_alt`<br>(`Play on /play instead`, secondary button)         | White POV (broadcast view).<br>Live board position.<br>Interaction: View-only          | Active piece dice of current active player                         | `home_spectator_body`<br>(_"Table claimed by another visitor. Watching live. The next game will open automatically without a queue."_) |
+| **5** | **Reconnecting**  | `home_status_offline`<br>(`OFFLINE`, Amber dot)       | Dimmed strips with offline/reconnecting indicator                        | Dimmed strips with offline/reconnecting indicator                                        | Paused at last received timestamp                                                  | `home_action_retry`<br>(`Retry connection`) + link to `/play`                 | Frozen on last known position.<br>Interaction: Disabled                                | Retains last known state (frozen)                                  | In-rail alert banner:<br>`home_reconnecting_body`<br>(_"Reconnecting to showcase table… (attempt X of Y)"_)                            |
+| **6** | **Finished**      | `home_status_finished`<br>(`GAME OVER`, Slate dot)    | Name: Opponent<br>Sub: `home_player_checkmated` / `resigned` / `timeout` | Name: You (or player)<br>Sub: `home_player_victor` / `defeated` / `drawn`                | Clocks frozen at end timestamp                                                     | `home_action_reset_now`<br>(Auto-countdown indicator)                         | Final board position.<br>Checkmate square highlighted.<br>Interaction: View-only       | Final turn dice (dimmed)                                           | Outcome banner in rail:<br>`home_outcome_winner` or `home_outcome_draw`                                                                |
+| **7** | **Reset-to-Open** | `home_status_resetting`<br>(`RESETTING…`, Blue pulse) | Name: `home_player_resetting`<br>Sub: _Alternating seat_                 | Name: `home_player_next_game`<br>Sub: _Readying pieces_                                  | Resetting to `05:00` / `05:00`                                                     | `home_action_opening_soon`<br>(`aria-disabled="true"`)                        | Board resets to standard starting position                                             | Fading out last dice (`home_cue_dice_clearing`)                    | `home_resetting_countdown`<br>(_"Next game opens in Xs"_)                                                                              |
 
 ---
 
@@ -53,7 +55,7 @@ Provide the authoritative, implementation-ready visual and interaction specifica
 
 To eliminate layout shifts across transitions between open, active, spectating, reconnecting, and finished states, all dimensions are strictly budgeted:
 
-```
+```text
 +-------------------------------------------------------------------------+
 | Restrained Showcase Header (48px): Fortemate Mark | 5+3 Blitz | Links   |
 +-------------------------------------------------------------------------+
@@ -112,16 +114,28 @@ To eliminate layout shifts across transitions between open, active, spectating, 
 
 ### 3.3 Narrow Screen / Mobile Breakpoint ($< 768\text{px}$, e.g. 375px – 430px)
 
-- **Layout**: Single vertical stack engineered to avoid vertical scrolling:
-  - Sticky Top Nav: `48px`.
-  - Top Player Strip: `h-12` ($48\text{px}$).
-  - Board: `w-full max-w-[min(100vw - 24px, calc(100dvh - 320px))] aspect-square mx-auto`.
-  - Bottom Player Strip: `h-12` ($48\text{px}$).
-  - Unified Bottom Control Card: Pre-allocated `h-[160px]`:
-    - Row 1: Dice & Turn Indicator (`h-12` / $48\text{px}$, 3 mini dice $40\times 40\text{px}$).
-    - Row 2: Status / Alert text (`h-[36px]`).
-    - Row 3: Action Button (`h-11` / $44\text{px}$ touch target).
-- **Zero-Shift Mobile Rule**: Every component in the vertical flow has an explicit height or aspect ratio. Transitions never alter scroll position or viewport bounding boxes.
+To strictly satisfy the zero-scroll guarantee on mobile devices down to compact viewports ($375\times 667\text{px}$, iPhone SE), the vertical budget accounts for every element and gap:
+
+- **Vertical Budget Breakdown**:
+  - Sticky App Header: `48px`
+  - Top Player Strip: `h-12` ($48\text{px}$)
+  - Bottom Player Strip: `h-12` ($48\text{px}$)
+  - Unified Compact Control Card: `h-[152px]` containing:
+    - Row 1: Dice & Turn Row (`h-11` / $44\text{px}$, 3 mini dice $36\times 36\text{px}$)
+    - Row 2: Status / Alert Row (`h-7` / $28\text{px}$)
+    - Row 3: Action Button (`h-12` / $48\text{px}$ touch target)
+  - Footer Bar: `32px`
+  - Flow Gaps (5 gaps between stacked elements): $5 \times 8\text{px} = 40\text{px}$
+  - **Total Non-Board Chrome**: $48 + 48 + 48 + 152 + 32 + 40 = 368\text{px}$
+- **Board Sizing Formula**:
+  ```css
+  max-w-[min(100vw - 24px, calc(100dvh - 380px))] aspect-square mx-auto
+  ```
+  In a $375\times 667\text{px}$ viewport:
+  $$\text{Remaining height for board} = 667\text{px} - 380\text{px} = 287\text{px}$$
+  The board renders at $287\times 287\text{px}$ (since $287\text{px} < 351\text{px}$ width).
+  $$\text{Total Stack Height} = 368\text{px} + 287\text{px} = 655\text{px} \le 667\text{px}$$
+- **Zero-Shift Mobile Rule**: Every component in the vertical flow has a fixed height or aspect ratio. Transitions never alter scroll position or element bounding boxes.
 
 ---
 
@@ -135,11 +149,16 @@ To eliminate layout shifts across transitions between open, active, spectating, 
 - A single high-contrast primary CTA is displayed: `"Claim White Seat"` or `"Claim Black Seat"`.
 - No time control selection, no color choice picker, no lobby modal.
 
-### 4.2 Claiming & Race Conditions (First-Claim-Wins)
+### 4.2 Claiming & Focus Preservation (First-Claim-Wins)
 
 - Clicking the Claim CTA triggers the `claiming` state immediately.
-- The button becomes disabled, showing an animated spinner and `"Claiming seat…"`.
-- **Success**: Server grants the seat $\rightarrow$ smooth transition to `seated_player`.
+- **Accessible Busy State**: To prevent browser focus dropping to the document root, the button does **not** use the native HTML `disabled` attribute. Instead, it applies:
+  - `aria-disabled="true"`
+  - `aria-busy="true"`
+  - Pointer events none (`pointer-events-none`)
+  - Keydown activation guard (ignores Enter and Space)
+- Focus is preserved on the CTA while announcing the busy state to assistive technologies, or optionally shifted to the `role="status"` announcer.
+- **Success**: Server grants the seat $\rightarrow$ smooth transition to `seated_player`. Focus moves to the board.
 - **Race Lost**: Another visitor's claim was registered first $\rightarrow$ server returns seat taken $\rightarrow$ seamless transition to `spectator` state without page reloads or jarring error modals.
 
 ### 4.3 Spectator State & Queue-Free Waiting
@@ -161,23 +180,32 @@ To eliminate layout shifts across transitions between open, active, spectating, 
 ### 4.5 Recovery & Reconnection
 
 - If the WebSocket connection drops, the board **remains in place** displaying the last confirmed position.
-- An alert banner renders in the pre-reserved status slot: _"Connection interrupted. Reconnecting… (attempt X of 5)"_.
-- Provides a `"Retry Connection"` action and an escape hatch `"Play bots offline on /play"`.
+- An alert banner renders in the pre-reserved status slot: _"Connection interrupted. Reconnecting to showcase table (attempt X of Y)…"_.
+- Provides a `"Retry Connection"` action and an escape hatch `"Play with bots on /play"`.
 
-### 4.6 Game End & Table Reset
+### 4.6 Game End & Reset Countdown
 
 - On checkmate, resignation, timeout, or draw, the board freezes on the final position.
 - The pre-reserved status slot displays the outcome:
   - e.g., _"White won by checkmate"_, _"Black won on time"_, _"Drawn by agreement"_.
-- A $15$-second dwell timer begins with an unobtrusive visual progress countdown.
+- A $15$-second server-synchronized dwell countdown begins.
 - Action slot offers an immediate `"Reset Table Now"` button.
-- On expiry or click, the board transitions to `reset-to-open`: pieces glide or reset to initial ranks, assigned color alternates, and state returns to `open`.
+
+### 4.7 Server-Authoritative Reset Protocol
+
+To guarantee that all concurrent visitors converge on the exact same table state without split-brain or stale claim races:
+
+1. **Server-Owned Lifecycle**: The transition from `finished` to `open` is authoritative on the server. Clients do not execute an autonomous local state mutation.
+2. **Server Dwell & Auto-Reset**: Upon game termination (`GameEnded`), the server starts a 15-second dwell timer. When the timer elapses, the server generates a new table epoch and broadcasts `TableReset(generationId, assignedColor)`.
+3. **Idempotent Client Reset Command**: If a visitor clicks `"Reset Table Now"`, the client sends `ClientCommand.ResetTable(generationId)`. The server verifies that the game is in `Ended` state and the `generationId` matches. If valid, the server short-circuits the dwell timer and broadcasts `TableReset`. If invalid or already reset, it responds with the current room snapshot.
+4. **Synchronized Transition**: Upon receiving `TableReset`, all connected clients simultaneously transition from `finished` $\rightarrow$ `reset-to-open` $\rightarrow$ `open`, resetting piece positions, resetting clocks to `05:00`, and enabling the new Claim CTA.
+5. **Reconnection Resynchronization**: Reconnecting clients fetch the room snapshot containing `generationId`. If the client holds a stale generation, it immediately resynchronizes to the server's current generation.
 
 ---
 
 ## 5. Brand Identity & Restrained Navigation
 
-- **Master Mark**: Uses the approved Fortemate Six-Cell master mark (modular F, $14\times 14$ master canvas, 4:1 cell-to-gap ratio, monochrome ink) from `/Users/jegors/Fortemate/brand/src/identity/fortemate-mark.svg`.
+- **Master Mark**: Uses the approved Fortemate Six-Cell master mark (modular F, $14\times 14$ master canvas, 4:1 cell-to-gap ratio, monochrome ink) referenced via design-system identifier `@fortemate/brand/dist/identity/fortemate-mark.svg` (or repository asset path `brand/src/identity/fortemate-mark.svg`).
 - **Wordmark & Badges**: `"Fortemate"` with `"Showcase Table"` and `"5+3 Blitz"` indicators.
 - **Restrained Navigation Links**:
   - `/play` (Prominent: _"Play Bots & Friends"_, unchanged alternative).
@@ -190,7 +218,7 @@ To eliminate layout shifts across transitions between open, active, spectating, 
 
 1. **Focus Management**:
    - Initial load: focus remains at document body / skip link.
-   - On clicking "Claim": focus stays on the loading button (announcing busy state).
+   - On clicking "Claim": focus is preserved on the CTA with `aria-busy="true"` and `aria-disabled="true"`.
    - On transitioning to Seated: focus moves smoothly to the board container or turn announcer.
    - On game end: focus shifts to the outcome card.
 2. **Screen Reader Announcements**:
@@ -206,7 +234,7 @@ To eliminate layout shifts across transitions between open, active, spectating, 
    - All text complies with WCAG 2.1 AA ($4.5:1$ for regular text, $3:1$ for large text/UI components).
    - Validated across all 7 supported themes (`dark`, `light`, `dracula`, `nord`, `retro`, `matrix`, `midnight`).
 5. **Touch Targets**:
-   - All interactive elements (Claim button, Resign button, navigation links) have a minimum touch target of $44\times 44\text{px}$ (iOS HIG) and $48\times 48\text{px}$ (Material guidelines).
+   - All interactive controls (Claim button, Resign button, Reset button, navigation links) adhere to the standard $48\times 48\text{px}$ (`h-12`) touch target, satisfying both WCAG 2.5.5 ($44\times 44\text{px}$) and Android Material guidelines ($48\times 48\text{px}$).
 
 ---
 
@@ -238,17 +266,55 @@ To coordinate with Epic [#8](https://github.com/fortemate/dicechess-play/issues/
 	"$schema": "https://inlang.com/schema/inlang-message-format",
 	"home_showcase_title": "Showcase Table",
 	"home_time_control_blitz": "5 + 3 Blitz",
-	"home_claim_seat_white": "Claim White Seat",
-	"home_claim_seat_black": "Claim Black Seat",
-	"home_claiming": "Claiming seat…",
-	"home_waiting_challenger": "Waiting for challenger",
+	"home_status_open": "TABLE OPEN",
+	"home_status_claiming": "CLAIMING…",
+	"home_status_live": "LIVE GAME",
+	"home_status_in_play": "IN PLAY",
+	"home_status_offline": "OFFLINE",
+	"home_status_finished": "GAME OVER",
+	"home_status_resetting": "RESETTING…",
+	"home_player_waiting_challenger": "Waiting for challenger",
+	"home_player_open_seat": "Open seat",
+	"home_player_connecting": "Connecting…",
+	"home_player_guest": "You (Guest)",
+	"home_player_reserving": "Reserving seat…",
+	"home_player_claimable": "Assigned color · Claimable",
+	"home_player_your_turn": "Your turn to move",
+	"home_player_opponent_thinking": "Opponent thinking",
+	"home_player_playing_white": "Playing as White",
+	"home_player_playing_black": "Playing as Black",
+	"home_player_seat_white": "White Seat",
+	"home_player_seat_black": "Black Seat",
+	"home_player_disconnected": "Disconnected",
+	"home_player_checkmated": "Checkmated",
+	"home_player_resigned": "Resigned",
+	"home_player_timeout": "Out of time",
+	"home_player_victor": "Victor",
+	"home_player_defeated": "Defeated",
+	"home_player_drawn": "Drawn",
+	"home_player_resetting": "Resetting table…",
+	"home_player_next_game": "Next game",
+	"home_action_claim_white": "Claim White Seat",
+	"home_action_claim_black": "Claim Black Seat",
+	"home_action_claiming": "Claiming seat…",
+	"home_action_resign": "Resign Game",
+	"home_action_play_alt": "Play on /play instead",
+	"home_action_retry": "Retry connection",
+	"home_action_reset_now": "Reset table now",
+	"home_action_opening_soon": "Opening soon…",
+	"home_cue_your_move": "Your turn to move",
+	"home_cue_opponent_thinking": "Opponent is thinking…",
+	"home_cue_spectator_turn": "{player} to move",
+	"home_cue_dice_reserved": "Reserved",
+	"home_cue_dice_clearing": "Clearing",
+	"home_dice_rolled": "Rolled: {dice}",
 	"home_open_subtitle": "Public showcase table · 5+3 Blitz",
 	"home_open_body": "The table is open. Claim your seat to start a 5+3 game against any challenger.",
 	"home_spectator_title": "Table claimed by another visitor",
 	"home_spectator_body": "Watching live. The next game will open automatically without a queue.",
 	"home_spectator_play_alt": "Want to play right now? Open /play for instant games.",
 	"home_reconnecting_title": "Connection interrupted",
-	"home_reconnecting_body": "Reconnecting to showcase table…",
+	"home_reconnecting_body": "Reconnecting to showcase table (attempt {attempt} of {maxAttempts})…",
 	"home_reconnect_retry": "Retry connection",
 	"home_play_redirect": "Play with bots on /play",
 	"home_outcome_winner": "{winner} wins by {reason}",
