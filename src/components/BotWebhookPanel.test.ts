@@ -573,7 +573,7 @@ describe('BotWebhookPanel', () => {
 			await view.rerender({ root: 'admin', team: 'acme', name: 'alice', onChanged: vi.fn() });
 
 			expect(view.getByText(/No credential changed/i)).toBeTruthy();
-			expect(api.readWebhook.mock.calls.length).toBe(readsBefore);
+			expect(api.readWebhook.mock.calls).toHaveLength(readsBefore);
 			expect(api.fetchWebhookCapabilityCatalog).toHaveBeenCalledTimes(1);
 		});
 
