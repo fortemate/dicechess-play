@@ -22,7 +22,7 @@
 	{#if state.kind === 'open'}
 		<button
 			type="button"
-			onclick={() => onIntent?.({ type: 'claim', color: state.assignedColor })}
+			onclick={() => onIntent?.({ type: 'claim' })}
 			class="flex h-12 w-full cursor-pointer items-center justify-center rounded-xl bg-primary px-4 py-3 text-sm font-bold tracking-wider text-primary-content uppercase shadow-lg shadow-primary/25 transition-all hover:bg-primary-hover active:scale-[0.98]"
 		>
 			{state.assignedColor === 'w' ? m.home_action_claim_white() : m.home_action_claim_black()}
@@ -81,5 +81,12 @@
 		>
 			{m.home_action_opening_soon()}
 		</button>
+	{:else if state.kind === 'unavailable'}
+		<a
+			href={resolve('/play')}
+			class="flex h-12 w-full items-center justify-center rounded-xl border border-border bg-surface px-4 py-3 text-sm font-bold tracking-wider text-content transition-all hover:border-border-strong hover:bg-surface-hover"
+		>
+			{m.home_action_play_alt()}
+		</a>
 	{/if}
 </div>

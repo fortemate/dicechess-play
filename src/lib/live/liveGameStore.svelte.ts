@@ -79,6 +79,8 @@ export class LiveGameStore {
 	// Whether this game counts toward rating (play-api #290). `undefined` means the server didn't
 	// say (older server) — callers must treat that the same as `false`, never assume rated.
 	rated = $state<boolean | undefined>(undefined);
+	onEnd?: ((over: Over) => void) | null = null;
+	onConnectionStatus?: ((status: ConnStatus) => void) | null = null;
 
 	// ── Draw offers (play-api #327, this repo #253) ─────────────────────────
 	drawOffer = $state<DrawOffer | null>(null);
@@ -268,7 +270,10 @@ export class LiveGameStore {
 		// over it server-side; spectators send nothing to claim.
 		const client = new LiveClient(wsUrl(id, token, token ? getGuestUuid() : null));
 		this.client = client;
-		client.onStatus((s) => (this.connection = s));
+		client.onStatus((s) => {
+			this.connection = s;
+			this.onConnectionStatus?.(s);
+		});
 		client.onEvent((ev) => this.applyEvent(ev));
 		// A seated player contributes post-commit dice entropy so the server's opening-roll gate opens
 		// promptly; spectators send nothing. LiveClient re-announces it on each reconnect (the server
@@ -530,6 +535,7 @@ export class LiveGameStore {
 			this.winner = over.result.Win.side;
 			this.outcome = this.mySeat === null ? null : this.winner === this.mySeat ? 'won' : 'lost';
 		}
+		this.onEnd?.(over);
 	}
 
 	private rollback(): void {
