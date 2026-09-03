@@ -40,7 +40,6 @@ export class ApiAcceptanceMatrix {
 			const msg = err instanceof Error ? err.message : String(err);
 			const stack = err instanceof Error ? err.stack : undefined;
 			console.log(`FAILED (${durationMs}ms)`);
-			console.error(`    Error: ${msg}`);
 			this.results.push({
 				name,
 				passed: false,
@@ -99,6 +98,9 @@ export class ApiAcceptanceMatrix {
 	}
 
 	private async resignGame(gameId: string, token: string): Promise<void> {
+		if (!/^[a-zA-Z0-9_-]+$/.test(gameId) || !/^[a-zA-Z0-9_-]+$/.test(token)) {
+			throw new Error('Invalid gameId or token format');
+		}
 		return new Promise((resolve) => {
 			const safeGameId = encodeURIComponent(gameId);
 			const safeToken = encodeURIComponent(token);
@@ -562,8 +564,10 @@ export class ApiAcceptanceMatrix {
 			}
 			if (!restored) throw new Error('Table did not restore after database restarted');
 
-			if (restoredView?.status === 'live' && restoredView.currentGame?.gameId) {
-				const safeGameId = encodeURIComponent(restoredView.currentGame.gameId);
+			if (restoredView?.status === 'live' && typeof restoredView.currentGame?.gameId === 'string') {
+				const gameId = restoredView.currentGame.gameId;
+				if (!/^[a-zA-Z0-9_-]+$/.test(gameId)) throw new Error('Invalid gameId format');
+				const safeGameId = encodeURIComponent(gameId);
 				const ws = new WebSocket(
 					`ws://127.0.0.1:${this.env.apiPort}/games/${safeGameId}/ws?token=resigner`,
 				);

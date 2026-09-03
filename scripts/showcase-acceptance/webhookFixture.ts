@@ -91,13 +91,22 @@ export class WebhookFixture {
 		if (req.url === '/fixture/control/mode' && req.method === 'POST') {
 			try {
 				const json = JSON.parse(bodyText);
-				if (json.mode) this.mode = json.mode;
-				if (json.timeoutDelayMs) this.timeoutDelayMs = json.timeoutDelayMs;
+				if (
+					json.mode === 'healthy' ||
+					json.mode === 'unavailable' ||
+					json.mode === 'timeout' ||
+					json.mode === 'malformed'
+				) {
+					this.mode = json.mode;
+				}
+				if (typeof json.timeoutDelayMs === 'number') {
+					this.timeoutDelayMs = Math.min(Math.max(json.timeoutDelayMs, 1000), 10000);
+				}
 				res.writeHead(200, { 'Content-Type': 'application/json' });
 				res.end(JSON.stringify({ ok: true, mode: this.mode }));
-			} catch (e) {
+			} catch {
 				res.writeHead(400, { 'Content-Type': 'application/json' });
-				res.end(JSON.stringify({ error: String(e) }));
+				res.end(JSON.stringify({ error: 'invalid_json_payload' }));
 			}
 			return true;
 		}
@@ -140,7 +149,8 @@ export class WebhookFixture {
 		}
 
 		if (this.mode === 'timeout') {
-			await new Promise((r) => setTimeout(r, this.timeoutDelayMs));
+			const delay = Math.min(Math.max(this.timeoutDelayMs, 1000), 10000);
+			await new Promise((r) => setTimeout(r, delay));
 			const responseBody = JSON.stringify({ moves: [] });
 			this.recordLog(req, bodyText, isValid, 200, responseBody);
 			res.writeHead(200, { 'Content-Type': 'application/json' });
