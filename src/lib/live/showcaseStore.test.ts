@@ -43,7 +43,9 @@ class MockWebSocket {
 describe('ShowcaseStore', () => {
 	let store: ShowcaseStore;
 	let liveGameStore: LiveGameStore;
-	let mockGetShowcase: ReturnType<typeof vi.fn<(ifNoneMatch?: string) => Promise<GetShowcaseResult>>>;
+	let mockGetShowcase: ReturnType<
+		typeof vi.fn<(ifNoneMatch?: string) => Promise<GetShowcaseResult>>
+	>;
 	let mockClaimShowcase: ReturnType<typeof vi.fn<() => Promise<ShowcaseClaimOutcome>>>;
 
 	beforeEach(() => {
@@ -324,7 +326,9 @@ describe('ShowcaseStore', () => {
 						clocks: null,
 						version: 2,
 						dfen: 'rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1',
-						status: { Ended: { over: { termination: 'KingCaptured', result: { Win: { side: 'White' } } } } },
+						status: {
+							Ended: { over: { termination: 'KingCaptured', result: { Win: { side: 'White' } } } },
+						},
 					},
 					spectator: null,
 					reason: null,

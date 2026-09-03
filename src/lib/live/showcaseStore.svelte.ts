@@ -112,10 +112,7 @@ export class ShowcaseStore {
 
 	state = $derived.by<ShowcaseState>(() => {
 		// If WebSocket dropped mid-game, render reconnecting state
-		if (
-			this.isReconnecting &&
-			(this.phase === 'live-player' || this.phase === 'live-spectator')
-		) {
+		if (this.isReconnecting && (this.phase === 'live-player' || this.phase === 'live-spectator')) {
 			return this.buildReconnectingState();
 		}
 
@@ -538,7 +535,10 @@ export class ShowcaseStore {
 				}
 
 				// If we are already connected to this game (as player or spectator), keep live connection
-				if (this.currentGameId === gameId && (this.phase === 'live-player' || this.phase === 'live-spectator')) {
+				if (
+					this.currentGameId === gameId &&
+					(this.phase === 'live-player' || this.phase === 'live-spectator')
+				) {
 					return;
 				}
 

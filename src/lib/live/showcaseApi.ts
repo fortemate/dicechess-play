@@ -169,9 +169,7 @@ export interface ClaimShowcaseOptions {
  * Resolves to ShowcaseClaimed (winner) or ShowcaseSpectating (loser).
  * Throws ShowcaseProblemError on RFC 7807 problem responses (503, 429, 400, etc.).
  */
-export async function claimShowcase(
-	options?: ClaimShowcaseOptions,
-): Promise<ShowcaseClaimOutcome> {
+export async function claimShowcase(options?: ClaimShowcaseOptions): Promise<ShowcaseClaimOutcome> {
 	const base = apiBase();
 	if (!base) {
 		throw new ShowcaseProblemError({
