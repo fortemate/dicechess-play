@@ -23,7 +23,9 @@ async function main(): Promise<void> {
 	const playRev = execSync('git rev-parse HEAD', { cwd: '/Users/jegors/Fortemate/dicechess-play' })
 		.toString()
 		.trim();
-	const apiRev = execSync('git rev-parse HEAD', { cwd: '/Users/jegors/Fortemate/dicechess-play-api' })
+	const apiRev = execSync('git rev-parse HEAD', {
+		cwd: '/Users/jegors/Fortemate/dicechess-play-api',
+	})
 		.toString()
 		.trim();
 
@@ -37,8 +39,8 @@ async function main(): Promise<void> {
 		pgPort: 54329,
 	});
 
-	let apiResults: Array<{ name: string; passed: boolean; durationMs: number; error?: string }> = [];
-	let browserPassed = false;
+	let apiResults: Array<{ name: string; passed: boolean; durationMs: number; error?: string }>;
+	let browserPassed: boolean;
 	let browserError = '';
 
 	try {
@@ -48,10 +50,14 @@ async function main(): Promise<void> {
 		console.log('\n=== Executing Browser Acceptance Suite (Desktop & Mobile) ===\n');
 		try {
 			await new Promise<void>((resolve, reject) => {
-				const child = spawn('npx', ['playwright', 'test', '-c', 'playwright.acceptance.config.ts'], {
-					cwd: '/Users/jegors/Fortemate/dicechess-play',
-					stdio: 'inherit',
-				});
+				const child = spawn(
+					'npx',
+					['playwright', 'test', '-c', 'playwright.acceptance.config.ts'],
+					{
+						cwd: '/Users/jegors/Fortemate/dicechess-play',
+						stdio: 'inherit',
+					},
+				);
 				child.on('close', (code) => {
 					if (code === 0) resolve();
 					else reject(new Error(`Playwright exited with code ${code}`));
@@ -60,9 +66,9 @@ async function main(): Promise<void> {
 			});
 			browserPassed = true;
 			console.log('\n[Browser Suite] All Playwright acceptance scenarios PASSED!\n');
-		} catch (err: any) {
+		} catch (err: unknown) {
 			browserPassed = false;
-			browserError = err.message || String(err);
+			browserError = err instanceof Error ? err.message : String(err);
 			console.error('\n[Browser Suite] Playwright acceptance tests failed:\n', browserError);
 		}
 
@@ -72,10 +78,12 @@ async function main(): Promise<void> {
 			try {
 				const res = await fetch(`http://127.0.0.1:${env.apiPort}/showcase`);
 				if (res.ok) {
-					const json = (await res.json()) as any;
+					const json = (await res.json()) as { status?: string };
 					if (json.status === 'open') break;
 				}
-			} catch {}
+			} catch {
+				// Retry until table is open
+			}
 			await new Promise((r) => setTimeout(r, 500));
 		}
 
@@ -262,7 +270,9 @@ The following screenshots were captured during live browser execution:
 `;
 }
 
-main().catch((err) => {
+try {
+	await main();
+} catch (err) {
 	console.error('Fatal error running acceptance suite:', err);
 	process.exit(1);
-});
+}

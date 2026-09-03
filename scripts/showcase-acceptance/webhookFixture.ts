@@ -22,7 +22,10 @@ export class WebhookFixture {
 	private readonly secret: string;
 	private readonly port: number;
 
-	constructor(secret: string = '0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef', port: number = 8089) {
+	constructor(
+		secret: string = '0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef',
+		port: number = 8089,
+	) {
 		this.secret = secret;
 		this.port = port;
 	}
@@ -69,14 +72,132 @@ export class WebhookFixture {
 		}
 	}
 
-	private findFirstMovePath(node: any): string[] {
+	private findFirstMovePath(node: unknown): string[] {
 		if (!node || typeof node !== 'object') return [];
-		const target = node.children ?? node;
+		const rec = node as Record<string, unknown>;
+		const target = (rec.children ?? rec) as Record<string, unknown>;
 		const keys = Object.keys(target);
 		if (keys.length === 0) return [];
-		keys.sort();
+		keys.sort((a, b) => a.localeCompare(b));
 		const firstKey = keys[0];
 		return [firstKey, ...this.findFirstMovePath(target[firstKey])];
+	}
+
+	private handleControlEndpoints(
+		req: http.IncomingMessage,
+		res: http.ServerResponse,
+		bodyText: string,
+	): boolean {
+		if (req.url === '/fixture/control/mode' && req.method === 'POST') {
+			try {
+				const json = JSON.parse(bodyText);
+				if (json.mode) this.mode = json.mode;
+				if (json.timeoutDelayMs) this.timeoutDelayMs = json.timeoutDelayMs;
+				res.writeHead(200, { 'Content-Type': 'application/json' });
+				res.end(JSON.stringify({ ok: true, mode: this.mode }));
+			} catch (e) {
+				res.writeHead(400, { 'Content-Type': 'application/json' });
+				res.end(JSON.stringify({ error: String(e) }));
+			}
+			return true;
+		}
+
+		if (req.url === '/fixture/control/logs' && req.method === 'GET') {
+			res.writeHead(200, { 'Content-Type': 'application/json' });
+			res.end(JSON.stringify({ logs: this.logs }));
+			return true;
+		}
+
+		if (req.url === '/fixture/control/reset' && req.method === 'POST') {
+			this.clearLogs();
+			this.mode = 'healthy';
+			res.writeHead(200, { 'Content-Type': 'application/json' });
+			res.end(JSON.stringify({ ok: true }));
+			return true;
+		}
+
+		if (req.url === '/fixture/health' && req.method === 'GET') {
+			res.writeHead(200, { 'Content-Type': 'application/json' });
+			res.end(JSON.stringify({ status: 'ok', mode: this.mode }));
+			return true;
+		}
+
+		return false;
+	}
+
+	private async handleSimulatedModes(
+		req: http.IncomingMessage,
+		res: http.ServerResponse,
+		bodyText: string,
+		isValid: boolean,
+	): Promise<boolean> {
+		if (this.mode === 'unavailable') {
+			const responseBody = JSON.stringify({ error: 'bot_unavailable' });
+			this.recordLog(req, bodyText, isValid, 503, responseBody);
+			res.writeHead(503, { 'Content-Type': 'application/json' });
+			res.end(responseBody);
+			return true;
+		}
+
+		if (this.mode === 'timeout') {
+			await new Promise((r) => setTimeout(r, this.timeoutDelayMs));
+			const responseBody = JSON.stringify({ moves: [] });
+			this.recordLog(req, bodyText, isValid, 200, responseBody);
+			res.writeHead(200, { 'Content-Type': 'application/json' });
+			res.end(responseBody);
+			return true;
+		}
+
+		if (this.mode === 'malformed') {
+			const responseBody = '{"not_valid_moves":true}';
+			this.recordLog(req, bodyText, isValid, 200, responseBody);
+			res.writeHead(200, { 'Content-Type': 'application/json' });
+			res.end(responseBody);
+			return true;
+		}
+
+		return false;
+	}
+
+	private recordLog(
+		req: http.IncomingMessage,
+		bodyText: string,
+		isValid: boolean,
+		status: number,
+		body: string,
+	): void {
+		this.logs.push({
+			timestamp: Date.now(),
+			method: req.method || 'POST',
+			path: req.url || '/',
+			headers: req.headers,
+			bodyText,
+			signatureValid: isValid,
+			responseStatus: status,
+			responseBody: body,
+		});
+	}
+
+	private resolvePayload(bodyText: string): { status: number; body: string } {
+		try {
+			const payload = JSON.parse(bodyText);
+			if (payload.type === 'verification') {
+				return { status: 200, body: JSON.stringify({ nonce: payload.nonce }) };
+			}
+			if (payload.type === 'yourTurn') {
+				const moves = this.findFirstMovePath(payload.state?.legalMoves);
+				return { status: 200, body: JSON.stringify({ moves }) };
+			}
+			if (payload.type === 'drawDecision') {
+				return { status: 200, body: JSON.stringify({ moves: [], acceptDraw: false }) };
+			}
+			return {
+				status: 400,
+				body: JSON.stringify({ error: `Unknown payload type: ${payload.type}` }),
+			};
+		} catch (err) {
+			return { status: 400, body: JSON.stringify({ error: `JSON parse failed: ${String(err)}` }) };
+		}
 	}
 
 	async start(): Promise<void> {
@@ -90,42 +211,8 @@ export class WebhookFixture {
 					const rawBody = Buffer.concat(chunks);
 					const bodyText = rawBody.toString('utf8');
 
-					// Control endpoints
-					if (req.url === '/fixture/control/mode' && req.method === 'POST') {
-						try {
-							const json = JSON.parse(bodyText);
-							if (json.mode) this.mode = json.mode;
-							if (json.timeoutDelayMs) this.timeoutDelayMs = json.timeoutDelayMs;
-							res.writeHead(200, { 'Content-Type': 'application/json' });
-							res.end(JSON.stringify({ ok: true, mode: this.mode }));
-						} catch (e) {
-							res.writeHead(400, { 'Content-Type': 'application/json' });
-							res.end(JSON.stringify({ error: String(e) }));
-						}
-						return;
-					}
+					if (this.handleControlEndpoints(req, res, bodyText)) return;
 
-					if (req.url === '/fixture/control/logs' && req.method === 'GET') {
-						res.writeHead(200, { 'Content-Type': 'application/json' });
-						res.end(JSON.stringify({ logs: this.logs }));
-						return;
-					}
-
-					if (req.url === '/fixture/control/reset' && req.method === 'POST') {
-						this.clearLogs();
-						this.mode = 'healthy';
-						res.writeHead(200, { 'Content-Type': 'application/json' });
-						res.end(JSON.stringify({ ok: true }));
-						return;
-					}
-
-					if (req.url === '/fixture/health' && req.method === 'GET') {
-						res.writeHead(200, { 'Content-Type': 'application/json' });
-						res.end(JSON.stringify({ status: 'ok', mode: this.mode }));
-						return;
-					}
-
-					// Webhook endpoint
 					const signatureHeader = req.headers['x-dicechess-signature'] as string | undefined;
 					const timestampHeader = req.headers['x-dicechess-timestamp'] as string | undefined;
 					const isValid =
@@ -133,96 +220,12 @@ export class WebhookFixture {
 						Boolean(timestampHeader) &&
 						this.verifyHmac(timestampHeader!, rawBody, signatureHeader!);
 
-					// Handle simulated failures
-					if (this.mode === 'unavailable') {
-						const responseBody = JSON.stringify({ error: 'bot_unavailable' });
-						this.logs.push({
-							timestamp: Date.now(),
-							method: req.method || 'POST',
-							path: req.url || '/',
-							headers: req.headers,
-							bodyText,
-							signatureValid: isValid,
-							responseStatus: 503,
-							responseBody,
-						});
-						res.writeHead(503, { 'Content-Type': 'application/json' });
-						res.end(responseBody);
-						return;
-					}
+					if (await this.handleSimulatedModes(req, res, bodyText, isValid)) return;
 
-					if (this.mode === 'timeout') {
-						await new Promise((r) => setTimeout(r, this.timeoutDelayMs));
-						const responseBody = JSON.stringify({ moves: [] });
-						this.logs.push({
-							timestamp: Date.now(),
-							method: req.method || 'POST',
-							path: req.url || '/',
-							headers: req.headers,
-							bodyText,
-							signatureValid: isValid,
-							responseStatus: 200,
-							responseBody,
-						});
-						res.writeHead(200, { 'Content-Type': 'application/json' });
-						res.end(responseBody);
-						return;
-					}
-
-					if (this.mode === 'malformed') {
-						const responseBody = '{"not_valid_moves":true}';
-						this.logs.push({
-							timestamp: Date.now(),
-							method: req.method || 'POST',
-							path: req.url || '/',
-							headers: req.headers,
-							bodyText,
-							signatureValid: isValid,
-							responseStatus: 200,
-							responseBody,
-						});
-						res.writeHead(200, { 'Content-Type': 'application/json' });
-						res.end(responseBody);
-						return;
-					}
-
-					// Healthy handling
-					let responseStatus = 200;
-					let responseBody = '';
-
-					try {
-						const payload = JSON.parse(bodyText);
-						if (payload.type === 'verification') {
-							// Echo back nonce
-							responseBody = JSON.stringify({ nonce: payload.nonce });
-						} else if (payload.type === 'yourTurn') {
-							const legalMovesTree = payload.state?.legalMoves;
-							const moves = this.findFirstMovePath(legalMovesTree);
-							responseBody = JSON.stringify({ moves });
-						} else if (payload.type === 'drawDecision') {
-							responseBody = JSON.stringify({ moves: [], acceptDraw: false });
-						} else {
-							responseStatus = 400;
-							responseBody = JSON.stringify({ error: `Unknown payload type: ${payload.type}` });
-						}
-					} catch (err) {
-						responseStatus = 400;
-						responseBody = JSON.stringify({ error: `JSON parse failed: ${String(err)}` });
-					}
-
-					this.logs.push({
-						timestamp: Date.now(),
-						method: req.method || 'POST',
-						path: req.url || '/',
-						headers: req.headers,
-						bodyText,
-						signatureValid: isValid,
-						responseStatus,
-						responseBody,
-					});
-
-					res.writeHead(responseStatus, { 'Content-Type': 'application/json' });
-					res.end(responseBody);
+					const result = this.resolvePayload(bodyText);
+					this.recordLog(req, bodyText, isValid, result.status, result.body);
+					res.writeHead(result.status, { 'Content-Type': 'application/json' });
+					res.end(result.body);
 				});
 			});
 
@@ -246,17 +249,17 @@ export class WebhookFixture {
 }
 
 // Standalone CLI execution
-if (process.argv[1] && process.argv[1].endsWith('webhookFixture.ts')) {
-	const port = parseInt(process.env.FIXTURE_PORT || '8089', 10);
-	const secret = process.env.FIXTURE_SECRET || '0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef';
+if (process.argv[1]?.endsWith('webhookFixture.ts')) {
+	const port = Number.parseInt(process.env.FIXTURE_PORT || '8089', 10);
+	const secret =
+		process.env.FIXTURE_SECRET ||
+		'0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef';
 	const fixture = new WebhookFixture(secret, port);
-	fixture
-		.start()
-		.then(() => {
-			console.log(`[webhookFixture] Running at http://127.0.0.1:${port}/webhook`);
-		})
-		.catch((err) => {
-			console.error('[webhookFixture] Failed to start:', err);
-			process.exit(1);
-		});
+	try {
+		await fixture.start();
+		console.log(`[webhookFixture] Running at http://127.0.0.1:${port}/webhook`);
+	} catch (err) {
+		console.error('[webhookFixture] Failed to start:', err);
+		process.exit(1);
+	}
 }

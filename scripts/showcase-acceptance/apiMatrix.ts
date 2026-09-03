@@ -35,15 +35,17 @@ export class ApiAcceptanceMatrix {
 			const durationMs = Date.now() - start;
 			console.log(`PASSED (${durationMs}ms)`);
 			this.results.push({ name, passed: true, durationMs });
-		} catch (err: any) {
+		} catch (err: unknown) {
 			const durationMs = Date.now() - start;
+			const msg = err instanceof Error ? err.message : String(err);
+			const stack = err instanceof Error ? err.stack : undefined;
 			console.log(`FAILED (${durationMs}ms)`);
-			console.error(`    Error: ${err.message || String(err)}`);
+			console.error(`    Error: ${msg}`);
 			this.results.push({
 				name,
 				passed: false,
 				durationMs,
-				error: err.stack || err.message || String(err),
+				error: stack || msg,
 			});
 		}
 	}
@@ -52,7 +54,7 @@ export class ApiAcceptanceMatrix {
 		guestId: string,
 		idempotencyKey: string,
 		entropy?: string,
-	): Promise<{ status: number; body: any }> {
+	): Promise<{ status: number; body: Record<string, any> }> {
 		const res = await fetch(`http://127.0.0.1:${this.env.apiPort}/showcase/claim`, {
 			method: 'POST',
 			headers: {
@@ -65,17 +67,19 @@ export class ApiAcceptanceMatrix {
 				clientEntropy: entropy || randomClientSeed(),
 			}),
 		});
-		const body = await res.json().catch(() => ({}));
+		const body = (await res.json().catch(() => ({}))) as Record<string, any>;
 		return { status: res.status, body };
 	}
 
-	private async getShowcaseView(): Promise<{ status: number; body: any }> {
+	private async getShowcaseView(): Promise<{ status: number; body: Record<string, any> }> {
 		const res = await fetch(`http://127.0.0.1:${this.env.apiPort}/showcase`);
-		const body = await res.json();
+		const body = (await res.json()) as Record<string, any>;
 		return { status: res.status, body };
 	}
 
-	private async startGeneralGame(guestId: string): Promise<{ status: number; body: any }> {
+	private async startGeneralGame(
+		guestId: string,
+	): Promise<{ status: number; body: Record<string, any> }> {
 		const res = await fetch(`http://127.0.0.1:${this.env.apiPort}/lobby/play-bot`, {
 			method: 'POST',
 			headers: {
@@ -90,17 +94,23 @@ export class ApiAcceptanceMatrix {
 				guestId,
 			}),
 		});
-		const body = await res.json().catch(() => ({}));
+		const body = (await res.json().catch(() => ({}))) as Record<string, any>;
 		return { status: res.status, body };
 	}
 
 	private async resignGame(gameId: string, token: string): Promise<void> {
 		return new Promise((resolve) => {
-			const ws = new WebSocket(`ws://127.0.0.1:${this.env.apiPort}/games/${gameId}/ws?token=${token}`);
+			const safeGameId = encodeURIComponent(gameId);
+			const safeToken = encodeURIComponent(token);
+			const ws = new WebSocket(
+				`ws://127.0.0.1:${this.env.apiPort}/games/${safeGameId}/ws?token=${safeToken}`,
+			);
 			const timer = setTimeout(() => {
 				try {
 					ws.close();
-				} catch {}
+				} catch {
+					// Ignored
+				}
 				resolve();
 			}, 4000);
 
@@ -109,7 +119,9 @@ export class ApiAcceptanceMatrix {
 				setTimeout(() => {
 					try {
 						ws.send(JSON.stringify({ Resign: {} }));
-					} catch {}
+					} catch {
+						// Ignored
+					}
 				}, 200);
 			};
 			ws.onmessage = (msg) => {
@@ -119,10 +131,14 @@ export class ApiAcceptanceMatrix {
 						clearTimeout(timer);
 						try {
 							ws.close();
-						} catch {}
+						} catch {
+							// Ignored
+						}
 						resolve();
 					}
-				} catch {}
+				} catch {
+					// Ignored
+				}
 			};
 			ws.onerror = () => {
 				clearTimeout(timer);
@@ -135,6 +151,76 @@ export class ApiAcceptanceMatrix {
 		});
 	}
 
+	private async verifyColorAlternation(
+		activeGameId: string,
+		winnerToken: string,
+		winnerColor: string,
+		general1Id: string | null,
+		general2Id: string | null,
+	): Promise<void> {
+		// Resign active showcase game
+		await this.resignGame(activeGameId, winnerToken);
+
+		// Wait for table to transition to open
+		let tableReopened = false;
+		let newView: Record<string, any> | null = null;
+		for (let i = 0; i < 30; i++) {
+			const { body } = await this.getShowcaseView();
+			if (body.status === 'open') {
+				tableReopened = true;
+				newView = body;
+				break;
+			}
+			await new Promise((r) => setTimeout(r, 400));
+		}
+
+		if (!tableReopened || !newView)
+			throw new Error('Showcase table did not reopen after game resignation');
+
+		const isWhite = winnerColor.toLowerCase() === 'white';
+		const expectedNextColor = isWhite ? 'Black' : 'White';
+		if (newView.nextHumanColor?.toLowerCase() !== expectedNextColor.toLowerCase()) {
+			throw new Error(
+				`Expected next human color '${expectedNextColor}', got '${newView.nextHumanColor}'`,
+			);
+		}
+
+		// Claim second game and verify human receives the alternating color
+		const secondClaim = await this.claimShowcase(randomUUID(), randomUUID());
+		if (secondClaim.status !== 200 || secondClaim.body.outcome !== 'claimed') {
+			throw new Error(`Second claim failed: ${JSON.stringify(secondClaim)}`);
+		}
+		if (secondClaim.body.seat?.toLowerCase() !== expectedNextColor.toLowerCase()) {
+			throw new Error(
+				`Second game human color was '${secondClaim.body.seat}', expected '${expectedNextColor}'`,
+			);
+		}
+
+		// Resign second game and wait for table to reopen
+		await this.resignGame(secondClaim.body.gameId, secondClaim.body.seatToken);
+		for (let i = 0; i < 30; i++) {
+			const { body } = await this.getShowcaseView();
+			if (body.status === 'open') break;
+			await new Promise((r) => setTimeout(r, 400));
+		}
+
+		// Clean up general games
+		if (general1Id) {
+			try {
+				await this.resignGame(general1Id, 'guest-token');
+			} catch {
+				// Ignored
+			}
+		}
+		if (general2Id) {
+			try {
+				await this.resignGame(general2Id, 'guest-token');
+			} catch {
+				// Ignored
+			}
+		}
+	}
+
 	async execute(): Promise<void> {
 		console.log('\n=== Executing API Acceptance Matrix ===\n');
 
@@ -144,7 +230,9 @@ export class ApiAcceptanceMatrix {
 			if (status !== 200) throw new Error(`Expected 200, got ${status}`);
 			if (body.status !== 'open') throw new Error(`Expected status 'open', got '${body.status}'`);
 			if (!body.featuredBot || body.featuredBot.name !== 'hunter-book') {
-				throw new Error(`Expected featured bot hunter-book, got ${JSON.stringify(body.featuredBot)}`);
+				throw new Error(
+					`Expected featured bot hunter-book, got ${JSON.stringify(body.featuredBot)}`,
+				);
 			}
 			if (!body.timeControl || body.timeControl.display !== '5+3') {
 				throw new Error(`Expected fixed 5+3 time control, got ${JSON.stringify(body.timeControl)}`);
@@ -177,7 +265,9 @@ export class ApiAcceptanceMatrix {
 			);
 
 			const claimed = outcomes.filter((o) => o.status === 200 && o.body.outcome === 'claimed');
-			const spectating = outcomes.filter((o) => o.status === 200 && o.body.outcome === 'spectating');
+			const spectating = outcomes.filter(
+				(o) => o.status === 200 && o.body.outcome === 'spectating',
+			);
 
 			if (claimed.length !== 1) {
 				throw new Error(`Expected exactly 1 claimed outcome, got ${claimed.length}`);
@@ -197,12 +287,16 @@ export class ApiAcceptanceMatrix {
 				}
 			}
 
-			const winnerIndex = outcomes.findIndex((o) => o.status === 200 && o.body.outcome === 'claimed');
+			const winnerIndex = outcomes.findIndex(
+				(o) => o.status === 200 && o.body.outcome === 'claimed',
+			);
 			winnerGuest = claimants[winnerIndex].guest;
 			winnerKey = claimants[winnerIndex].key;
 			winnerEntropy = claimants[winnerIndex].entropy;
 
-			const loserIndex = outcomes.findIndex((o) => o.status === 200 && o.body.outcome === 'spectating');
+			const loserIndex = outcomes.findIndex(
+				(o) => o.status === 200 && o.body.outcome === 'spectating',
+			);
 			loserGuest = claimants[loserIndex].guest;
 			loserKey = claimants[loserIndex].key;
 			loserEntropy = claimants[loserIndex].entropy;
@@ -229,14 +323,22 @@ export class ApiAcceptanceMatrix {
 			// Also assert that loser replay returns spectating
 			const loserReplayed = await this.claimShowcase(loserGuest, loserKey, loserEntropy);
 			if (loserReplayed.status !== 200 || loserReplayed.body.outcome !== 'spectating') {
-				throw new Error(`Expected replayed loser to be spectating, got ${JSON.stringify(loserReplayed.body)}`);
+				throw new Error(
+					`Expected replayed loser to be spectating, got ${JSON.stringify(loserReplayed.body)}`,
+				);
 			}
 		});
 
 		await this.runTest('Idempotency Conflict (Same Key, Different Payload)', async () => {
-			const conflict = await this.claimShowcase(winnerGuest, winnerKey, 'different-entropy-payload');
+			const conflict = await this.claimShowcase(
+				winnerGuest,
+				winnerKey,
+				'different-entropy-payload',
+			);
 			if (conflict.status !== 409) {
-				throw new Error(`Expected 409 Conflict, got ${conflict.status}: ${JSON.stringify(conflict.body)}`);
+				throw new Error(
+					`Expected 409 Conflict, got ${conflict.status}: ${JSON.stringify(conflict.body)}`,
+				);
 			}
 		});
 
@@ -247,82 +349,42 @@ export class ApiAcceptanceMatrix {
 		const generalGuest2 = randomUUID();
 		const generalGuest3 = randomUUID();
 
-		await this.runTest('Capacity Check: 1 Showcase + 2 General = 3 Max; 3rd General Rejected', async () => {
-			// General game 1
-			const g1 = await this.startGeneralGame(generalGuest1);
-			if (g1.status !== 200 && g1.status !== 201) {
-				throw new Error(`General game 1 failed: ${g1.status} ${JSON.stringify(g1.body)}`);
-			}
-			general1Id = g1.body.gameId;
+		await this.runTest(
+			'Capacity Check: 1 Showcase + 2 General = 3 Max; 3rd General Rejected',
+			async () => {
+				// General game 1
+				const g1 = await this.startGeneralGame(generalGuest1);
+				if (g1.status !== 200 && g1.status !== 201) {
+					throw new Error(`General game 1 failed: ${g1.status} ${JSON.stringify(g1.body)}`);
+				}
+				general1Id = g1.body.gameId;
 
-			// General game 2
-			const g2 = await this.startGeneralGame(generalGuest2);
-			if (g2.status !== 200 && g2.status !== 201) {
-				throw new Error(`General game 2 failed: ${g2.status} ${JSON.stringify(g2.body)}`);
-			}
-			general2Id = g2.body.gameId;
+				// General game 2
+				const g2 = await this.startGeneralGame(generalGuest2);
+				if (g2.status !== 200 && g2.status !== 201) {
+					throw new Error(`General game 2 failed: ${g2.status} ${JSON.stringify(g2.body)}`);
+				}
+				general2Id = g2.body.gameId;
 
-			// General game 3 -> MUST be rejected because total capacity is 3 (1 showcase + 2 general = 3)
-			const g3 = await this.startGeneralGame(generalGuest3);
-			if (g3.status !== 409) {
-				throw new Error(`Expected 409 for 3rd general game, got ${g3.status}: ${JSON.stringify(g3.body)}`);
-			}
-		});
+				// General game 3 -> MUST be rejected because total capacity is 3 (1 showcase + 2 general = 3)
+				const g3 = await this.startGeneralGame(generalGuest3);
+				if (g3.status !== 409) {
+					throw new Error(
+						`Expected 409 for 3rd general game, got ${g3.status}: ${JSON.stringify(g3.body)}`,
+					);
+				}
+			},
+		);
 
 		// 5. Conclude Showcase Game & Verify Color Alternation
 		await this.runTest('Resign Showcase Game & Observe Reopen and Color Alternation', async () => {
-			// Resign active showcase game
-			await this.resignGame(activeGameId, winnerToken);
-
-			// Wait for table to transition to open
-			let tableReopened = false;
-			let newView: any = null;
-			for (let i = 0; i < 30; i++) {
-				const { body } = await this.getShowcaseView();
-				if (body.status === 'open') {
-					tableReopened = true;
-					newView = body;
-					break;
-				}
-				await new Promise((r) => setTimeout(r, 400));
-			}
-
-			if (!tableReopened) throw new Error('Showcase table did not reopen after game resignation');
-
-			const isWhite = winnerColor.toLowerCase() === 'white';
-			const expectedNextColor = isWhite ? 'Black' : 'White';
-			if (newView.nextHumanColor?.toLowerCase() !== expectedNextColor.toLowerCase()) {
-				throw new Error(`Expected next human color '${expectedNextColor}', got '${newView.nextHumanColor}'`);
-			}
-
-			// Claim second game and verify human receives the alternating color
-			const secondClaim = await this.claimShowcase(randomUUID(), randomUUID());
-			if (secondClaim.status !== 200 || secondClaim.body.outcome !== 'claimed') {
-				throw new Error(`Second claim failed: ${JSON.stringify(secondClaim)}`);
-			}
-			if (secondClaim.body.seat?.toLowerCase() !== expectedNextColor.toLowerCase()) {
-				throw new Error(`Second game human color was '${secondClaim.body.seat}', expected '${expectedNextColor}'`);
-			}
-
-			// Resign second game and wait for table to reopen
-			await this.resignGame(secondClaim.body.gameId, secondClaim.body.seatToken);
-			for (let i = 0; i < 30; i++) {
-				const { body } = await this.getShowcaseView();
-				if (body.status === 'open') break;
-				await new Promise((r) => setTimeout(r, 400));
-			}
-
-			// Clean up general games
-			if (general1Id) {
-				try {
-					await this.resignGame(general1Id, 'guest-token');
-				} catch {}
-			}
-			if (general2Id) {
-				try {
-					await this.resignGame(general2Id, 'guest-token');
-				} catch {}
-			}
+			await this.verifyColorAlternation(
+				activeGameId,
+				winnerToken,
+				winnerColor,
+				general1Id,
+				general2Id,
+			);
 		});
 
 		// 6. Database Durability Assertions
@@ -332,7 +394,8 @@ export class ApiAcceptanceMatrix {
 				throw new Error(`Expected at least 2 showcase games in DB, found ${showcaseGames.length}`);
 			}
 			for (const g of showcaseGames) {
-				if (g.origin !== 'showcase') throw new Error(`Game ${g.id} origin is '${g.origin}', expected 'showcase'`);
+				if (g.origin !== 'showcase')
+					throw new Error(`Game ${g.id} origin is '${g.origin}', expected 'showcase'`);
 				if (g.rated) throw new Error(`Game ${g.id} is rated! Showcase games must be unrated`);
 			}
 
@@ -346,7 +409,8 @@ export class ApiAcceptanceMatrix {
 				throw new Error(`Expected at least 2 archived showcase games, found ${archives.length}`);
 			}
 			for (const a of archives) {
-				if (a.origin !== 'showcase') throw new Error(`Archive origin is '${a.origin}', expected 'showcase'`);
+				if (a.origin !== 'showcase')
+					throw new Error(`Archive origin is '${a.origin}', expected 'showcase'`);
 				if (!a.sporting_eligible) {
 					throw new Error(`Archive sporting_eligible is false for normally concluded game`);
 				}
@@ -363,7 +427,9 @@ export class ApiAcceptanceMatrix {
 
 			const invalidSignatures = logs.filter((l) => !l.signatureValid);
 			if (invalidSignatures.length > 0) {
-				throw new Error(`Found ${invalidSignatures.length} webhook requests with invalid HMAC signatures!`);
+				throw new Error(
+					`Found ${invalidSignatures.length} webhook requests with invalid HMAC signatures!`,
+				);
 			}
 
 			const verificationRequests = logs.filter((l) => l.bodyText.includes('"verification"'));
@@ -425,7 +491,7 @@ export class ApiAcceptanceMatrix {
 		await this.runTest('Sporting Score Exclusion for Aborted / Failed Games', async () => {
 			// Verify schema constraint on game_archive
 			const constraintCheck = this.env.db.execSql(
-				"SELECT conname FROM pg_constraint WHERE conrelid = 'play.game_archive'::regclass AND conname = 'game_archive_origin_check';"
+				"SELECT conname FROM pg_constraint WHERE conrelid = 'play.game_archive'::regclass AND conname = 'game_archive_origin_check';",
 			);
 			if (!constraintCheck.includes('game_archive_origin_check')) {
 				throw new Error('game_archive_origin_check constraint missing');
@@ -442,7 +508,9 @@ export class ApiAcceptanceMatrix {
 			const aborted = archives.find((a) => a.game_id === testAbortId);
 			if (!aborted) throw new Error('Aborted archive entry not found in database');
 			if (aborted.sporting_eligible !== false) {
-				throw new Error(`Expected sporting_eligible = false for technical abort, got ${aborted.sporting_eligible}`);
+				throw new Error(
+					`Expected sporting_eligible = false for technical abort, got ${aborted.sporting_eligible}`,
+				);
 			}
 		});
 
@@ -495,11 +563,18 @@ export class ApiAcceptanceMatrix {
 			if (!restored) throw new Error('Table did not restore after database restarted');
 
 			if (restoredView?.status === 'live' && restoredView.currentGame?.gameId) {
-				const ws = new WebSocket(`ws://127.0.0.1:${this.env.apiPort}/games/${restoredView.currentGame.gameId}/ws?token=resigner`);
+				const safeGameId = encodeURIComponent(restoredView.currentGame.gameId);
+				const ws = new WebSocket(
+					`ws://127.0.0.1:${this.env.apiPort}/games/${safeGameId}/ws?token=resigner`,
+				);
 				ws.onopen = () => {
 					ws.send(JSON.stringify({ Resign: {} }));
 					setTimeout(() => {
-						try { ws.close(); } catch {}
+						try {
+							ws.close();
+						} catch {
+							// Ignored
+						}
 					}, 200);
 				};
 				for (let i = 0; i < 30; i++) {
@@ -515,21 +590,20 @@ export class ApiAcceptanceMatrix {
 }
 
 // Standalone execution
-if (process.argv[1] && process.argv[1].endsWith('apiMatrix.ts')) {
+if (process.argv[1]?.endsWith('apiMatrix.ts')) {
 	const env = new AcceptanceEnvManager();
-	env.setup()
-		.then(async () => {
-			const matrix = new ApiAcceptanceMatrix(env);
-			await matrix.execute();
-			const results = matrix.getResults();
-			const failed = results.filter((r) => !r.passed);
-			console.log(`\nResults: ${results.length - failed.length}/${results.length} passed.`);
-			await env.teardown();
-			process.exit(failed.length > 0 ? 1 : 0);
-		})
-		.catch(async (err) => {
-			console.error('Test execution failed:', err);
-			await env.teardown();
-			process.exit(1);
-		});
+	try {
+		await env.setup();
+		const matrix = new ApiAcceptanceMatrix(env);
+		await matrix.execute();
+		const results = matrix.getResults();
+		const failed = results.filter((r) => !r.passed);
+		console.log(`\nResults: ${results.length - failed.length}/${results.length} passed.`);
+		await env.teardown();
+		process.exit(failed.length > 0 ? 1 : 0);
+	} catch (err) {
+		console.error('Test execution failed:', err);
+		await env.teardown();
+		process.exit(1);
+	}
 }

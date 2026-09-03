@@ -81,13 +81,15 @@ export class AcceptanceEnvManager {
 			try {
 				const res = await fetch(`http://127.0.0.1:${this.apiPort}/showcase`);
 				if (res.ok) {
-					const json = (await res.json()) as any;
+					const json = (await res.json()) as { status?: string };
 					if (json.status === 'open') {
 						tableOpen = true;
 						break;
 					}
 				}
-			} catch {}
+			} catch {
+				// Retry until open
+			}
 			await new Promise((r) => setTimeout(r, 400));
 		}
 		if (!tableOpen) throw new Error('Showcase table did not transition to open state');
@@ -100,9 +102,12 @@ export class AcceptanceEnvManager {
 
 	async ensurePostgres(): Promise<void> {
 		try {
-			const status = execSync(`docker inspect -f '{{.State.Running}}' ${this.pgContainer} 2>/dev/null`, {
-				encoding: 'utf8',
-			}).trim();
+			const status = execSync(
+				`docker inspect -f '{{.State.Running}}' ${this.pgContainer} 2>/dev/null`,
+				{
+					encoding: 'utf8',
+				},
+			).trim();
 			if (status === 'true') {
 				console.log(`[AcceptanceEnv] Postgres container ${this.pgContainer} is already running.`);
 				return;
@@ -111,7 +116,9 @@ export class AcceptanceEnvManager {
 			// not running
 		}
 
-		console.log(`[AcceptanceEnv] Launching Postgres container ${this.pgContainer} on port ${this.pgPort}...`);
+		console.log(
+			`[AcceptanceEnv] Launching Postgres container ${this.pgContainer} on port ${this.pgPort}...`,
+		);
 		execSync(`docker rm -f ${this.pgContainer} 2>/dev/null || true`, { stdio: 'ignore' });
 		execSync(
 			`docker run --name ${this.pgContainer} -d -e POSTGRES_PASSWORD=testpassword -e POSTGRES_USER=play -e POSTGRES_DB=test -p ${this.pgPort}:5432 postgres:18-alpine`,
@@ -170,7 +177,9 @@ export class AcceptanceEnvManager {
 				`docker exec ${this.pgContainer} psql -U play -d test -c "DROP SCHEMA IF EXISTS play CASCADE;"`,
 				{ stdio: 'ignore' },
 			);
-		} catch {}
+		} catch {
+			// Schema might not exist yet
+		}
 	}
 
 	async startApi(): Promise<void> {
@@ -305,8 +314,12 @@ export class AcceptanceEnvManager {
 			await new Promise((r) => setTimeout(r, 500));
 		}
 		try {
-			execSync(`lsof -ti :${this.clientPort} | xargs kill -9 2>/dev/null || true`, { stdio: 'ignore' });
-		} catch {}
+			execSync(`lsof -ti :${this.clientPort} | xargs kill -9 2>/dev/null || true`, {
+				stdio: 'ignore',
+			});
+		} catch {
+			// Process may already be dead
+		}
 	}
 
 	async teardown(): Promise<void> {
@@ -316,7 +329,9 @@ export class AcceptanceEnvManager {
 		await this.fixture.stop();
 		try {
 			execSync(`docker rm -f ${this.pgContainer} 2>/dev/null || true`, { stdio: 'ignore' });
-		} catch {}
+		} catch {
+			// Container may already be removed
+		}
 		console.log('[AcceptanceEnv] Teardown complete.');
 	}
 }

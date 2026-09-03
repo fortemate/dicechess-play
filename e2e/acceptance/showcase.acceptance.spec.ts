@@ -19,8 +19,12 @@ test.describe('Showcase Acceptance: Browser Contention, Seating, Layout & Reopen
 
 		page1.on('console', (msg) => console.log(`[P1 CONSOLE] ${msg.text()}`));
 		page2.on('console', (msg) => console.log(`[P2 CONSOLE] ${msg.text()}`));
-		page1.on('requestfailed', (req) => console.log(`[P1 REQ FAILED] ${req.url()}: ${req.failure()?.errorText}`));
-		page2.on('requestfailed', (req) => console.log(`[P2 REQ FAILED] ${req.url()}: ${req.failure()?.errorText}`));
+		page1.on('requestfailed', (req) =>
+			console.log(`[P1 REQ FAILED] ${req.url()}: ${req.failure()?.errorText}`),
+		);
+		page2.on('requestfailed', (req) =>
+			console.log(`[P2 REQ FAILED] ${req.url()}: ${req.failure()?.errorText}`),
+		);
 		page1.on('response', (res) => {
 			if (res.status() >= 400) console.log(`[P1 HTTP ${res.status()}] ${res.url()}`);
 		});
@@ -32,8 +36,12 @@ test.describe('Showcase Acceptance: Browser Contention, Seating, Layout & Reopen
 		await page2.goto('/');
 
 		// Wait for both to show Open state
-		const claimBtn1 = page1.locator('button:has-text("Claim White Seat"), button:has-text("Claim Black Seat")');
-		const claimBtn2 = page2.locator('button:has-text("Claim White Seat"), button:has-text("Claim Black Seat")');
+		const claimBtn1 = page1.locator(
+			'button:has-text("Claim White Seat"), button:has-text("Claim Black Seat")',
+		);
+		const claimBtn2 = page2.locator(
+			'button:has-text("Claim White Seat"), button:has-text("Claim Black Seat")',
+		);
 
 		await expect(claimBtn1).toBeVisible({ timeout: 15_000 });
 		await expect(claimBtn2).toBeVisible({ timeout: 15_000 });
@@ -61,8 +69,16 @@ test.describe('Showcase Acceptance: Browser Contention, Seating, Layout & Reopen
 		let spectatorPage = page2;
 
 		const p1IsPlayer = await Promise.race([
-			page1.locator('button:has-text("Resign Game")').waitFor({ state: 'visible', timeout: 8_000 }).then(() => true).catch(() => false),
-			page2.locator('button:has-text("Resign Game")').waitFor({ state: 'visible', timeout: 8_000 }).then(() => false).catch(() => true),
+			page1
+				.locator('button:has-text("Resign Game")')
+				.waitFor({ state: 'visible', timeout: 8_000 })
+				.then(() => true)
+				.catch(() => false),
+			page2
+				.locator('button:has-text("Resign Game")')
+				.waitFor({ state: 'visible', timeout: 8_000 })
+				.then(() => false)
+				.catch(() => true),
 		]);
 
 		if (!p1IsPlayer) {
@@ -90,24 +106,34 @@ test.describe('Showcase Acceptance: Browser Contention, Seating, Layout & Reopen
 
 		// Capture live player and spectator screenshots
 		await playerPage.screenshot({ path: path.join(EVIDENCE_DIR, `${prefix}-live-player.png`) });
-		await spectatorPage.screenshot({ path: path.join(EVIDENCE_DIR, `${prefix}-live-spectator.png`) });
+		await spectatorPage.screenshot({
+			path: path.join(EVIDENCE_DIR, `${prefix}-live-spectator.png`),
+		});
 
 		// History control check: Move history controls must never render on showcase
-		await expect(playerPage.locator('[data-surface="showcase"] [data-testid="move-history"]')).toHaveCount(0);
-		await expect(spectatorPage.locator('[data-surface="showcase"] [data-testid="move-history"]')).toHaveCount(0);
+		await expect(
+			playerPage.locator('[data-surface="showcase"] [data-testid="move-history"]'),
+		).toHaveCount(0);
+		await expect(
+			spectatorPage.locator('[data-surface="showcase"] [data-testid="move-history"]'),
+		).toHaveCount(0);
 
 		// 3. Late visitor convergence: 3rd browser context arrives while game is live
 		const context3 = await browser.newContext();
 		const page3 = await context3.newPage();
 		page3.on('console', (msg) => console.log(`[P3 CONSOLE] ${msg.text()}`));
-		page3.on('requestfailed', (req) => console.log(`[P3 REQ FAILED] ${req.url()}: ${req.failure()?.errorText}`));
+		page3.on('requestfailed', (req) =>
+			console.log(`[P3 REQ FAILED] ${req.url()}: ${req.failure()?.errorText}`),
+		);
 		page3.on('response', (res) => {
 			if (res.status() >= 400) console.log(`[P3 HTTP ${res.status()}] ${res.url()}`);
 		});
 		await page3.goto('/');
 
 		// Late visitor immediately converges into spectator mode
-		await expect(page3.locator('[data-surface="showcase"]').getByText('In play')).toBeVisible({ timeout: 10_000 });
+		await expect(page3.locator('[data-surface="showcase"]').getByText('In play')).toBeVisible({
+			timeout: 10_000,
+		});
 		await expect(page3.locator('button:has-text("Resign Game")')).toHaveCount(0);
 
 		// 4. Conclude game and observe automatic transition across all clients
@@ -122,12 +148,20 @@ test.describe('Showcase Acceptance: Browser Contention, Seating, Layout & Reopen
 		try {
 			await resetBtn.waitFor({ state: 'visible', timeout: 3000 });
 			await resetBtn.click();
-		} catch {}
+		} catch {
+			// Ignored if reset button is not rendered
+		}
 
 		// 5. Automatic reopening without manual page reload across all clients
-		const reopenedClaim1 = playerPage.locator('button:has-text("Claim White Seat"), button:has-text("Claim Black Seat")');
-		const reopenedClaim2 = spectatorPage.locator('button:has-text("Claim White Seat"), button:has-text("Claim Black Seat")');
-		const reopenedClaim3 = page3.locator('button:has-text("Claim White Seat"), button:has-text("Claim Black Seat")');
+		const reopenedClaim1 = playerPage.locator(
+			'button:has-text("Claim White Seat"), button:has-text("Claim Black Seat")',
+		);
+		const reopenedClaim2 = spectatorPage.locator(
+			'button:has-text("Claim White Seat"), button:has-text("Claim Black Seat")',
+		);
+		const reopenedClaim3 = page3.locator(
+			'button:has-text("Claim White Seat"), button:has-text("Claim Black Seat")',
+		);
 
 		await Promise.all([
 			expect(reopenedClaim1).toBeVisible({ timeout: 35_000 }),
@@ -144,11 +178,15 @@ test.describe('Showcase Acceptance: Browser Contention, Seating, Layout & Reopen
 	test('Surface Regressions: /play, /practice, /lobby, /licenses', async ({ page }) => {
 		// 1. /play landing hub
 		await page.goto('/play');
-		await expect(page.getByRole('heading', { name: 'Play', level: 2 })).toBeVisible({ timeout: 15_000 });
+		await expect(page.getByRole('heading', { name: 'Play', level: 2 })).toBeVisible({
+			timeout: 15_000,
+		});
 
 		// 2. /practice board
 		await page.goto('/practice');
-		await expect(page.getByRole('heading', { name: 'Practice game', level: 2 })).toBeVisible({ timeout: 15_000 });
+		await expect(page.getByRole('heading', { name: 'Practice game', level: 2 })).toBeVisible({
+			timeout: 15_000,
+		});
 		await page.click('button:has-text("Start game")');
 		await expect(page.locator('cg-board')).toBeVisible({ timeout: 15_000 });
 
@@ -158,6 +196,8 @@ test.describe('Showcase Acceptance: Browser Contention, Seating, Layout & Reopen
 
 		// 4. /licenses
 		await page.goto('/licenses');
-		await expect(page.getByRole('heading', { name: /License|Open source/i })).toBeVisible({ timeout: 15_000 });
+		await expect(page.getByRole('heading', { name: /License|Open source/i })).toBeVisible({
+			timeout: 15_000,
+		});
 	});
 });

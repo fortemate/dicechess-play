@@ -19,18 +19,23 @@ export class DbAssertions {
 	}
 
 	execSql(sql: string): string {
-		const escaped = sql.replace(/"/g, '\\"');
+		const escaped = sql.replaceAll('"', String.raw`\"`);
 		const cmd = `docker exec ${this.containerName} psql -U ${this.user} -d ${this.db} -t -A -c "${escaped}"`;
 		return execSync(cmd, { encoding: 'utf8', stdio: ['ignore', 'pipe', 'pipe'] }).trim();
 	}
 
-	execSqlJson<T = any>(sql: string): T {
+	execSqlJson<T = unknown>(sql: string): T {
 		const jsonSql = `SELECT COALESCE(json_agg(t), '[]'::json) FROM (${sql}) t;`;
 		const raw = this.execSql(jsonSql);
 		try {
-			return JSON.parse(raw);
+			return JSON.parse(raw) as T;
 		} catch (err) {
-			throw new Error(`Failed to parse psql JSON output for SQL: ${sql}\nRaw: ${raw}\nError: ${String(err)}`);
+			throw new Error(
+				`Failed to parse psql JSON output for SQL: ${sql}\nRaw: ${raw}\nError: ${String(err)}`,
+				{
+					cause: err,
+				},
+			);
 		}
 	}
 
@@ -109,7 +114,7 @@ export class DbAssertions {
 		origin: string;
 		sporting_eligible: boolean;
 		finished_at: string;
-		payload: any;
+		payload: unknown;
 	}> {
 		return this.execSqlJson(
 			`SELECT game_id, origin, sporting_eligible, finished_at, payload FROM game_archive WHERE origin = 'showcase' ORDER BY finished_at DESC`,
@@ -118,7 +123,7 @@ export class DbAssertions {
 
 	getActiveGamesCount(): number {
 		const raw = this.execSql("SELECT count(*) FROM games WHERE status = 'active';");
-		return parseInt(raw, 10) || 0;
+		return Number.parseInt(raw, 10) || 0;
 	}
 
 	getAllGames(): Array<{
