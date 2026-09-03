@@ -24,7 +24,6 @@ import {
 import type {
 	ShowcaseColor,
 	ShowcaseIntent,
-	ShowcasePlayerInfo,
 	ShowcaseState,
 	ShowcaseStateKind,
 } from '../../components/showcase/types';
@@ -71,13 +70,12 @@ export class ShowcaseStore {
 	// Reconnection tracking
 	private isReconnecting = $state<boolean>(false);
 	private reconnectAttempt = $state<number>(1);
-	private maxReconnectAttempts = $state<number>(5);
+	private readonly maxReconnectAttempts = 5;
 
 	// Polling timers
 	private pollTimer: ReturnType<typeof setTimeout> | null = null;
 	private countdownTimer: ReturnType<typeof setInterval> | null = null;
 	private lastEtag: string | undefined = undefined;
-	private isStarted = false;
 	private isDestroyed = false;
 
 	constructor(deps?: ShowcaseStoreDeps) {
@@ -143,6 +141,11 @@ export class ShowcaseStore {
 
 	// ── State Builders ──────────────────────────────────────────────────────────
 
+	private getSeatClockMs(seat: Seat, fallbackMs: number = 300000): number {
+		if (!this.live.hasClocks) return fallbackMs;
+		return seat === 'White' ? this.live.whiteClockMs : this.live.blackClockMs;
+	}
+
 	private buildUnavailableState(): ShowcaseState {
 		return {
 			kind: 'unavailable',
@@ -203,18 +206,11 @@ export class ShowcaseStore {
 	private buildLivePlayerState(): ShowcaseState {
 		const bottomSeat: Seat = this.live.playerColor === 'b' ? 'Black' : 'White';
 		const topSeat: Seat = bottomSeat === 'White' ? 'Black' : 'White';
-		const topClock = this.live.hasClocks
-			? topSeat === 'White'
-				? this.live.whiteClockMs
-				: this.live.blackClockMs
-			: 300000;
-		const bottomClock = this.live.hasClocks
-			? bottomSeat === 'White'
-				? this.live.whiteClockMs
-				: this.live.blackClockMs
-			: 300000;
+		const topClock = this.getSeatClockMs(topSeat);
+		const bottomClock = this.getSeatClockMs(bottomSeat);
 
 		const isMyTurn = this.live.activeColor === this.live.playerColor;
+		const topSub = isMyTurn ? 'Opponent thinking' : `Playing as ${topSeat}`;
 
 		return {
 			kind: 'live-player',
@@ -222,7 +218,7 @@ export class ShowcaseStore {
 			activeColor: this.live.activeColor,
 			topPlayer: {
 				name: seatDisplayName(this.live.players, topSeat, bottomSeat, false),
-				sub: isMyTurn ? 'Opponent thinking' : `Playing as ${topSeat}`,
+				sub: topSub,
 				bot: publicPlayer(this.live.players, topSeat)?.kind === 'Bot',
 				rating: seatRating(this.live.players, topSeat),
 				active: !isMyTurn,
@@ -283,16 +279,16 @@ export class ShowcaseStore {
 		const playerColor = isPlayer ? this.live.playerColor : undefined;
 		const bottomSeat: Seat = isPlayer && this.live.playerColor === 'b' ? 'Black' : 'White';
 		const topSeat: Seat = bottomSeat === 'White' ? 'Black' : 'White';
-		const topClock = this.live.hasClocks
-			? topSeat === 'White'
-				? this.live.whiteClockMs
-				: this.live.blackClockMs
-			: 300000;
-		const bottomClock = this.live.hasClocks
-			? bottomSeat === 'White'
-				? this.live.whiteClockMs
-				: this.live.blackClockMs
-			: 300000;
+		const topClock = this.getSeatClockMs(topSeat);
+		const bottomClock = this.getSeatClockMs(bottomSeat);
+
+		let bottomName: string;
+		if (isPlayer) {
+			const colorLabel = this.live.playerColor === 'w' ? 'White' : 'Black';
+			bottomName = `You (${colorLabel})`;
+		} else {
+			bottomName = seatDisplayName(this.live.players, bottomSeat, bottomSeat, true);
+		}
 
 		return {
 			kind: 'reconnecting',
@@ -307,9 +303,7 @@ export class ShowcaseStore {
 				clockMs: topClock,
 			},
 			bottomPlayer: {
-				name: isPlayer
-					? `You (${this.live.playerColor === 'w' ? 'White' : 'Black'})`
-					: seatDisplayName(this.live.players, bottomSeat, bottomSeat, true),
+				name: bottomName,
 				sub: 'Disconnected',
 				rating: seatRating(this.live.players, bottomSeat),
 				clockMs: bottomClock,
@@ -321,61 +315,72 @@ export class ShowcaseStore {
 		};
 	}
 
-	private buildFinishingState(): ShowcaseState {
-		const isPlayer = this.seatToken !== null;
-		const bottomSeat: Seat = isPlayer && this.live.playerColor === 'b' ? 'Black' : 'White';
-		const topSeat: Seat = bottomSeat === 'White' ? 'Black' : 'White';
-		const topClock = this.live.hasClocks
-			? topSeat === 'White'
-				? this.live.whiteClockMs
-				: this.live.blackClockMs
-			: 0;
-		const bottomClock = this.live.hasClocks
-			? bottomSeat === 'White'
-				? this.live.whiteClockMs
-				: this.live.blackClockMs
-			: 0;
-
-		let winner: ShowcaseColor | 'draw' | undefined = undefined;
+	private resolveFinishingWinner(): ShowcaseColor | 'draw' | undefined {
 		const winSide =
 			this.live.winner ??
 			(this.lastOver && 'Win' in this.lastOver.result ? this.lastOver.result.Win.side : null);
 
-		if (winSide === 'White') winner = 'w';
-		else if (winSide === 'Black') winner = 'b';
-		else if (
+		if (winSide === 'White') return 'w';
+		if (winSide === 'Black') return 'b';
+		if (
 			this.live.outcome === 'draw' ||
 			this.live.termination === 'Draw' ||
 			(this.lastOver && 'Draw' in this.lastOver.result)
 		) {
-			winner = 'draw';
+			return 'draw';
 		}
+		return undefined;
+	}
 
+	private resolveFinishingReason(): string {
 		const term = this.live.termination ?? this.lastOver?.termination ?? 'KingCaptured';
-		let reason: string = 'mate';
 		switch (term) {
 			case 'KingCaptured':
-				reason = 'mate';
-				break;
+				return 'mate';
 			case 'Resign':
-				reason = 'resign';
-				break;
+				return 'resign';
 			case 'Timeout':
-				reason = 'timeout';
-				break;
+				return 'timeout';
 			case 'Draw':
-				reason = 'draw';
-				break;
+				return 'draw';
 			default:
-				reason = term.toLowerCase();
+				return term.toLowerCase();
 		}
+	}
 
-		const winnerName =
-			winner === 'w'
-				? seatDisplayName(this.live.players, 'White', bottomSeat, !isPlayer)
-				: winner === 'b'
-					? seatDisplayName(this.live.players, 'Black', bottomSeat, !isPlayer)
-					: undefined;
+	private resolveFinishingWinnerName(
+		winner: ShowcaseColor | 'draw' | undefined,
+		bottomSeat: Seat,
+		isSpectator: boolean,
+	): string | undefined {
+		if (winner === 'w') {
+			return seatDisplayName(this.live.players, 'White', bottomSeat, isSpectator);
+		}
+		if (winner === 'b') {
+			return seatDisplayName(this.live.players, 'Black', bottomSeat, isSpectator);
+		}
+		return undefined;
+	}
+
+	private resolveSeatOutcomeSub(seat: Seat): string {
+		if (!this.live.winner) return 'Drawn';
+		return this.live.winner === seat ? 'Victor' : 'Defeated';
+	}
+
+	private buildFinishingState(): ShowcaseState {
+		const isPlayer = this.seatToken !== null;
+		const bottomSeat: Seat = isPlayer && this.live.playerColor === 'b' ? 'Black' : 'White';
+		const topSeat: Seat = bottomSeat === 'White' ? 'Black' : 'White';
+		const topClock = this.getSeatClockMs(topSeat, 0);
+		const bottomClock = this.getSeatClockMs(bottomSeat, 0);
+
+		const winner = this.resolveFinishingWinner();
+		const reason = this.resolveFinishingReason();
+		const winnerName = this.resolveFinishingWinnerName(winner, bottomSeat, !isPlayer);
+
+		const bottomName = isPlayer
+			? `You (${bottomSeat})`
+			: seatDisplayName(this.live.players, bottomSeat, bottomSeat, true);
 
 		return {
 			kind: 'finishing',
@@ -386,16 +391,14 @@ export class ShowcaseStore {
 			playerColor: isPlayer ? this.live.playerColor : undefined,
 			topPlayer: {
 				name: seatDisplayName(this.live.players, topSeat, bottomSeat, !isPlayer),
-				sub: this.live.winner === topSeat ? 'Victor' : this.live.winner ? 'Defeated' : 'Drawn',
+				sub: this.resolveSeatOutcomeSub(topSeat),
 				bot: publicPlayer(this.live.players, topSeat)?.kind === 'Bot',
 				rating: seatRating(this.live.players, topSeat),
 				clockMs: topClock,
 			},
 			bottomPlayer: {
-				name: isPlayer
-					? `You (${bottomSeat})`
-					: seatDisplayName(this.live.players, bottomSeat, bottomSeat, true),
-				sub: this.live.winner === bottomSeat ? 'Victor' : this.live.winner ? 'Defeated' : 'Drawn',
+				name: bottomName,
+				sub: this.resolveSeatOutcomeSub(bottomSeat),
 				rating: seatRating(this.live.players, bottomSeat),
 				clockMs: bottomClock,
 			},
@@ -426,18 +429,20 @@ export class ShowcaseStore {
 	// ── Lifecycle & Polling ─────────────────────────────────────────────────────
 
 	start(): void {
-		if (this.isStarted || this.isDestroyed) return;
-		this.isStarted = true;
+		if (this.isDestroyed) return;
 		void this.pollDiscovery();
 	}
 
-	destroy(): void {
-		this.isDestroyed = true;
-		this.isStarted = false;
+	stop(): void {
 		this.clearPollTimer();
 		this.stopCountdownTimer();
 		this.live.dispose();
 		this.seatToken = null;
+	}
+
+	destroy(): void {
+		this.isDestroyed = true;
+		this.stop();
 	}
 
 	private clearPollTimer(): void {
@@ -488,7 +493,6 @@ export class ShowcaseStore {
 
 			this.applyServerView(view);
 		} catch {
-			if (this.isDestroyed) return;
 			// Network failure or 500 error
 			if (this.phase === 'unavailable' || this.phase === 'open') {
 				this.phase = 'unavailable';
@@ -659,16 +663,21 @@ export class ShowcaseStore {
 	}
 
 	private async executeRetry(): Promise<void> {
-		if (this.phase === 'reconnecting') {
-			this.reconnectAttempt += 1;
+		if (this.isReconnecting) {
+			if (this.reconnectAttempt < this.maxReconnectAttempts) {
+				this.reconnectAttempt += 1;
+			}
 			if (this.currentGameId) {
-				const color = this.seatToken ? (this.live.playerColor === 'b' ? 'black' : 'white') : null;
+				let color: 'white' | 'black' | null = null;
+				if (this.seatToken) {
+					color = this.live.playerColor === 'b' ? 'black' : 'white';
+				}
 				this.live.connect(this.currentGameId, this.seatToken, color);
 			} else {
-				void this.pollDiscovery();
+				await this.pollDiscovery();
 			}
 		} else {
-			void this.pollDiscovery();
+			await this.pollDiscovery();
 		}
 	}
 

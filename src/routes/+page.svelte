@@ -8,7 +8,7 @@
 		showcaseStore.start();
 		return () => {
 			chromeStore.zen = false;
-			showcaseStore.destroy();
+			showcaseStore.stop();
 		};
 	});
 </script>

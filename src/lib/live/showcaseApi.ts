@@ -52,7 +52,7 @@ export interface ShowcaseView {
 	nextHumanColor: 'White' | 'Black' | null;
 	currentGame: ShowcaseGameView | null;
 	spectator: ShowcaseSpectatorView | null;
-	reason: 'disabled' | 'maintenance' | 'bot_unavailable' | string | null;
+	reason: string | null;
 }
 
 export interface ShowcaseClaimed {
@@ -133,6 +133,7 @@ export async function getShowcase(ifNoneMatch?: string): Promise<GetShowcaseResu
 	const res = await fetch(`${base}/showcase`, {
 		method: 'GET',
 		headers: Object.keys(headers).length > 0 ? headers : undefined,
+		signal: AbortSignal.timeout(5000),
 	});
 
 	const etag = res.headers.get('etag') ?? undefined;
@@ -191,6 +192,7 @@ export async function claimShowcase(
 	const res = await fetch(`${base}/showcase/claim`, {
 		method: 'POST',
 		credentials: 'include',
+		signal: AbortSignal.timeout(10000),
 		headers: {
 			'content-type': 'application/json',
 			'Idempotency-Key': key,
@@ -204,7 +206,13 @@ export async function claimShowcase(
 	}
 
 	const rawRetry = res.headers.get('retry-after');
-	const retryAfterSeconds = rawRetry ? parseInt(rawRetry, 10) : null;
+	let retryAfterSeconds: number | null = null;
+	if (rawRetry && /^\d+$/.test(rawRetry.trim())) {
+		const parsed = Number.parseInt(rawRetry.trim(), 10);
+		if (!Number.isNaN(parsed)) {
+			retryAfterSeconds = parsed;
+		}
+	}
 
 	let problem: ShowcaseProblem;
 	try {
@@ -219,5 +227,5 @@ export async function claimShowcase(
 		};
 	}
 
-	throw new ShowcaseProblemError(problem, isNaN(Number(retryAfterSeconds)) ? null : retryAfterSeconds);
+	throw new ShowcaseProblemError(problem, retryAfterSeconds);
 }

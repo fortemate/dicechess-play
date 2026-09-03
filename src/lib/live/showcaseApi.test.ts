@@ -10,7 +10,6 @@ import {
 } from './showcaseApi';
 
 describe('showcaseApi', () => {
-	const originalEnv = process.env.VITE_PLAY_API_URL;
 	const mockApiBase = 'http://play.test';
 
 	beforeEach(() => {
@@ -219,6 +218,34 @@ describe('showcaseApi', () => {
 				expect(err.status).toBe(429);
 				expect(err.code).toBe('rate_limited');
 				expect(err.retryAfterSeconds).toBe(42);
+			}
+		});
+
+		it('returns null retryAfterSeconds when Retry-After is malformed or non-numeric', async () => {
+			const problem: ShowcaseProblem = {
+				status: 429,
+				code: 'rate_limited',
+				title: 'Too many claims',
+				detail: 'Claim rate limit exceeded — retry later.',
+				instance: '/showcase/claim',
+			};
+
+			vi.spyOn(globalThis, 'fetch').mockResolvedValue(
+				new Response(JSON.stringify(problem), {
+					status: 429,
+					headers: {
+						'content-type': 'application/problem+json',
+						'retry-after': '42seconds',
+					},
+				}),
+			);
+
+			try {
+				await claimShowcase();
+				expect.unreachable();
+			} catch (e) {
+				const err = e as ShowcaseProblemError;
+				expect(err.retryAfterSeconds).toBeNull();
 			}
 		});
 

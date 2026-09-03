@@ -442,5 +442,30 @@ describe('ShowcaseStore', () => {
 			liveGameStore.onConnectionStatus?.('open');
 			expect(store.state.kind).toBe('live-player');
 		});
+
+		it('dispatches retry after connection drop and reconnects with seat token', async () => {
+			mockClaimShowcase.mockResolvedValue({
+				outcome: 'claimed',
+				gameId: 'game-drop-retry-1',
+				seat: 'White',
+				seatToken: 'token-retry-1',
+				wsUrl: '/games/game-drop-retry-1/ws?token=token-retry-1',
+			});
+
+			await store.handleIntent({ type: 'claim' });
+			expect(store.currentPhase).toBe('live-player');
+
+			// Drop socket
+			liveGameStore.onConnectionStatus?.('closed');
+			expect(store.state.kind).toBe('reconnecting');
+
+			const connectSpy = vi.spyOn(liveGameStore, 'connect');
+			await store.handleIntent({ type: 'retry' });
+
+			expect(connectSpy).toHaveBeenCalledWith('game-drop-retry-1', 'token-retry-1', 'white');
+			if (store.state.kind === 'reconnecting') {
+				expect(store.state.attempt).toBe(2);
+			}
+		});
 	});
 });

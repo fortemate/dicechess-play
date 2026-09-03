@@ -26,7 +26,7 @@ export type ShowcaseStateKind =
 
 export interface ShowcaseStateUnavailable {
 	kind: 'unavailable';
-	reason?: 'disabled' | 'maintenance' | 'bot_unavailable' | 'loading' | string;
+	reason?: string;
 	topPlayer: ShowcasePlayerInfo;
 	bottomPlayer: ShowcasePlayerInfo;
 	boardFen: string;
