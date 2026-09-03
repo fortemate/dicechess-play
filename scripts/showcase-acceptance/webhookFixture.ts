@@ -18,7 +18,6 @@ export class WebhookFixture {
 	private server: http.Server | null = null;
 	private logs: WebhookLogEntry[] = [];
 	private mode: FixtureMode = 'healthy';
-	private timeoutDelayMs = 8000;
 	private readonly secret: string;
 	private readonly port: number;
 
@@ -50,9 +49,8 @@ export class WebhookFixture {
 		this.logs = [];
 	}
 
-	setMode(mode: FixtureMode, timeoutDelayMs: number = 8000): void {
+	setMode(mode: FixtureMode): void {
 		this.mode = mode;
-		this.timeoutDelayMs = timeoutDelayMs;
 	}
 
 	getMode(): FixtureMode {
@@ -98,9 +96,6 @@ export class WebhookFixture {
 					json.mode === 'malformed'
 				) {
 					this.mode = json.mode;
-				}
-				if (typeof json.timeoutDelayMs === 'number') {
-					this.timeoutDelayMs = Math.min(Math.max(json.timeoutDelayMs, 1000), 10000);
 				}
 				res.writeHead(200, { 'Content-Type': 'application/json' });
 				res.end(JSON.stringify({ ok: true, mode: this.mode }));
@@ -149,8 +144,8 @@ export class WebhookFixture {
 		}
 
 		if (this.mode === 'timeout') {
-			const delay = Math.min(Math.max(this.timeoutDelayMs, 1000), 10000);
-			await new Promise((r) => setTimeout(r, delay));
+			const SIMULATED_TIMEOUT_MS = 8000;
+			await new Promise((r) => setTimeout(r, SIMULATED_TIMEOUT_MS));
 			const responseBody = JSON.stringify({ moves: [] });
 			this.recordLog(req, bodyText, isValid, 200, responseBody);
 			res.writeHead(200, { 'Content-Type': 'application/json' });
