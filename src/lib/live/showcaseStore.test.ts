@@ -16,26 +16,32 @@ vi.mock('../sound', () => ({
 }));
 
 vi.mock('../toastStore.svelte', () => ({
-	toastStore: { error: vi.fn(), info: vi.fn(), success: vi.fn() },
+	toastStore: {
+		error: vi.fn(),
+		info: vi.fn(),
+		success: vi.fn(),
+	},
 }));
 
-// Mock WebSocket
-class MockWebSocket {
+class ShowcaseTestSocket {
 	static readonly OPEN = 1;
-	static last: MockWebSocket | null = null;
+	static latest: ShowcaseTestSocket | null = null;
+	readonly readyState = 1;
+	readonly sent: string[] = [];
 	onopen: (() => void) | null = null;
 	onclose: (() => void) | null = null;
 	onerror: (() => void) | null = null;
 	onmessage: ((event: { data: unknown }) => void) | null = null;
-	readyState = MockWebSocket.OPEN;
-	sent: string[] = [];
-	constructor(public url: string) {
-		MockWebSocket.last = this;
+
+	constructor(public readonly url: string) {
+		ShowcaseTestSocket.latest = this;
 	}
-	send(data: string) {
+
+	send(data: string): void {
 		this.sent.push(data);
 	}
-	close() {
+
+	close(): void {
 		this.onclose?.();
 	}
 }
@@ -49,7 +55,8 @@ describe('ShowcaseStore', () => {
 	let mockClaimShowcase: ReturnType<typeof vi.fn<() => Promise<ShowcaseClaimOutcome>>>;
 
 	beforeEach(() => {
-		vi.stubGlobal('WebSocket', MockWebSocket);
+		ShowcaseTestSocket.latest = null;
+		vi.stubGlobal('WebSocket', ShowcaseTestSocket);
 		vi.useFakeTimers();
 
 		liveGameStore = new LiveGameStore();
@@ -149,9 +156,9 @@ describe('ShowcaseStore', () => {
 			expect(store.currentPhase).toBe('live-spectator');
 			expect(store.hasSeatToken).toBe(false);
 			expect(liveGameStore.spectator).toBe(true);
-			expect(MockWebSocket.last?.url).toContain('/games/game-occupied-123/ws');
+			expect(ShowcaseTestSocket.latest?.url).toContain('/games/game-occupied-123/ws');
 			// Token must not be in spectator URL
-			expect(MockWebSocket.last?.url).not.toContain('token=');
+			expect(ShowcaseTestSocket.latest?.url).not.toContain('token=');
 		});
 
 		it('resolves unavailable state when server reports bot_unavailable or maintenance', async () => {
@@ -228,7 +235,7 @@ describe('ShowcaseStore', () => {
 			expect(store.hasSeatToken).toBe(true);
 
 			// Socket connected with token
-			expect(MockWebSocket.last?.url).toContain('token=secret-seat-token-xyz');
+			expect(ShowcaseTestSocket.latest?.url).toContain('token=secret-seat-token-xyz');
 			expect(liveGameStore.spectator).toBe(false);
 
 			// Credential isolation: seatToken is NOT leaked into ShowcaseState
@@ -251,8 +258,8 @@ describe('ShowcaseStore', () => {
 			expect(liveGameStore.spectator).toBe(true);
 
 			// Socket connected without token
-			expect(MockWebSocket.last?.url).toContain('/games/game-lost-1/ws');
-			expect(MockWebSocket.last?.url).not.toContain('token=');
+			expect(ShowcaseTestSocket.latest?.url).toContain('/games/game-lost-1/ws');
+			expect(ShowcaseTestSocket.latest?.url).not.toContain('token=');
 		});
 
 		it('spectator cannot emit moves or resign (DoD #7)', async () => {
