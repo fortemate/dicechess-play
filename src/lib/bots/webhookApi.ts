@@ -331,6 +331,10 @@ async function send(
 			...(sendsJson ? { body: JSON.stringify(options.body) } : {}),
 		});
 	} catch (cause) {
+		// The signal is the authority: `AbortController.abort(reason)` rejects with that reason
+		// rather than a `DOMException`, so a name check alone would misreport a deliberate abort as
+		// a network failure. The name check is kept for an abort that never reached this signal.
+		if (options.signal?.aborted) return { outcome: 'aborted' };
 		return cause instanceof DOMException && cause.name === 'AbortError'
 			? { outcome: 'aborted' }
 			: { outcome: 'offline' };

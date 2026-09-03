@@ -126,13 +126,17 @@ describe('BotWebhookPanel', () => {
 			expect(view.queryByRole('button', { name: /Rotate secret/i })).toBeNull();
 		});
 
-		it('offers a retry when the read simply failed', async () => {
+		it('offers a retry when the read simply failed, and drops the failure once it succeeds', async () => {
 			api.readWebhook.mockResolvedValue({ outcome: 'offline' });
 			const view = mount();
 			const retry = await view.findByRole('button', { name: 'Retry' });
 			api.readWebhook.mockResolvedValue({ outcome: 'ok', value: makeSlot() });
 			await fireEvent.click(retry);
+
 			expect(await view.findByDisplayValue('https://bot.example.com/turn')).toBeTruthy();
+			// The failure notice is invisible while the read is failing, so carrying it over would
+			// announce the problem only after it had been fixed.
+			expect(view.queryByText(/Could not read the webhook configuration/i)).toBeNull();
 		});
 
 		it('withdraws staging controls when the server has no verification transport', async () => {

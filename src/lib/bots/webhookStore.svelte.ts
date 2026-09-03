@@ -154,6 +154,20 @@ export class BotWebhookController {
 		if (slot.outcome === 'ok') {
 			this.#adopt(slot.value);
 			this.access = { state: 'ready' };
+			// An explicit, successful read clears transient failure state. Without this, the danger
+			// notice from a failed read — which the panel cannot show while `access` is
+			// `unavailable` — would surface beside fresh authoritative state the moment Retry
+			// succeeded, reporting a failure that had just been resolved.
+			//
+			// `verificationUnavailable` is cleared here deliberately, even though a successful read
+			// does NOT prove the server's outbound transport came back: reads keep working while
+			// setup and activation fail closed. Latching it would leave staging disabled with no way
+			// back but a remount, so it is cleared to let the operator try again — and a transport
+			// that is still down answers `503` and sets the flag once more. Fail closed, stay
+			// retryable. Only `load()` does this; `#reread()` must not, because it runs immediately
+			// after a notice that explains why a mutation was refused.
+			this.notice = null;
+			this.verificationUnavailable = false;
 			return;
 		}
 		this.access = this.#accessFor(slot);

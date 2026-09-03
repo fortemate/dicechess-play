@@ -103,6 +103,33 @@ describe('BotWebhookController', () => {
 			expect(noticeText(store)).toContain('Nothing has been changed');
 		});
 
+		it('clears the stale failure notice once a retried read succeeds', async () => {
+			api.readWebhook.mockResolvedValue({ outcome: 'offline' });
+			const store = await controllerFor();
+			await store.load();
+			expect(noticeText(store)).toContain('Nothing has been changed');
+
+			api.readWebhook.mockResolvedValue({ outcome: 'ok', value: makeSlot() });
+			await store.load();
+			expect(store.access).toEqual({ state: 'ready' });
+			// The panel cannot show a notice while access is `unavailable`, so leaving it set would
+			// report the failure only after it had been resolved.
+			expect(store.notice).toBeNull();
+		});
+
+		it('lets an explicit re-read re-enable staging after a transient 503', async () => {
+			api.createWebhookSetup.mockResolvedValue(problem('webhook_verification_unavailable', 503));
+			const store = await controllerFor();
+			await store.load();
+			await store.stage({ kind: 'create', url: 'https://new.example.com/turn', capabilities: [] });
+			expect(store.verificationUnavailable).toBe(true);
+
+			await store.load();
+			// A successful read does not prove the transport recovered, but latching the flag would
+			// leave staging disabled until a remount; a transport still down answers 503 again.
+			expect(store.verificationUnavailable).toBe(false);
+		});
+
 		it('fetches the registry once across repeated loads', async () => {
 			const store = await controllerFor();
 			await store.load();
@@ -195,6 +222,15 @@ describe('BotWebhookController', () => {
 			await store.stage({ kind: 'create', url: 'http://insecure.example', capabilities: [] });
 			expect(store.handoff).toBeNull();
 			expect(noticeText(store)).toContain('nothing was staged');
+		});
+
+		it('keeps the refusal explanation through the re-read it triggers', async () => {
+			api.createWebhookSetup.mockResolvedValue(problem('webhook_already_registered', 409));
+			const store = await controllerFor();
+			await store.load();
+			await store.stage({ kind: 'create', url: 'https://new.example.com/turn', capabilities: [] });
+			// `#reread()` adopts fresh state but must not clear the notice that explains the refusal.
+			expect(noticeText(store)).toContain('already has a registration');
 		});
 
 		it('recovers from a competing candidate by re-reading it so it can be cancelled', async () => {

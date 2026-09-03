@@ -233,6 +233,19 @@ describe('webhookApi transport', () => {
 		});
 	});
 
+	it('classifies an abort from the signal even when it carries a custom reason', async () => {
+		// `AbortController.abort(reason)` rejects with that reason, not a DOMException, so a name
+		// check alone would misreport a deliberate abort as a network failure.
+		const controller = new AbortController();
+		fetchMock.mockImplementation(() => {
+			controller.abort(new Error('stopped watching'));
+			return Promise.reject(new Error('stopped watching'));
+		});
+		expect(
+			await activateWebhookSetup('owner', 'acme', 'alice', 'r', 's', controller.signal),
+		).toEqual({ outcome: 'aborted' });
+	});
+
 	it('rejects a slot whose shape does not match the contract', async () => {
 		fetchMock.mockResolvedValue(json({ revision: 7 }));
 		expect(await readWebhook('owner', 'acme', 'alice')).toEqual({ outcome: 'unavailable' });
