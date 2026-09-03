@@ -35,6 +35,35 @@ function jsonResponse(status: number, body: unknown): Response {
 	});
 }
 
+/**
+ * Responses for the requests each rendered OwnedBotCard issues on mount: capacity, its webhook
+ * slot, and the public capability registry (#48).
+ *
+ * Routing by URL rather than scripting `mockResolvedValueOnce` in order is deliberate. The page
+ * renders one card per owned bot and every card fetches independently, so an ordered chain runs dry
+ * the moment a card gains a request — and a drained chain hands the caller `undefined`, which
+ * surfaces as an unhandled rejection deep inside a transport rather than as a failed assertion.
+ */
+function cardResponse(url: string): Response | null {
+	if (url.endsWith('/bot/webhook/capabilities'))
+		return jsonResponse(200, {
+			capabilities: [
+				{ name: 'draws', status: 'available', selectable: true },
+				{ name: 'doubling', status: 'reserved', selectable: false },
+			],
+		});
+	if (url.endsWith('/capacity'))
+		return jsonResponse(200, {
+			maxConcurrentGames: 1,
+			openToHumans: false,
+			ladderAllowance: 1,
+			activeGames: 0,
+		});
+	if (url.endsWith('/webhook'))
+		return jsonResponse(200, { revision: 'whrev_01', registration: null, pendingSetup: null });
+	return null;
+}
+
 describe('/me/bots page', () => {
 	beforeEach(() => {
 		myBotsStore.reset();
@@ -77,17 +106,9 @@ describe('/me/bots page', () => {
 	it('renders the owned list after the authenticated session resolves', async () => {
 		auth.authStore.status = 'signed-in';
 		auth.authStore.account = { id: 'owner-uuid' };
-		const fetchMock = vi
-			.fn()
-			.mockResolvedValueOnce(jsonResponse(200, { bots: [bot] }))
-			.mockResolvedValueOnce(
-				jsonResponse(200, {
-					maxConcurrentGames: 1,
-					openToHumans: false,
-					ladderAllowance: 1,
-					activeGames: 0,
-				}),
-			);
+		const fetchMock = vi.fn((url: string, _init?: RequestInit) =>
+			Promise.resolve(cardResponse(String(url)) ?? jsonResponse(200, { bots: [bot] })),
+		);
 		vi.stubGlobal('fetch', fetchMock);
 
 		const view = render(MyBotsPage);
@@ -115,18 +136,14 @@ describe('/me/bots page', () => {
 		auth.authStore.status = 'signed-in';
 		auth.authStore.account = { id: 'owner-uuid' };
 		let resolveClaim: (response: Response) => void = () => {};
-		const fetchMock = vi
-			.fn()
-			.mockResolvedValueOnce(jsonResponse(200, { bots: [] }))
-			.mockReturnValueOnce(new Promise<Response>((resolve) => (resolveClaim = resolve)))
-			.mockResolvedValueOnce(
-				jsonResponse(200, {
-					maxConcurrentGames: 1,
-					openToHumans: false,
-					ladderAllowance: 1,
-					activeGames: 0,
-				}),
-			);
+		const fetchMock = vi.fn((url: string, _init?: RequestInit) => {
+			const target = String(url);
+			const card = cardResponse(target);
+			if (card) return Promise.resolve(card);
+			if (target.endsWith('/me/bots/claim'))
+				return new Promise<Response>((resolve) => (resolveClaim = resolve));
+			return Promise.resolve(jsonResponse(200, { bots: [] }));
+		});
 		vi.stubGlobal('fetch', fetchMock);
 
 		const view = render(MyBotsPage);
@@ -139,7 +156,8 @@ describe('/me/bots page', () => {
 		await waitFor(() => expect(tokenInput.value).toBe(''));
 		resolveClaim(jsonResponse(200, { bots: [bot] }));
 		await view.findByText('acme alice');
-		expect(fetchMock.mock.calls[1][1]).toMatchObject({
+		const claimCall = fetchMock.mock.calls.find(([url]) => String(url).endsWith('/me/bots/claim'));
+		expect(claimCall?.[1]).toMatchObject({
 			credentials: 'include',
 			headers: { authorization: 'Bearer once-secret' },
 		});

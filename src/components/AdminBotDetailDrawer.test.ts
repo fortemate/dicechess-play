@@ -65,7 +65,7 @@ describe('AdminBotDetailDrawer', () => {
 
 	afterEach(() => cleanup());
 
-	it('renders bot details, capacity, and read-only webhook information', () => {
+	it('renders bot details, capacity, and the webhook summary badge', () => {
 		const view = render(AdminBotDetailDrawer, {
 			bot: makeBot({
 				provisional: true,
@@ -80,8 +80,21 @@ describe('AdminBotDetailDrawer', () => {
 		expect(view.getByText(/Provisional/i)).toBeTruthy();
 		expect(view.getByText('Owned')).toBeTruthy();
 		expect(view.getByText('1 / 4 active')).toBeTruthy();
-		expect(view.getByDisplayValue('https://acme.org/webhook')).toBeTruthy();
-		expect(view.getByText('draws')).toBeTruthy();
+		expect(view.getByText('Webhook active')).toBeTruthy();
+	});
+
+	it('delegates webhook and capability management to the guarded panel', () => {
+		// The drawer must not render webhook state from its inventory row: those fields are a list
+		// summary with no revision, and every mutation needs the panel's own authoritative read
+		// (#48). The panel's own suite covers the flows; this only pins the delegation.
+		const view = render(AdminBotDetailDrawer, {
+			bot: makeBot(),
+			onClose: vi.fn(),
+			onChanged: vi.fn(),
+		});
+
+		expect(view.getByRole('region', { name: /Webhook & capabilities/i })).toBeTruthy();
+		expect(view.queryByDisplayValue('https://acme.org/webhook')).toBeNull();
 	});
 
 	it('joins and leaves the ladder through audited action', async () => {

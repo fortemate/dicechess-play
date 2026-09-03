@@ -2,7 +2,7 @@
 	/* eslint-disable local/no-untranslated-text -- i18n debt: not yet migrated (#8) */
 	// Detail drawer for `/me/admin/bots` (#47).
 	// Preserves all audited administrative actions (ladder, catalog, description, token recovery)
-	// and adds audited capacity editing along with read-only webhook inspection.
+	// and adds audited capacity editing plus the guarded webhook/capability panel (#48).
 	// Rotated token plaintext remains strictly component-local state and clears on close/unmount.
 
 	import {
@@ -16,6 +16,7 @@
 		type AdminBotFailure,
 	} from '$lib/bots/adminApi';
 	import { toastStore } from '$lib/toastStore.svelte';
+	import BotWebhookPanel from './BotWebhookPanel.svelte';
 
 	interface Props {
 		bot: AdminBot | null;
@@ -39,7 +40,6 @@
 	let confirmInput = $state('');
 	let revealedToken = $state<string | null>(null);
 	let tokenCopied = $state(false);
-	let webhookCopied = $state(false);
 
 	let closeButton = $state<HTMLButtonElement | null>(null);
 	let rotateCancelButton = $state<HTMLButtonElement | null>(null);
@@ -277,19 +277,6 @@
 			error = 'Could not copy the token — select it and copy it manually.';
 		}
 	}
-
-	async function copyWebhookUrl() {
-		if (!bot?.webhook?.url) return;
-		try {
-			await navigator.clipboard.writeText(bot.webhook.url);
-			webhookCopied = true;
-			setTimeout(() => {
-				webhookCopied = false;
-			}, 2000);
-		} catch {
-			error = 'Could not copy the webhook URL.';
-		}
-	}
 </script>
 
 <svelte:window onkeydown={handleKeydown} />
@@ -514,86 +501,14 @@
 				</div>
 			</section>
 
-			<!-- Webhook & Capabilities (Read-Only) -->
-			<section class="flex flex-col gap-3 rounded-2xl border border-border bg-surface/50 p-4">
-				<div class="flex items-center justify-between">
-					<div>
-						<h4 class="text-sm font-bold text-content">Webhook & Capabilities</h4>
-						<p class="text-xs text-content-muted">
-							Real-time move delivery configuration (read-only).
-						</p>
-					</div>
-				</div>
-
-				{#if bot.webhook}
-					<div class="flex flex-col gap-2">
-						<label
-							for={`webhook-url-${bot.team}-${bot.name}`}
-							class="text-xs font-semibold text-content-muted"
-						>
-							Callback URL:
-						</label>
-						<div class="flex items-center gap-2">
-							<input
-								id={`webhook-url-${bot.team}-${bot.name}`}
-								type="text"
-								readonly
-								value={bot.webhook.url}
-								class="flex-1 rounded-lg border border-border bg-surface px-3 py-1.5 font-mono text-xs text-content outline-none"
-							/>
-							<button
-								type="button"
-								onclick={() => void copyWebhookUrl()}
-								class="rounded-lg border border-border bg-surface px-2.5 py-1.5 text-xs font-semibold text-content-muted transition-colors hover:text-content"
-							>
-								{webhookCopied ? 'Copied' : 'Copy'}
-							</button>
-						</div>
-
-						<p class="text-[11px] text-content-muted">
-							Verified at: <span class="font-mono text-content"
-								>{new Date(bot.webhook.verifiedAt).toLocaleString()}</span
-							>
-						</p>
-
-						<div class="flex flex-wrap items-center gap-1.5 pt-1">
-							<span class="text-xs font-semibold text-content-muted">Capabilities:</span>
-							{#if bot.webhook.capabilities.length > 0}
-								{#each bot.webhook.capabilities as cap (cap)}
-									<span
-										class="rounded-md border border-primary/30 bg-primary/10 px-2 py-0.5 font-mono text-[10px] font-bold text-primary"
-									>
-										{cap}
-									</span>
-								{/each}
-							{:else}
-								<span class="text-xs text-content-muted">None declared</span>
-							{/if}
-						</div>
-
-						{#if bot.webhook.lastFailure}
-							<div
-								class="mt-1 rounded-lg border border-danger/30 bg-danger/10 p-2.5 text-xs text-danger"
-								role="alert"
-							>
-								<p class="font-bold">
-									Last delivery failure ({new Date(bot.webhook.lastFailure.at).toLocaleString()}):
-								</p>
-								<p class="font-mono text-[11px] mt-0.5">{bot.webhook.lastFailure.reason}</p>
-							</div>
-						{/if}
-					</div>
-				{:else}
-					<p class="text-xs text-content-muted">
-						No webhook is registered for this bot. It plays exclusively through long-polling or seek
-						commands.
-					</p>
-				{/if}
-				<p class="text-[10px] text-content-muted italic">
-					Webhook URLs and signing secrets are managed through the guarded webhook registration
-					workflow.
-				</p>
-			</section>
+			<!--
+				Webhook and capabilities. Keyed by bot identity so selecting another bot unmounts the
+				panel: its staged setup can hold a one-time signing secret, which must never survive a
+				switch to a different bot.
+			-->
+			{#key `${bot.team}/${bot.name}`}
+				<BotWebhookPanel root="admin" team={bot.team} name={bot.name} {onChanged} />
+			{/key}
 
 			<!-- Ownership Section (Display-Only) -->
 			<section class="flex flex-col gap-2 rounded-2xl border border-border bg-surface/50 p-4">

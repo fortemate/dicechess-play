@@ -19,6 +19,7 @@
 	} from '$lib/bots/ownerApi';
 	import { toastStore } from '$lib/toastStore.svelte';
 	import { formatWholeNumber } from '../utils/formatters';
+	import BotWebhookPanel from './BotWebhookPanel.svelte';
 
 	let { bot, onChanged }: { bot: MyBot; onChanged: () => void | Promise<void> } = $props();
 	let capacity = $state<BotCapacity | null>(null);
@@ -327,6 +328,15 @@
 				</button>
 			</form>
 		</div>
+
+		<!--
+			Webhook and capabilities (#48). Keyed by bot identity for the same reason the rotated token
+			above is component-local: a staged setup can hold a one-time signing secret, and it must
+			not survive a switch to a different bot.
+		-->
+		{#key `${bot.team}/${bot.name}`}
+			<BotWebhookPanel root="owner" team={bot.team} name={bot.name} {onChanged} />
+		{/key}
 
 		<div class="flex flex-col gap-3">
 			<h4 class="text-sm font-bold text-content">Token and ownership</h4>
