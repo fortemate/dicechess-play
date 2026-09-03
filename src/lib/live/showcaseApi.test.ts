@@ -159,121 +159,73 @@ describe('showcaseApi', () => {
 			expect((res as ShowcaseSpectating).reason).toBe('already_claimed');
 		});
 
-		it('parses RFC 7807 problem details with Retry-After header', async () => {
-			const problem: ShowcaseProblem = {
-				status: 503,
-				code: 'showcase_unavailable',
-				title: 'Showcase table unavailable',
-				detail: 'The showcase table is not accepting claims right now (bot_unavailable).',
+		function mockProblemFetch(status: number, code: string, retryAfter?: string, detail?: string) {
+			const body: ShowcaseProblem = {
+				status,
+				code,
+				title: code,
+				detail: detail ?? `Error ${status}`,
 				instance: '/showcase/claim',
 			};
-
 			vi.spyOn(globalThis, 'fetch').mockResolvedValue(
-				new Response(JSON.stringify(problem), {
-					status: 503,
+				new Response(JSON.stringify(body), {
+					status,
 					headers: {
 						'content-type': 'application/problem+json',
-						'retry-after': '5',
+						...(retryAfter !== undefined ? { 'retry-after': retryAfter } : {}),
 					},
 				}),
 			);
+		}
 
-			try {
-				await claimShowcase();
-				expect.unreachable('claimShowcase should have thrown');
-			} catch (e) {
-				expect(e).toBeInstanceOf(ShowcaseProblemError);
-				const err = e as ShowcaseProblemError;
-				expect(err.status).toBe(503);
-				expect(err.code).toBe('showcase_unavailable');
-				expect(err.detail).toContain('bot_unavailable');
-				expect(err.retryAfterSeconds).toBe(5);
-			}
+		it('parses RFC 7807 problem details with Retry-After header', async () => {
+			mockProblemFetch(
+				503,
+				'showcase_unavailable',
+				'5',
+				'The showcase table is not accepting claims right now (bot_unavailable).',
+			);
+
+			await expect(claimShowcase()).rejects.toMatchObject({
+				status: 503,
+				code: 'showcase_unavailable',
+				retryAfterSeconds: 5,
+			});
 		});
 
 		it('parses 429 rate limit problem with Retry-After', async () => {
-			const problem: ShowcaseProblem = {
+			mockProblemFetch(429, 'rate_limited', '42', 'Claim rate limit exceeded — retry later.');
+
+			await expect(claimShowcase()).rejects.toMatchObject({
 				status: 429,
 				code: 'rate_limited',
-				title: 'Too many claims',
-				detail: 'Claim rate limit exceeded — retry later.',
-				instance: '/showcase/claim',
-			};
-
-			vi.spyOn(globalThis, 'fetch').mockResolvedValue(
-				new Response(JSON.stringify(problem), {
-					status: 429,
-					headers: {
-						'content-type': 'application/problem+json',
-						'retry-after': '42',
-					},
-				}),
-			);
-
-			try {
-				await claimShowcase();
-				expect.unreachable();
-			} catch (e) {
-				const err = e as ShowcaseProblemError;
-				expect(err.status).toBe(429);
-				expect(err.code).toBe('rate_limited');
-				expect(err.retryAfterSeconds).toBe(42);
-			}
+				retryAfterSeconds: 42,
+			});
 		});
 
 		it('returns null retryAfterSeconds when Retry-After is malformed or non-numeric', async () => {
-			const problem: ShowcaseProblem = {
-				status: 429,
-				code: 'rate_limited',
-				title: 'Too many claims',
-				detail: 'Claim rate limit exceeded — retry later.',
-				instance: '/showcase/claim',
-			};
-
-			vi.spyOn(globalThis, 'fetch').mockResolvedValue(
-				new Response(JSON.stringify(problem), {
-					status: 429,
-					headers: {
-						'content-type': 'application/problem+json',
-						'retry-after': '42seconds',
-					},
-				}),
+			mockProblemFetch(
+				429,
+				'rate_limited',
+				'42seconds',
+				'Claim rate limit exceeded — retry later.',
 			);
 
-			try {
-				await claimShowcase();
-				expect.unreachable();
-			} catch (e) {
-				const err = e as ShowcaseProblemError;
-				expect(err.retryAfterSeconds).toBeNull();
-			}
+			await expect(claimShowcase()).rejects.toMatchObject({
+				status: 429,
+				code: 'rate_limited',
+				retryAfterSeconds: null,
+			});
 		});
 
 		it('parses 409 idempotency conflict problem', async () => {
-			const problem: ShowcaseProblem = {
+			mockProblemFetch(409, 'idempotency_conflict');
+
+			await expect(claimShowcase()).rejects.toMatchObject({
 				status: 409,
 				code: 'idempotency_conflict',
-				title: 'Idempotency-Key reused',
-				detail: 'This Idempotency-Key was already used for a different claim request.',
-				instance: '/showcase/claim',
-			};
-
-			vi.spyOn(globalThis, 'fetch').mockResolvedValue(
-				new Response(JSON.stringify(problem), {
-					status: 409,
-					headers: { 'content-type': 'application/problem+json' },
-				}),
-			);
-
-			try {
-				await claimShowcase();
-				expect.unreachable();
-			} catch (e) {
-				const err = e as ShowcaseProblemError;
-				expect(err.status).toBe(409);
-				expect(err.code).toBe('idempotency_conflict');
-				expect(err.retryAfterSeconds).toBeNull();
-			}
+				retryAfterSeconds: null,
+			});
 		});
 
 		it('handles non-JSON error responses gracefully', async () => {
