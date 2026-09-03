@@ -133,7 +133,7 @@ export async function getShowcase(ifNoneMatch?: string): Promise<GetShowcaseResu
 	const res = await fetch(`${base}/showcase`, {
 		method: 'GET',
 		headers: Object.keys(headers).length > 0 ? headers : undefined,
-		signal: AbortSignal.timeout(5000),
+		signal: AbortSignal.timeout(10000),
 	});
 
 	const etag = res.headers.get('etag') ?? undefined;
