@@ -20,6 +20,22 @@ vi.mock('$lib/bots/adminApi', async (importOriginal) => {
 const toasts = vi.hoisted(() => ({ toastStore: { success: vi.fn() } }));
 vi.mock('$lib/toastStore.svelte', () => toasts);
 
+// Every rendered drawer mounts BotWebhookPanel, which reads its own authoritative webhook slot.
+// Without a play-api base the transport short-circuits before `fetch`, so this suite issues no
+// requests either way — but stubbing it makes the panel render real state instead of its
+// "unavailable in this build" branch, which is what gives the delegation assertion below its
+// meaning. The panel's own flows are covered in BotWebhookPanel.test.ts.
+const webhookApi = vi.hoisted(() => ({
+	readWebhook: vi.fn(),
+	createWebhookSetup: vi.fn(),
+	activateWebhookSetup: vi.fn(),
+	cancelWebhookSetup: vi.fn(),
+	updateWebhookCapabilities: vi.fn(),
+	deleteWebhook: vi.fn(),
+	fetchWebhookCapabilityCatalog: vi.fn(),
+}));
+vi.mock('$lib/bots/webhookApi', () => webhookApi);
+
 function makeBot(overrides: Partial<AdminBot> = {}): AdminBot {
 	return {
 		team: 'acme',
@@ -46,6 +62,29 @@ function makeBot(overrides: Partial<AdminBot> = {}): AdminBot {
 
 describe('AdminBotDetailDrawer', () => {
 	beforeEach(() => {
+		vi.stubEnv('VITE_PLAY_API_URL', 'http://localhost:8080');
+		for (const mock of Object.values(webhookApi)) mock.mockReset();
+		webhookApi.readWebhook.mockResolvedValue({
+			outcome: 'ok',
+			value: {
+				revision: 'whrev_01',
+				registration: {
+					registrationId: 'whreg_01',
+					url: 'https://panel.example.com/turn',
+					verifiedAt: '2026-08-01T12:00:00Z',
+					capabilities: ['draws'],
+					lastFailure: null,
+				},
+				pendingSetup: null,
+			},
+		});
+		webhookApi.fetchWebhookCapabilityCatalog.mockResolvedValue({
+			outcome: 'ok',
+			value: [
+				{ name: 'draws', status: 'available', selectable: true },
+				{ name: 'doubling', status: 'reserved', selectable: false },
+			],
+		});
 		for (const mock of Object.values(api)) mock.mockReset();
 		api.setAdminLadder.mockResolvedValue({ outcome: 'ok' });
 		api.openAdminToHumans.mockResolvedValue({ outcome: 'ok' });
@@ -63,9 +102,12 @@ describe('AdminBotDetailDrawer', () => {
 		toasts.toastStore.success.mockReset();
 	});
 
-	afterEach(() => cleanup());
+	afterEach(() => {
+		cleanup();
+		vi.unstubAllEnvs();
+	});
 
-	it('renders bot details, capacity, and read-only webhook information', () => {
+	it('renders bot details, capacity, and the webhook summary badge', () => {
 		const view = render(AdminBotDetailDrawer, {
 			bot: makeBot({
 				provisional: true,
@@ -80,8 +122,23 @@ describe('AdminBotDetailDrawer', () => {
 		expect(view.getByText(/Provisional/i)).toBeTruthy();
 		expect(view.getByText('Owned')).toBeTruthy();
 		expect(view.getByText('1 / 4 active')).toBeTruthy();
-		expect(view.getByDisplayValue('https://acme.org/webhook')).toBeTruthy();
-		expect(view.getByText('draws')).toBeTruthy();
+		expect(view.getByText('Webhook active')).toBeTruthy();
+	});
+
+	it('delegates webhook and capability management to the guarded panel', async () => {
+		// The drawer must not render webhook state from its inventory row: those fields are a list
+		// summary with no revision, and every mutation needs the panel's own authoritative read
+		// (#48). The panel's own suite covers the flows; this only pins the delegation.
+		const view = render(AdminBotDetailDrawer, {
+			bot: makeBot(),
+			onClose: vi.fn(),
+			onChanged: vi.fn(),
+		});
+
+		expect(view.getByRole('region', { name: /Webhook & capabilities/i })).toBeTruthy();
+		expect(view.queryByDisplayValue('https://acme.org/webhook')).toBeNull();
+		expect(webhookApi.readWebhook).toHaveBeenCalledWith('admin', 'acme', 'alice');
+		expect(await view.findByDisplayValue('https://panel.example.com/turn')).toBeTruthy();
 	});
 
 	it('joins and leaves the ladder through audited action', async () => {

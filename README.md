@@ -98,6 +98,8 @@ src/
 │       │                      token, ladder/catalog/capacity, rotate token, release (#242)
 │       └── admin/bots/        administrator-only full registry: searchable inventory table, filter
 │                              bar, detail drawer with capacity (1–32), ladder, catalog, token recovery (#243, #47)
+│                              — both bot surfaces embed BotWebhookPanel for webhook/capability
+│                              management, keyed per bot so a staged secret cannot outlive it (#48)
 ├── components/                shared UI
 │   ├── Board.svelte           thin chessground wrapper driven by either game store
 │   ├── GameHub                the ways-to-start-a-game cards shared by the landing and /play
@@ -108,6 +110,9 @@ src/
 │   │                     ToastContainer
 │   ├── AdminBotsFilterBar · AdminBotsInventory · AdminBotDetailDrawer — /me/admin/bots
 │   │                          inventory, pure filter bar, and action drawer (#47)
+│   ├── BotWebhookPanel        guarded webhook + capability surface shared by the owner card and
+│   │                          the admin drawer: staged edit-and-verify URL flow, one-time secret
+│   │                          handoff, registry-driven capability controls (#48)
 │   ├── CategoryRatings        one rating per speed (bullet/blitz/rapid, #258) — shared by both
 │   │                          public profiles; an unplayed speed renders as an explicit dash
 │   ├── RankingViewTabs        /leaderboard ↔ /strength sub-navigation · StrengthRow the
@@ -154,7 +159,11 @@ src/
 │   │                          account-scoped state; only claim receives a pasted Bearer token (#242);
 │   │                          adminApi + adminBotsStore + adminBotsFilter — credentialed `/admin/bots`
 │   │                          inventory, pure filter/sort engine, and operations; rotated tokens stay
-│   │                          component-local (#243, #47)
+│   │                          component-local (#243, #47);
+│   │                          webhookApi + webhookStore + webhookCapabilities — the ADR-004 session
+│   │                          webhook control plane for BOTH roots: strong-ETag revisions, CSRF
+│   │                          header, problem+json codes, staged setups, and a one-time secret that
+│   │                          never enters storage, logs, or telemetry (#48)
 │   ├── games/                 gamesApi — GET /players/{guestId}/games (vs/result/before filters +
 │   │                          hasMore, #173) + /opponents client (play-api wire mirror) + the
 │   │                          signed-in account's union, GET /me/opponents, credentialed (#226);
