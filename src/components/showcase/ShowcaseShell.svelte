@@ -32,6 +32,7 @@
 			case 'finishing':
 				return state.playerColor ?? 'w';
 			case 'reset':
+			case 'unavailable':
 				return 'w';
 		}
 	});

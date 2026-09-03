@@ -15,7 +15,24 @@ export interface ShowcasePlayerInfo {
 }
 
 export type ShowcaseStateKind =
-	'open' | 'claiming' | 'live-player' | 'live-spectator' | 'reconnecting' | 'finishing' | 'reset';
+	| 'unavailable'
+	| 'open'
+	| 'claiming'
+	| 'live-player'
+	| 'live-spectator'
+	| 'reconnecting'
+	| 'finishing'
+	| 'reset';
+
+export interface ShowcaseStateUnavailable {
+	kind: 'unavailable';
+	reason?: string;
+	topPlayer: ShowcasePlayerInfo;
+	bottomPlayer: ShowcasePlayerInfo;
+	boardFen: string;
+	clocks: { topMs: number; bottomMs: number };
+	timeControl?: string;
+}
 
 export interface ShowcaseStateOpen {
 	kind: 'open';
@@ -99,6 +116,7 @@ export interface ShowcaseStateReset {
 }
 
 export type ShowcaseState =
+	| ShowcaseStateUnavailable
 	| ShowcaseStateOpen
 	| ShowcaseStateClaiming
 	| ShowcaseStateLivePlayer
@@ -108,7 +126,7 @@ export type ShowcaseState =
 	| ShowcaseStateReset;
 
 export type ShowcaseIntent =
-	| { type: 'claim'; color: ShowcaseColor }
+	| { type: 'claim' }
 	| { type: 'resign' }
 	| { type: 'retry' }
 	| { type: 'reset-now' }

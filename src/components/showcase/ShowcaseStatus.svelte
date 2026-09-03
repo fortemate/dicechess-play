@@ -60,6 +60,13 @@
 					badgeBorder: 'border-blue-500/30 bg-blue-500/10 text-blue-600 dark:text-blue-400',
 					pulse: true,
 				};
+			case 'unavailable':
+				return {
+					text: m.home_status_unavailable(),
+					dotClass: 'bg-slate-500',
+					badgeBorder: 'border-slate-500/30 bg-slate-500/10 text-slate-600 dark:text-slate-400',
+					pulse: false,
+				};
 		}
 	});
 
@@ -90,6 +97,17 @@
 				});
 			case 'reset':
 				return m.home_resetting_countdown({ seconds: state.countdownSeconds });
+			case 'unavailable':
+				switch (state.reason) {
+					case 'disabled':
+						return m.home_unavailable_disabled();
+					case 'maintenance':
+						return m.home_unavailable_maintenance();
+					case 'bot_unavailable':
+						return m.home_unavailable_bot_unavailable();
+					default:
+						return m.home_unavailable_generic();
+				}
 		}
 	});
 </script>

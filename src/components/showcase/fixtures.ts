@@ -1,4 +1,5 @@
 import type {
+	ShowcaseStateUnavailable,
 	ShowcaseStateOpen,
 	ShowcaseStateClaiming,
 	ShowcaseStateLivePlayer,
@@ -239,7 +240,25 @@ export const fixtureReset: ShowcaseStateReset = {
 	clocks: { topMs: 300000, bottomMs: 300000 },
 };
 
+export const fixtureUnavailable: ShowcaseStateUnavailable = {
+	kind: 'unavailable',
+	reason: 'bot_unavailable',
+	timeControl: '5 + 3 Blitz',
+	topPlayer: {
+		name: 'DeepDiceBot',
+		sub: 'Unavailable',
+		bot: true,
+	},
+	bottomPlayer: {
+		name: 'You (Guest)',
+		sub: 'Unavailable',
+	},
+	boardFen: INITIAL_BOARD_FEN,
+	clocks: { topMs: 300000, bottomMs: 300000 },
+};
+
 export const allFixtures: Record<string, ShowcaseState> = {
+	unavailable: fixtureUnavailable,
 	'open-white': fixtureOpenWhite,
 	'open-black': fixtureOpenBlack,
 	claiming: fixtureClaiming,

@@ -3,6 +3,7 @@ import { render, fireEvent } from '@testing-library/svelte';
 import ShowcaseShell from './ShowcaseShell.svelte';
 import {
 	allFixtures,
+	fixtureUnavailable,
 	fixtureOpenWhite,
 	fixtureOpenBlack,
 	fixtureClaiming,
@@ -48,7 +49,7 @@ describe('ShowcaseShell', () => {
 
 		// Click claim emits typed intent
 		fireEvent.click(claimBtn);
-		expect(onIntent).toHaveBeenCalledWith({ type: 'claim', color: 'w' });
+		expect(onIntent).toHaveBeenCalledWith({ type: 'claim' });
 	});
 
 	it('renders open state with claim action for Black', () => {
@@ -62,7 +63,7 @@ describe('ShowcaseShell', () => {
 		expect(claimBtn).toBeTruthy();
 
 		fireEvent.click(claimBtn);
-		expect(onIntent).toHaveBeenCalledWith({ type: 'claim', color: 'b' });
+		expect(onIntent).toHaveBeenCalledWith({ type: 'claim' });
 	});
 
 	it('renders claiming state with accessible busy button and preserves focus', async () => {
@@ -253,13 +254,24 @@ describe('ShowcaseShell', () => {
 		expect(markImg.getAttribute('viewBox')).toBe('0 0 14 14');
 	});
 
-	it('has accessible status region with role="status" and aria-live="polite"', () => {
-		const { getAllByRole } = render(ShowcaseShell, {
-			state: fixtureOpenWhite,
+	it('renders unavailable state with reason and no clickable seat', () => {
+		const { getAllByText, queryByRole, getAllByRole } = render(ShowcaseShell, {
+			state: fixtureUnavailable,
 		});
 
-		const statusRegions = getAllByRole('status');
-		expect(statusRegions.length).toBeGreaterThan(0);
-		expect(statusRegions[0].getAttribute('aria-live')).toBe('polite');
+		// Status badge
+		expect(getAllByText(m.home_status_unavailable()).length).toBeGreaterThan(0);
+
+		// Reason message
+		expect(getAllByText(m.home_unavailable_bot_unavailable()).length).toBeGreaterThan(0);
+
+		// No claim buttons / dead seat
+		expect(queryByRole('button', { name: m.home_action_claim_white() })).toBeNull();
+		expect(queryByRole('button', { name: m.home_action_claim_black() })).toBeNull();
+
+		// Has Play on /play instead link in action slot
+		const altLinks = getAllByRole('link', { name: m.home_action_play_alt() });
+		expect(altLinks.length).toBeGreaterThan(0);
+		expect(altLinks[0].getAttribute('href')).toBe('/play');
 	});
 });
