@@ -251,6 +251,19 @@ describe('BotWebhookController', () => {
 			expect(store.canActivate).toBe(true);
 		});
 
+		it('re-arms the block when the operator withdraws the acknowledgement', async () => {
+			const store = await staged();
+			store.acknowledgeSecret(true);
+			expect(store.canActivate).toBe(true);
+
+			store.acknowledgeSecret(false);
+			expect(store.secretAcknowledged).toBe(false);
+			expect(store.canActivate).toBe(false);
+
+			await store.activate();
+			expect(api.activateWebhookSetup).not.toHaveBeenCalled();
+		});
+
 		it('adopts the authoritative slot and scrubs the secret on success', async () => {
 			const committed = makeSlot({
 				revision: 'whrev_03',

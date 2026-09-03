@@ -334,6 +334,28 @@ describe('BotWebhookPanel', () => {
 			await waitFor(() => expect(activate.disabled).toBe(false));
 		});
 
+		it('disables activation again when the acknowledgement checkbox is cleared', async () => {
+			stageCreated('replaceUrl');
+			const view = mount();
+			await fireEvent.click(await view.findByRole('button', { name: /Replace URL/i }));
+			await fireEvent.input(view.getByLabelText(/New callback URL/i), {
+				target: { value: 'https://v2.example.com/turn' },
+			});
+			await fireEvent.click(view.getByRole('checkbox', { name: /new signing secret/i }));
+			await fireEvent.click(view.getByRole('button', { name: /Issue secret and continue/i }));
+
+			const activate = (await view.findByRole('button', {
+				name: /Verify and activate/i,
+			})) as HTMLButtonElement;
+			const ack = view.getByRole('checkbox', { name: /I have stored this secret/i });
+
+			await fireEvent.click(ack);
+			await waitFor(() => expect(activate.disabled).toBe(false));
+
+			await fireEvent.click(ack);
+			await waitFor(() => expect(activate.disabled).toBe(true));
+		});
+
 		async function stagedAndAcknowledged() {
 			stageCreated('replaceUrl');
 			const onChanged = vi.fn();

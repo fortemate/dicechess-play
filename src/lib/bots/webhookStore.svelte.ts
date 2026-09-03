@@ -205,9 +205,15 @@ export class BotWebhookController {
 		};
 	}
 
-	/** Record that the operator has stored the secret. Nothing may activate before this. */
-	acknowledgeSecret(): void {
-		if (this.handoff !== null) this.secretAcknowledged = true;
+	/**
+	 * Record whether the operator has stored the secret. Nothing may activate before they have.
+	 *
+	 * Takes the new value rather than latching to `true`: the checkbox that drives this is the
+	 * operator withdrawing a claim as much as making one, and a latch would leave activation armed
+	 * while the box they just cleared said otherwise.
+	 */
+	acknowledgeSecret(stored = true): void {
+		if (this.handoff !== null) this.secretAcknowledged = stored;
 	}
 
 	/**

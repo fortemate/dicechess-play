@@ -348,7 +348,7 @@
 						type="checkbox"
 						checked={store.secretAcknowledged}
 						disabled={busy}
-						onchange={() => store.acknowledgeSecret()}
+						onchange={(event) => store.acknowledgeSecret(event.currentTarget.checked)}
 						class="mt-0.5"
 					/>
 					<span>I have stored this secret in the bot's configuration.</span>
