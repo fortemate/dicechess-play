@@ -17,6 +17,7 @@ const REMOTE_TARGET = process.env.SMOKE_BASE_URL?.trim() || undefined;
 
 export default defineConfig({
 	testDir: 'e2e',
+	testIgnore: ['**/acceptance/**'],
 	// A red smoke means the shipped bundle cannot play a game; never let a retry paper over that.
 	// Flakiness here is a bug in the test, to be fixed rather than absorbed.
 	retries: 0,

@@ -33,6 +33,8 @@ export class LiveClient {
 	private static readonly BACKOFF = [250, 500, 1000, 2000, 4000, 5000];
 	private static readonly MAX_ATTEMPTS = 10;
 
+	private queue: ClientCommand[] = [];
+
 	constructor(private readonly url: string) {}
 
 	onEvent(cb: (event: ServerEvent) => void): void {
@@ -65,13 +67,22 @@ export class LiveClient {
 			this.attempts = 0; // a successful connection resets the backoff
 			this.statusCb?.('open');
 			if (this.hello) this.send(this.hello); // (re)announce on every open, e.g. the dice seed
+			while (this.queue.length > 0) {
+				const cmd = this.queue.shift();
+				if (cmd) this.send(cmd);
+			}
 		};
-		socket.onclose = () => this.handleDrop();
-		socket.onerror = () => this.handleDrop();
+		socket.onclose = () => {
+			this.handleDrop();
+		};
+		socket.onerror = () => {
+			this.handleDrop();
+		};
 		socket.onmessage = (event: MessageEvent) => {
 			if (typeof event.data !== 'string') return;
 			try {
-				this.eventCb?.(JSON.parse(event.data) as ServerEvent);
+				const parsed = JSON.parse(event.data) as ServerEvent;
+				this.eventCb?.(parsed);
 			} catch {
 				// Ignore non-JSON frames (e.g. keep-alives).
 			}
@@ -95,15 +106,17 @@ export class LiveClient {
 	}
 
 	send(command: ClientCommand): void {
-		// Drop commands when not connected — the WebSocket throws if it isn't OPEN.
 		if (this.socket?.readyState === WebSocket.OPEN) {
 			this.socket.send(JSON.stringify(command));
+		} else if (this.socket?.readyState === WebSocket.CONNECTING) {
+			this.queue.push(command);
 		}
 	}
 
 	/** Intentional close (teardown or game over): stop reconnecting and detach handlers. */
 	close(): void {
 		this.shouldReconnect = false;
+		this.queue = [];
 		if (this.reconnectTimer) {
 			clearTimeout(this.reconnectTimer);
 			this.reconnectTimer = null;

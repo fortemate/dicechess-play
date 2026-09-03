@@ -28,7 +28,8 @@
 		"test:watch": "vitest",
 		"test:coverage": "vitest run --coverage",
 		"prepare": "paraglide-js compile --project ./project.inlang --outdir ./src/lib/paraglide && svelte-kit sync || echo \"\"",
-		"test:e2e": "playwright test"
+		"test:e2e": "playwright test",
+		"test:acceptance": "node --experimental-strip-types scripts/showcase-acceptance/runAll.ts"
 	},
 	"dependencies": {
 		"@fortemate/dicechess-engine": "^0.7.2",
