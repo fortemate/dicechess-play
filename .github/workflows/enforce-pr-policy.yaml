@@ -1,4 +1,4 @@
-name: "CI: PR Policy"
+name: 'CI: PR Policy'
 
 # Advisory, never blocking.
 #
