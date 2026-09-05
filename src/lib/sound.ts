@@ -4,11 +4,25 @@
 // first pointer/key interaction (muted play+pause), letting later programmatic
 // plays through even when they aren't gesture-triggered (e.g. the opponent's
 // roll arriving over the wire).
+//
+// Levels. The roll asset is mastered soft on purpose (the original clipped at
+// 0 dBFS with a hard top end and read as loud): -27 LUFS integrated, -7 dBTP,
+// low-pass 7 kHz + high shelf -6 dB above 2.5 kHz, ~50 ms lead-in, 1.15 s long.
+// Rebuild from the original (git 327c594) with:
+//   ffmpeg -i orig.mp3 -af "silenceremove=start_periods=1:start_threshold=-38dB:start_silence=0.05,
+//     lowpass=f=7000:p=2,highshelf=f=2500:g=-6,alimiter=limit=0.5:attack=5:release=50:level=false,
+//     afade=t=in:d=0.008,atrim=0:1.15,afade=t=out:st=0.95:d=0.2,volume=-0.7dB"
+//     -ac 1 -ar 48000 -c:a libmp3lame -b:a 128k dice-roll-natural.mp3
+// DICE_ROLL_VOLUME then trims it further against the WebAudio chime below.
 
 import { logger } from './utils/logger';
 import { preferencesStore } from './preferencesStore.svelte';
 
 const DICE_ROLL_SRC = '/sounds/dice-roll-natural.mp3';
+
+/** Playback gain for the roll (~-3 dB on top of the soft master). iOS Safari ignores
+ * `HTMLMediaElement.volume` (always 1), so the asset's own level is the floor there. */
+export const DICE_ROLL_VOLUME = 0.7;
 
 let diceAudio: HTMLAudioElement | null = null;
 
@@ -20,6 +34,7 @@ function ensureDiceAudio(): HTMLAudioElement {
 	if (!diceAudio) {
 		diceAudio = new Audio(DICE_ROLL_SRC);
 		diceAudio.preload = 'auto';
+		diceAudio.volume = DICE_ROLL_VOLUME;
 		installUnlock(diceAudio);
 	}
 	return diceAudio;
