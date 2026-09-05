@@ -232,6 +232,7 @@ export class ShowcaseStore {
 			boardFen: this.live.currentBoardFen,
 			clocks: { topMs: topClock, bottomMs: bottomClock },
 			dice: this.live.currentDice,
+			rolling: this.live.isAnimatingRoll,
 			legalMovesDests: this.live.legalMovesDests,
 			lastMove: this.live.lastMove,
 		};
@@ -267,6 +268,7 @@ export class ShowcaseStore {
 			boardFen: this.live.currentBoardFen,
 			clocks: { topMs: topClock, bottomMs: bottomClock },
 			dice: this.live.currentDice,
+			rolling: this.live.isAnimatingRoll,
 			lastMove: this.live.lastMove,
 		};
 	}

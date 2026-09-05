@@ -4,6 +4,7 @@
 	// button) and live (dice arrive from the server; `emptyText` shows waiting states).
 	import { m } from '$lib/paraglide/messages.js';
 	import { getPieceImage } from '$lib/utils/getPieceImage';
+	import { DICE_STAGGER_MS } from '$lib/timings';
 	import type { DieState } from '$lib/playWithBot/playWithBotDice.svelte';
 
 	interface Props {
@@ -27,12 +28,16 @@
 				<div
 					class="flex h-14 w-14 items-center justify-center rounded-xl border border-border bg-dice-surface transition-all duration-300 xl:h-16 xl:w-16
 						{d.used ? 'scale-95 opacity-30 grayscale' : 'shadow-md ring-2 ring-primary/40'}
-						{animating ? 'animate-[spin_0.3s_linear_infinite] opacity-80' : ''}"
+						{animating ? 'animate-dice-tumble motion-reduce:animate-none' : ''}"
+					style:animation-delay={animating ? `${i * DICE_STAGGER_MS}ms` : undefined}
 				>
 					<img
 						src={getPieceImage(d.value)}
 						alt={d.value}
-						class="pointer-events-none h-10 w-10 drop-shadow-md select-none xl:h-12 xl:w-12"
+						class="pointer-events-none h-10 w-10 drop-shadow-md select-none xl:h-12 xl:w-12 {animating
+							? 'animate-dice-tumble-glyph motion-reduce:animate-none'
+							: ''}"
+						style:animation-delay={animating ? `${i * DICE_STAGGER_MS}ms` : undefined}
 					/>
 				</div>
 			{/each}

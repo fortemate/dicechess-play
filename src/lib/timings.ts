@@ -4,6 +4,11 @@
 /** Dice-spin duration for any roll — the player's own included. */
 export const ROLL_ANIMATION_MS = 600;
 
+/** Delay between one die starting its tumble and the next. The CSS tumble itself runs
+ * 460ms (`--animate-dice-tumble` in app.css), so the third die lands at exactly
+ * 460 + 2 × 70 = ROLL_ANIMATION_MS — keep the three in step when changing any of them. */
+export const DICE_STAGGER_MS = 70;
+
 /** Pause on the old position before each revealed opponent micro-move. */
 export const MOVE_STEP_MS = 1000;
 

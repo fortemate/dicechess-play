@@ -63,6 +63,8 @@ export interface ShowcaseStateLivePlayer {
 	boardFen: string;
 	clocks: { topMs: number; bottomMs: number };
 	dice: DieState[];
+	/** True while a roll's tumble is presenting (mirrors `LiveGameStore.isAnimatingRoll`). */
+	rolling?: boolean;
 	legalMovesDests?: Map<Key, Key[]>;
 	lastMove?: Key[];
 }
@@ -75,6 +77,8 @@ export interface ShowcaseStateLiveSpectator {
 	boardFen: string;
 	clocks: { topMs: number; bottomMs: number };
 	dice: DieState[];
+	/** True while a roll's tumble is presenting (mirrors `LiveGameStore.isAnimatingRoll`). */
+	rolling?: boolean;
 	lastMove?: Key[];
 }
 

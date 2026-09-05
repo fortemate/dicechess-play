@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import { render } from '@testing-library/svelte';
 import DicePanel from './DicePanel.svelte';
+import { DICE_STAGGER_MS } from '$lib/timings';
 
 /*
  * DicePanel is one of the two reference implementations for the i18n pattern (#24), so these
@@ -21,6 +22,22 @@ describe('DicePanel', () => {
 		// The placeholder branch renders a second, separate region — it must carry the label too.
 		const empty = render(DicePanel, { dice: [] });
 		expect(empty.getByLabelText('Dice')).toBeTruthy();
+	});
+
+	it('tumbles the dice, staggered, only while a roll is animating', () => {
+		const dice = [
+			{ value: 'P', allowed: true, used: false },
+			{ value: 'N', allowed: true, used: false },
+			{ value: 'B', allowed: true, used: false },
+		];
+		const rolling = render(DicePanel, { dice, animating: true });
+		const tumbling = rolling.container.querySelectorAll('.animate-dice-tumble');
+		expect(tumbling).toHaveLength(3);
+		expect((tumbling[2] as HTMLElement).style.animationDelay).toBe(`${2 * DICE_STAGGER_MS}ms`);
+		rolling.unmount();
+
+		const settled = render(DicePanel, { dice });
+		expect(settled.container.querySelectorAll('.animate-dice-tumble')).toHaveLength(0);
 	});
 
 	it('renders the roll action only when rolling is possible', () => {
