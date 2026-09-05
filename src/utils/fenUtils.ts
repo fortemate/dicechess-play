@@ -51,14 +51,14 @@ export function getPieceFromFen(fen: string, square: string): string | null {
 	if (board.length !== 8) return null;
 
 	const fileIndex = square.toLowerCase().charCodeAt(0) - 'a'.charCodeAt(0);
-	const rankIndex = 8 - parseInt(square[1]);
+	const rankIndex = 8 - Number.parseInt(square[1]);
 	if (rankIndex < 0 || rankIndex > 7 || fileIndex < 0 || fileIndex > 7) return null;
 
 	const rankStr = board[rankIndex];
 	let col = 0;
 	for (const char of rankStr) {
 		if (/\d/.test(char)) {
-			col += parseInt(char);
+			col += Number.parseInt(char);
 			if (col > fileIndex) return null;
 		} else {
 			if (col === fileIndex) return char;
@@ -145,5 +145,5 @@ export const DICE_MAP: Record<string, number> = {
 
 export function getDieValue(die: { value: string } | string): number {
 	const val = typeof die === 'string' ? die : die.value;
-	return DICE_MAP[val] || parseInt(val);
+	return DICE_MAP[val] || Number.parseInt(val);
 }

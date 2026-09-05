@@ -31,7 +31,7 @@ export function formatDate(dateString?: string | null): string {
 	if (!dateString) return 'Unknown Date';
 	try {
 		const date = new Date(dateString);
-		if (isNaN(date.getTime())) return 'Unknown Date';
+		if (Number.isNaN(date.getTime())) return 'Unknown Date';
 
 		return dateFormatter.format(date);
 	} catch {
