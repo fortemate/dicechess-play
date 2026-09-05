@@ -53,8 +53,8 @@ class PreferencesStore {
 
 		const storedGamesPerPage = getStoredValue('gamesPerPage');
 		if (storedGamesPerPage) {
-			const parsed = parseInt(storedGamesPerPage, 10);
-			if (!isNaN(parsed) && parsed > 0) {
+			const parsed = Number.parseInt(storedGamesPerPage, 10);
+			if (!Number.isNaN(parsed) && parsed > 0) {
 				this.gamesPerPage = parsed;
 			}
 		}
@@ -85,20 +85,20 @@ class PreferencesStore {
 
 		const storedTimeLimit = getStoredValue('timeLimit');
 		if (storedTimeLimit !== null) {
-			const parsed = parseInt(storedTimeLimit, 10);
-			this.timeLimit = storedTimeLimit === 'null' || isNaN(parsed) ? null : parsed;
+			const parsed = Number.parseInt(storedTimeLimit, 10);
+			this.timeLimit = storedTimeLimit === 'null' || Number.isNaN(parsed) ? null : parsed;
 		}
 
 		const storedTimeBonus = getStoredValue('timeBonus');
 		if (storedTimeBonus !== null) {
-			const parsed = parseInt(storedTimeBonus, 10);
-			this.timeBonus = isNaN(parsed) ? 0 : parsed;
+			const parsed = Number.parseInt(storedTimeBonus, 10);
+			this.timeBonus = Number.isNaN(parsed) ? 0 : parsed;
 		}
 
 		const storedBotLobbyBet = getStoredValue('botLobbyBet');
 		if (storedBotLobbyBet !== null) {
-			const parsed = parseInt(storedBotLobbyBet, 10);
-			this.botLobbyBet = isNaN(parsed) ? 0 : parsed;
+			const parsed = Number.parseInt(storedBotLobbyBet, 10);
+			this.botLobbyBet = Number.isNaN(parsed) ? 0 : parsed;
 		}
 
 		const storedBotLobbyMode = getStoredValue('botLobbyMode');
