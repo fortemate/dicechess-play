@@ -50,16 +50,17 @@
 	});
 	$effect(() => () => clearTimeout(resignTimeout));
 
-	// Only the resign control is compact; every other action is a full-width button that keeps the
-	// fixed 56px slot so the rail never shifts between states. ShowcaseShell lays the compact
-	// control out inline with the status row on phones.
+	// Only the resign control is compact; every other action is a full-width button in a fixed slot
+	// (48px on phones, where every pixel goes to the board; 56px on md+, where the rail must never
+	// shift between states). ShowcaseShell lays the compact control out at the end of the dice row on
+	// phones.
 	const compact = $derived(showcase.kind === 'live-player');
 </script>
 
 <div
 	class={compact
 		? 'flex shrink-0 items-center md:h-14 md:w-full md:justify-end'
-		: 'flex h-14 w-full items-center'}
+		: 'flex h-12 w-full items-center md:h-14'}
 >
 	{#if showcase.kind === 'open'}
 		<button

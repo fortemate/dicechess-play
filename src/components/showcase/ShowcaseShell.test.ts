@@ -161,12 +161,15 @@ describe('ShowcaseShell', () => {
 		expect(onIntent).not.toHaveBeenCalled();
 	});
 
-	it('renders live-player opponent thinking state', () => {
+	it('says whose turn it is once: on the seat strip, not again beside the dice', () => {
 		const { getAllByText } = render(ShowcaseShell, {
 			state: fixtureLivePlayerBlackTurn,
 		});
 
-		expect(getAllByText('Opponent thinking').length).toBeGreaterThan(0);
+		// The seat strip carries the cue…
+		expect(getAllByText('Opponent thinking')).toHaveLength(1);
+		// …and the status message stays for assistive tech (screen-reader only on phones).
+		expect(getAllByText(m.home_cue_opponent_thinking())).toHaveLength(1);
 	});
 
 	it('tumbles the dice, staggered, while a roll is presenting — and only then', () => {

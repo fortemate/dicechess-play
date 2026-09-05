@@ -23,6 +23,9 @@
 		 * caller only passes this once the game is over (#213), so the board stays free of
 		 * accidental navigation mid-game. */
 		href?: string;
+		/** Denser row on phones (48px instead of 56px), for a screen that has to fit a full-width
+		 * board above the fold; md+ is unaffected. The showcase table uses it. */
+		compact?: boolean;
 	}
 
 	let {
@@ -34,6 +37,7 @@
 		clockMs,
 		href,
 		rating,
+		compact = false,
 	}: Props = $props();
 
 	const low = $derived(clockMs !== undefined && isLowTime(clockMs));
@@ -42,7 +46,8 @@
 <!-- min-h matches the strip's height with the clock pill (taller than the avatar),
      so the strip doesn't jump when clock state arrives after connect. -->
 <div
-	class="flex min-h-14 items-center gap-2.5 rounded-xl border bg-surface px-3 py-2 transition-colors
+	class="flex items-center gap-2.5 rounded-xl border bg-surface px-3 transition-colors
+		{compact ? 'min-h-12 py-1 md:min-h-14 md:py-2' : 'min-h-14 py-2'}
 		{active ? (low ? 'border-danger/50' : 'border-badge-accent/60') : 'border-border'}"
 >
 	<span

@@ -40,4 +40,14 @@ describe('PlayerStrip', () => {
 		const { queryByText } = render(PlayerStrip, { name: 'BraveDie', sub: 'player' });
 		expect(queryByText('·', { exact: false })).toBeNull();
 	});
+
+	it('renders the dense phone row only when asked for (showcase table)', () => {
+		const regular = render(PlayerStrip, { name: 'BraveDie', sub: 'player' });
+		expect(regular.container.firstElementChild?.className).toMatch(/\bmin-h-14\b/);
+		expect(regular.container.firstElementChild?.className).not.toMatch(/\bmin-h-12\b/);
+		regular.unmount();
+
+		const compact = render(PlayerStrip, { name: 'BraveDie', sub: 'player', compact: true });
+		expect(compact.container.firstElementChild?.className).toMatch(/\bmin-h-12\b/);
+	});
 });

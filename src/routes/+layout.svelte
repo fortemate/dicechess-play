@@ -163,7 +163,7 @@
 
 	<main
 		class="flex-grow w-full mx-auto {chromeStore.zen
-			? page.url.pathname === '/'
+			? page.url.pathname === '/' || page.url.pathname === '/showcase-preview'
 				? 'p-0 max-w-none'
 				: 'max-w-[1800px] py-3 sm:py-4 px-3 sm:px-6'
 			: 'max-w-5xl py-6 sm:py-8 pb-20 sm:pb-8 px-3 sm:px-6'}"
