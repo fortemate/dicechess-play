@@ -55,34 +55,34 @@ describe('DeleteAccountPanel', () => {
 	});
 
 	describe('the confirmation guard', () => {
-		it('accepts the exact nickname', async () => {
-			const { getByRole } = render(DeleteAccountPanel);
-			const { field, submit } = await openPanel(getByRole);
-			await fireEvent.input(field, { target: { value: 'BraveDie' } });
-			expect(submit.disabled).toBe(false);
-		});
-
-		it('accepts a different casing, because play-api compares with equalsIgnoreCase', async () => {
+		it.each([
+			{
+				name: 'accepts the exact nickname',
+				value: 'BraveDie',
+				disabled: false,
+			},
 			// Pinned deliberately: tightening this to an exact match would refuse input the server
 			// accepts. play-api's own suite creates "DelNick" and deletes with "delnick".
+			{
+				name: 'accepts a different casing, because play-api compares with equalsIgnoreCase',
+				value: 'bravedie',
+				disabled: false,
+			},
+			{
+				name: 'ignores surrounding whitespace, which the server also trims',
+				value: '  BraveDie  ',
+				disabled: false,
+			},
+			{
+				name: 'refuses a different name',
+				value: 'SomeoneElse',
+				disabled: true,
+			},
+		])('$name', async ({ value, disabled }) => {
 			const { getByRole } = render(DeleteAccountPanel);
 			const { field, submit } = await openPanel(getByRole);
-			await fireEvent.input(field, { target: { value: 'bravedie' } });
-			expect(submit.disabled).toBe(false);
-		});
-
-		it('ignores surrounding whitespace, which the server also trims', async () => {
-			const { getByRole } = render(DeleteAccountPanel);
-			const { field, submit } = await openPanel(getByRole);
-			await fireEvent.input(field, { target: { value: '  BraveDie  ' } });
-			expect(submit.disabled).toBe(false);
-		});
-
-		it('refuses a different name', async () => {
-			const { getByRole } = render(DeleteAccountPanel);
-			const { field, submit } = await openPanel(getByRole);
-			await fireEvent.input(field, { target: { value: 'SomeoneElse' } });
-			expect(submit.disabled).toBe(true);
+			await fireEvent.input(field, { target: { value } });
+			expect(submit.disabled).toBe(disabled);
 		});
 	});
 
