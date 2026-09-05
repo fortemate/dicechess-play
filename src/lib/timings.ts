@@ -17,3 +17,8 @@ export const PASS_DWELL_MS = 1500;
 
 /** Beat between the final move landing on the board and the result being announced. */
 export const GAME_END_SUSPENSE_MS = 800;
+
+/** Window after a first press of Resign in which a second press confirms it; the button disarms
+ * itself when the window lapses. Two presses because a resignation is irreversible, and the
+ * same window on every game surface (/live, /practice, the showcase table). */
+export const RESIGN_CONFIRM_MS = 3000;

@@ -96,6 +96,10 @@
 	});
 
 	const isReconnecting = $derived(state.kind === 'reconnecting');
+
+	// The live-player action is a compact control (the resign flag, see ShowcaseAction); every other
+	// action is a full-width button. On phones the compact one shares a row with the status badge.
+	const actionInline = $derived(state.kind === 'live-player');
 </script>
 
 <svelte:head>
@@ -163,14 +167,20 @@
 			<div
 				class="w-full md:w-[280px] lg:w-[320px] md:shrink-0 flex flex-col gap-2 md:gap-3 rounded-2xl border border-border bg-surface p-2 md:p-0 md:bg-transparent md:border-none"
 			>
-				<div class="order-2 md:order-1">
-					<ShowcaseStatus {state} />
-				</div>
 				<div class="order-1 md:order-2">
 					<ShowcaseDice {state} />
 				</div>
-				<div class="order-3 md:order-3">
-					<ShowcaseAction {state} {onIntent} />
+				<!-- On phones, status and action share one row: a compact action sits beside the status
+				     badge instead of claiming a full-width slot, while a full-width action (claim, retry,
+				     reset) wraps onto its own line. On md+ the wrapper dissolves (`contents`) and the two
+				     keep their own places in the rail column. -->
+				<div class="order-2 flex flex-wrap items-center gap-2 md:contents">
+					<div class="min-w-0 flex-1 md:order-1 md:flex-none">
+						<ShowcaseStatus {state} />
+					</div>
+					<div class="{actionInline ? 'shrink-0' : 'w-full'} md:order-3 md:w-full">
+						<ShowcaseAction {state} {onIntent} />
+					</div>
 				</div>
 
 				<!-- /play alternative escape hatch card (Desktop / Tablet) -->
