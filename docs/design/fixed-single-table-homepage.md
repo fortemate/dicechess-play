@@ -175,6 +175,7 @@ To strictly satisfy the zero-scroll guarantee on mobile devices down to compact 
 - Pre-allocated $104\text{px}$ high container in the rail.
 - In Open, Claiming, Reconnecting, and Resetting states: displays 3 outlined dice slots with `opacity-25`.
 - In Live games: active dice fade in smoothly ($200\text{ms}$ CSS opacity). When a piece is moved, the used die dims to $30\%$ opacity with grayscale.
+- On every roll (either side's) the three dice tumble once on top of the already-revealed values — hop, two turns, squash on landing, settle — staggered $70\text{ms}$ apart so the last die lands at the shared $600\text{ms}$ `ROLL_ANIMATION_MS`. Same `animate-dice-tumble` utility as the `/live` and `/practice` dice panel; transform-only, so the slot geometry never moves.
 - Dice container height is completely immutable across all states.
 
 ### 4.5 Recovery & Reconnection

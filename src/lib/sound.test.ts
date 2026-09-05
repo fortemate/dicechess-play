@@ -7,6 +7,7 @@ class AudioMock {
 	muted = false;
 	paused = true;
 	currentTime = 0;
+	volume = 1;
 	play = vi.fn(() => Promise.resolve());
 	pause = vi.fn();
 	constructor(src: string) {
@@ -46,6 +47,16 @@ describe('sound service', () => {
 		const audio = AudioMock.instances[0];
 		expect(audio.src).toContain('dice-roll-natural.mp3');
 		expect(audio.play).toHaveBeenCalledTimes(2);
+	});
+
+	it('plays the roll at the tuned gain, below full scale', async () => {
+		const { playDiceSound, DICE_ROLL_VOLUME, preferencesStore } = await loadSound();
+		preferencesStore.setSoundEnabled(true);
+
+		playDiceSound();
+
+		expect(DICE_ROLL_VOLUME).toBeLessThan(1);
+		expect(AudioMock.instances[0].volume).toBe(DICE_ROLL_VOLUME);
 	});
 
 	it('rewinds to the start on each play', async () => {

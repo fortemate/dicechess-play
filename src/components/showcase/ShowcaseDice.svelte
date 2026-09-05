@@ -1,6 +1,7 @@
 <script lang="ts">
 	import { m } from '$lib/paraglide/messages.js';
 	import { getPieceImage } from '$lib/utils/getPieceImage';
+	import { DICE_STAGGER_MS } from '$lib/timings';
 	import type { DieState } from '$lib/playWithBot/playWithBotDice.svelte';
 	import type { ShowcaseState } from './types';
 
@@ -19,6 +20,12 @@
 		}
 		return [];
 	});
+
+	// A roll tumbles the dice once, staggered, on top of the already-revealed values — the
+	// same presentation as DicePanel on /live and /practice (shared keyframes in app.css).
+	const rolling = $derived(
+		(state.kind === 'live-player' || state.kind === 'live-spectator') && state.rolling === true,
+	);
 
 	const pieceNames: Record<string, string> = {
 		P: 'Pawn',
@@ -63,12 +70,17 @@
 					class="flex h-8 w-8 md:h-14 md:w-14 items-center justify-center rounded-lg md:rounded-xl border border-border bg-dice-surface transition-all duration-200
 						{d.used
 						? 'scale-95 opacity-30 grayscale'
-						: 'shadow-sm md:shadow-md ring-1 md:ring-2 ring-primary/40'}"
+						: 'shadow-sm md:shadow-md ring-1 md:ring-2 ring-primary/40'}
+						{rolling ? 'animate-dice-tumble motion-reduce:animate-none' : ''}"
+					style:animation-delay={rolling ? `${i * DICE_STAGGER_MS}ms` : undefined}
 				>
 					<img
 						src={getPieceImage(d.value)}
 						alt={d.value}
-						class="pointer-events-none h-6 w-6 md:h-10 md:w-10 drop-shadow-md select-none"
+						class="pointer-events-none h-6 w-6 md:h-10 md:w-10 drop-shadow-md select-none {rolling
+							? 'animate-dice-tumble-glyph motion-reduce:animate-none'
+							: ''}"
+						style:animation-delay={rolling ? `${i * DICE_STAGGER_MS}ms` : undefined}
 					/>
 				</div>
 			{/each}

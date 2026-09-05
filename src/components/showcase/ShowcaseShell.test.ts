@@ -9,6 +9,7 @@ import {
 	fixtureClaiming,
 	fixtureLivePlayerWhiteTurn,
 	fixtureLivePlayerBlackTurn,
+	fixtureLivePlayerRolling,
 	fixtureLiveSpectator,
 	fixtureReconnecting,
 	fixtureFinishingMate,
@@ -16,6 +17,7 @@ import {
 	fixtureReset,
 } from './fixtures';
 import { m } from '$lib/paraglide/messages.js';
+import { DICE_STAGGER_MS } from '$lib/timings';
 
 describe('ShowcaseShell', () => {
 	it('renders open state with initial board, 5+3, bot opponent, and single accessible claim action (White)', () => {
@@ -115,6 +117,21 @@ describe('ShowcaseShell', () => {
 		});
 
 		expect(getAllByText('Opponent thinking').length).toBeGreaterThan(0);
+	});
+
+	it('tumbles the dice, staggered, while a roll is presenting — and only then', () => {
+		const rolling = render(ShowcaseShell, { state: fixtureLivePlayerRolling });
+		const tumbling = rolling.container.querySelectorAll('.animate-dice-tumble');
+		expect(tumbling).toHaveLength(3);
+		// The dice land one after another; the last one still inside the 600ms roll window.
+		expect((tumbling[0] as HTMLElement).style.animationDelay).toBe('0ms');
+		expect((tumbling[2] as HTMLElement).style.animationDelay).toBe(`${2 * DICE_STAGGER_MS}ms`);
+		// The values are already the real ones underneath the tumble.
+		expect(rolling.getAllByLabelText(/Rolled: Knight, Bishop, Pawn/i).length).toBeGreaterThan(0);
+		rolling.unmount();
+
+		const settled = render(ShowcaseShell, { state: fixtureLivePlayerWhiteTurn });
+		expect(settled.container.querySelectorAll('.animate-dice-tumble')).toHaveLength(0);
 	});
 
 	it('renders live-spectator state with no claim or queue controls', () => {

@@ -121,6 +121,17 @@ export const fixtureLivePlayerBlackTurn: ShowcaseStateLivePlayer = {
 	lastMove: ['d2', 'd4'],
 };
 
+/** Same seat as the White-turn fixture, captured mid-roll: mounts with the dice tumbling. */
+export const fixtureLivePlayerRolling: ShowcaseStateLivePlayer = {
+	...fixtureLivePlayerWhiteTurn,
+	rolling: true,
+	dice: [
+		{ value: 'N', allowed: true, used: false },
+		{ value: 'B', allowed: true, used: false },
+		{ value: 'P', allowed: true, used: false },
+	],
+};
+
 export const fixtureLiveSpectator: ShowcaseStateLiveSpectator = {
 	kind: 'live-spectator',
 	activeColor: 'w',
@@ -264,6 +275,7 @@ export const allFixtures: Record<string, ShowcaseState> = {
 	claiming: fixtureClaiming,
 	'live-player-white-turn': fixtureLivePlayerWhiteTurn,
 	'live-player-black-turn': fixtureLivePlayerBlackTurn,
+	'live-player-rolling': fixtureLivePlayerRolling,
 	'live-spectator': fixtureLiveSpectator,
 	reconnecting: fixtureReconnecting,
 	'finishing-mate': fixtureFinishingMate,

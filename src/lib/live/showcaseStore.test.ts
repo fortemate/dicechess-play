@@ -161,6 +161,39 @@ describe('ShowcaseStore', () => {
 			expect(ShowcaseTestSocket.latest?.url).not.toContain('token=');
 		});
 
+		it('mirrors the live roll presentation into the spectator state', async () => {
+			mockGetShowcase.mockResolvedValue({
+				notModified: false,
+				view: {
+					status: 'live',
+					featuredBot: { team: 'rpi3', name: 'hunter', displayName: 'rpi3 hunter' },
+					timeControl: { initialSeconds: 300, incrementSeconds: 3, display: '5+3' },
+					nextHumanColor: 'Black',
+					currentGame: {
+						gameId: 'game-rolling-spec',
+						players: null,
+						humanSeat: 'White',
+						activeSeat: 'White',
+						dicePending: true,
+						clocks: null,
+						version: 1,
+						dfen: 'rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1 N',
+						status: { Active: {} },
+					},
+					spectator: { wsUrl: '/games/game-rolling-spec/ws' },
+					reason: null,
+				},
+			});
+			await store.pollDiscovery();
+			liveGameStore.onConnectionStatus?.('open');
+			expect(store.state.kind).toBe('live-spectator');
+
+			liveGameStore.isAnimatingRoll = true;
+			expect(store.state.kind === 'live-spectator' && store.state.rolling).toBe(true);
+			liveGameStore.isAnimatingRoll = false;
+			expect(store.state.kind === 'live-spectator' && store.state.rolling).toBe(false);
+		});
+
 		it('resolves unavailable state when server reports bot_unavailable or maintenance', async () => {
 			const unavailView: ShowcaseView = {
 				status: 'unavailable',
@@ -260,6 +293,24 @@ describe('ShowcaseStore', () => {
 			// Socket connected without token
 			expect(ShowcaseTestSocket.latest?.url).toContain('/games/game-lost-1/ws');
 			expect(ShowcaseTestSocket.latest?.url).not.toContain('token=');
+		});
+
+		it('mirrors the live roll presentation into the seated player state', async () => {
+			mockClaimShowcase.mockResolvedValue({
+				outcome: 'claimed',
+				gameId: 'game-rolling-1',
+				seat: 'White',
+				seatToken: 'token-rolling-1',
+				wsUrl: '/games/game-rolling-1/ws?token=token-rolling-1',
+			});
+			await store.handleIntent({ type: 'claim' });
+			liveGameStore.onConnectionStatus?.('open');
+			expect(store.state.kind).toBe('live-player');
+
+			liveGameStore.isAnimatingRoll = true;
+			expect(store.state.kind === 'live-player' && store.state.rolling).toBe(true);
+			liveGameStore.isAnimatingRoll = false;
+			expect(store.state.kind === 'live-player' && store.state.rolling).toBe(false);
 		});
 
 		it('spectator cannot emit moves or resign (DoD #7)', async () => {

@@ -30,6 +30,57 @@
 	--color-primary-content: var(--accent-content, #ffffff);
 
 	--color-dice-surface: var(--bg-dice);
+
+	/* Dice roll. One die "tumbles": a hop with two turns, a squash on impact, a small
+	   rebound, then it settles. Runs once per roll on top of the already-revealed value
+	   (both game stores flip their rolling flag for ROLL_ANIMATION_MS = 600ms). The
+	   duration is shorter than that on purpose: the dice are staggered by 70ms each
+	   (see DicePanel/ShowcaseDice), and the third one must land before the flag drops,
+	   or the class removal would cut its settle short. `both` holds a delayed die at the
+	   identity frame, so nothing jumps when the delay starts or the class comes off. */
+	--animate-dice-tumble: dice-tumble 460ms linear both;
+	@keyframes dice-tumble {
+		0% {
+			transform: translateY(0) rotate(0deg) scale(1);
+			animation-timing-function: ease-out;
+		}
+		28% {
+			transform: translateY(-20%) rotate(250deg) scale(1.06);
+			animation-timing-function: ease-in;
+		}
+		56% {
+			transform: translateY(0) rotate(560deg) scale(0.94);
+			animation-timing-function: ease-out;
+		}
+		74% {
+			transform: translateY(-9%) rotate(690deg) scale(1.03);
+			animation-timing-function: ease-in;
+		}
+		88% {
+			transform: translateY(0) rotate(720deg) scale(0.99);
+			animation-timing-function: ease-out;
+		}
+		100% {
+			transform: translateY(0) rotate(720deg) scale(1);
+		}
+	}
+	/* The glyph on a tumbling die dips while the die is fastest — reads as the face
+	   still changing. Opacity only: a filter here would knock out the glyph's drop-shadow. */
+	--animate-dice-tumble-glyph: dice-tumble-glyph 460ms ease-in-out both;
+	@keyframes dice-tumble-glyph {
+		0% {
+			opacity: 1;
+		}
+		30% {
+			opacity: 0.4;
+		}
+		60% {
+			opacity: 0.85;
+		}
+		100% {
+			opacity: 1;
+		}
+	}
 }
 
 :root,
