@@ -8,16 +8,16 @@
 export function boardGrid(fenOrDfen: string | undefined): (string | null)[] {
 	const board = (fenOrDfen ?? '').trim().split(/\s+/)[0] ?? '';
 	const ranks = board.split('/');
-	if (ranks.length !== 8) return Array(64).fill(null);
+	if (ranks.length !== 8) return new Array(64).fill(null);
 	const cells: (string | null)[] = [];
 	for (const rank of ranks) {
 		const row: (string | null)[] = [];
 		for (const ch of rank) {
-			if (/[1-8]/.test(ch)) row.push(...Array<null>(Number(ch)).fill(null));
+			if (/[1-8]/.test(ch)) row.push(...new Array<null>(Number(ch)).fill(null));
 			else if (/[kqrbnp]/i.test(ch)) row.push(ch);
-			else return Array(64).fill(null);
+			else return new Array(64).fill(null);
 		}
-		if (row.length !== 8) return Array(64).fill(null);
+		if (row.length !== 8) return new Array(64).fill(null);
 		cells.push(...row);
 	}
 	return cells;
