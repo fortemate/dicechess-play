@@ -1139,7 +1139,7 @@ describe('LiveGameStore draw offers (play-api #327, this repo #253)', () => {
 
 		expect(live.isDrawOfferPending).toBe(false);
 		expect(live.isPreRollGateActive).toBe(false);
-		expect(live.currentDice.length).toBe(1);
+		expect(live.currentDice).toHaveLength(1);
 	});
 
 	it('restores pre-roll gate from snapshot on reconnect', () => {

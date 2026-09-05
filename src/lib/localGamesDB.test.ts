@@ -50,7 +50,7 @@ describe('localGamesDB', () => {
 		await saveLocalGame(dummyGame2);
 
 		const pending = await getPendingGames();
-		expect(pending.length).toBe(1);
+		expect(pending).toHaveLength(1);
 		expect(pending[0].id).toBe(dummyGame1.id);
 	});
 
@@ -59,7 +59,7 @@ describe('localGamesDB', () => {
 		await saveLocalGame(dummyGame2); // 2023-10-02
 
 		const all = await getAllLocalGames();
-		expect(all.length).toBe(2);
+		expect(all).toHaveLength(2);
 		// Newest first
 		expect(all[0].id).toBe(dummyGame2.id);
 		expect(all[1].id).toBe(dummyGame1.id);
@@ -73,6 +73,6 @@ describe('localGamesDB', () => {
 		expect(retrieved?.sync_status).toBe('synced');
 
 		const pending = await getPendingGames();
-		expect(pending.length).toBe(0);
+		expect(pending).toHaveLength(0);
 	});
 });
