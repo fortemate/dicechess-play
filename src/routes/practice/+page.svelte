@@ -14,6 +14,7 @@
 	import { endReasonLabel } from '$lib/gameOutcome';
 	import { flushOutbox } from '$lib/ingest/outbox';
 	import { BOTS, PLAYABLE_BOTS } from '$lib/bots';
+	import { RESIGN_CONFIRM_MS } from '$lib/timings';
 
 	const COLORS = ['white', 'black', 'random'] as const;
 
@@ -150,7 +151,7 @@
 	function resign() {
 		if (!confirmResign) {
 			confirmResign = true;
-			resignTimeout = setTimeout(() => (confirmResign = false), 3000);
+			resignTimeout = setTimeout(() => (confirmResign = false), RESIGN_CONFIRM_MS);
 			return;
 		}
 		clearTimeout(resignTimeout);

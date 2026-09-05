@@ -25,6 +25,7 @@
 	import { fetchGameRatingChange } from '$lib/live/ratingApi';
 	import { ratingPollStep, type RatingOutcome } from '$lib/live/ratingDelta';
 	import type { Seat } from '$lib/live/liveTypes';
+	import { RESIGN_CONFIRM_MS } from '$lib/timings';
 
 	// Rating-change poll (play-api #296): GameEnded carries no delta — rating application is an
 	// asynchronous batch job — so the client asks the game's own rating endpoint until the batch
@@ -337,7 +338,7 @@
 	function resign() {
 		if (!confirmResign) {
 			confirmResign = true;
-			resignTimeout = setTimeout(() => (confirmResign = false), 3000);
+			resignTimeout = setTimeout(() => (confirmResign = false), RESIGN_CONFIRM_MS);
 			return;
 		}
 		clearTimeout(resignTimeout);

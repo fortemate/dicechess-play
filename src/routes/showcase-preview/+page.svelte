@@ -3,6 +3,7 @@
 	import ShowcaseShell from '../../components/showcase/ShowcaseShell.svelte';
 	import { allFixtures } from '../../components/showcase/fixtures';
 	import type { ShowcaseIntent, ShowcaseState } from '../../components/showcase/types';
+	import { chromeStore } from '$lib/stores/chromeStore.svelte';
 
 	let selectedKey = $state<string>('open-white');
 	let customState = $state<ShowcaseState | null>(null);
@@ -23,6 +24,15 @@
 
 	$effect(() => () => {
 		if (claimTimer) clearTimeout(claimTimer);
+	});
+
+	// The real home page hides the app chrome (header, footer, mobile nav) while the table is on
+	// screen; mirror it so the preview shows the layout visitors get — on phones especially.
+	$effect(() => {
+		chromeStore.zen = true;
+		return () => {
+			chromeStore.zen = false;
+		};
 	});
 
 	function handleIntent(intent: ShowcaseIntent) {

@@ -70,12 +70,12 @@ test.describe('Showcase Acceptance: Browser Contention, Seating, Layout & Reopen
 
 		const p1IsPlayer = await Promise.race([
 			page1
-				.locator('button:has-text("Resign Game")')
+				.getByRole('button', { name: 'Resign Game' })
 				.waitFor({ state: 'visible', timeout: 8_000 })
 				.then(() => true)
 				.catch(() => false),
 			page2
-				.locator('button:has-text("Resign Game")')
+				.getByRole('button', { name: 'Resign Game' })
 				.waitFor({ state: 'visible', timeout: 8_000 })
 				.then(() => false)
 				.catch(() => true),
@@ -86,13 +86,13 @@ test.describe('Showcase Acceptance: Browser Contention, Seating, Layout & Reopen
 			spectatorPage = page1;
 		}
 
-		const resignBtn = playerPage.locator('button:has-text("Resign Game")');
+		const resignBtn = playerPage.getByRole('button', { name: 'Resign Game' });
 		await expect(resignBtn).toBeVisible({ timeout: 10_000 });
 
 		// Spectator view assertions
 		const spectatorBadge = spectatorPage.locator('[data-surface="showcase"]').getByText('In play');
 		await expect(spectatorBadge).toBeVisible({ timeout: 10_000 });
-		await expect(spectatorPage.locator('button:has-text("Resign Game")')).toHaveCount(0);
+		await expect(spectatorPage.getByRole('button', { name: 'Resign Game' })).toHaveCount(0);
 
 		// Geometry stability in live player state (Zero-CLS check)
 		const livePlayerBoard = playerPage.locator('[data-surface="showcase"] cg-board');
@@ -134,11 +134,14 @@ test.describe('Showcase Acceptance: Browser Contention, Seating, Layout & Reopen
 		await expect(page3.locator('[data-surface="showcase"]').getByText('In play')).toBeVisible({
 			timeout: 10_000,
 		});
-		await expect(page3.locator('button:has-text("Resign Game")')).toHaveCount(0);
+		await expect(page3.getByRole('button', { name: 'Resign Game' })).toHaveCount(0);
 
 		// 4. Conclude game and observe automatic transition across all clients
 		await playerPage.waitForTimeout(1000);
+		// Resigning takes two presses: the first arms the confirmation (the button renames itself),
+		// the second, within RESIGN_CONFIRM_MS, sends it.
 		await resignBtn.click();
+		await playerPage.getByRole('button', { name: 'Resign? Press again to confirm' }).click();
 
 		// Save screenshot of concluded state
 		await playerPage.screenshot({ path: path.join(EVIDENCE_DIR, `${prefix}-concluded.png`) });

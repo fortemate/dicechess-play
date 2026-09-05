@@ -118,9 +118,9 @@
 	role="status"
 	aria-live="polite"
 >
-	<div class="flex items-center justify-between gap-2">
+	<div class="flex shrink-0 items-center justify-between gap-2">
 		<span
-			class="inline-flex items-center gap-1.5 rounded-md border px-2 py-0.5 text-[11px] md:text-xs font-bold tracking-wider uppercase {badgeConfig.badgeBorder}"
+			class="inline-flex items-center gap-1.5 rounded-md border px-2 py-0.5 text-[11px] md:text-xs font-bold tracking-wider uppercase whitespace-nowrap {badgeConfig.badgeBorder}"
 		>
 			<span
 				class="h-2 w-2 rounded-full {badgeConfig.dotClass} {badgeConfig.pulse

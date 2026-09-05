@@ -17,7 +17,8 @@ import {
 	fixtureReset,
 } from './fixtures';
 import { m } from '$lib/paraglide/messages.js';
-import { DICE_STAGGER_MS } from '$lib/timings';
+import { tick } from 'svelte';
+import { DICE_STAGGER_MS, RESIGN_CONFIRM_MS } from '$lib/timings';
 
 describe('ShowcaseShell', () => {
 	it('renders open state with initial board, 5+3, bot opponent, and single accessible claim action (White)', () => {
@@ -86,7 +87,7 @@ describe('ShowcaseShell', () => {
 		expect(await fireEvent.keyDown(claimingBtn, { key: ' ' })).toBe(false);
 	});
 
-	it('renders live-player state with active dice, player clock, and resign action', () => {
+	it('renders live-player state with active dice, player clock, and a guarded resign action', async () => {
 		const onIntent = vi.fn();
 		const { getAllByText, getByRole, getAllByLabelText } = render(ShowcaseShell, {
 			state: fixtureLivePlayerWhiteTurn,
@@ -103,12 +104,61 @@ describe('ShowcaseShell', () => {
 		// Active dice region announced
 		expect(getAllByLabelText(/Rolled:/i).length).toBeGreaterThan(0);
 
-		// Resign action
+		// Resign is a compact control, not a full-width call to action…
 		const resignBtn = getByRole('button', { name: m.home_action_resign() });
-		expect(resignBtn).toBeTruthy();
+		expect(resignBtn.className).not.toMatch(/\bw-full\b/);
 
-		fireEvent.click(resignBtn);
+		// …and it takes two presses: the first only arms the confirmation.
+		await fireEvent.click(resignBtn);
+		expect(onIntent).not.toHaveBeenCalled();
+		const armed = getByRole('button', { name: m.home_action_resign_confirm_hint() });
+		expect(armed).toBe(resignBtn);
+
+		await fireEvent.click(armed);
 		expect(onIntent).toHaveBeenCalledWith({ type: 'resign' });
+		expect(onIntent).toHaveBeenCalledTimes(1);
+	});
+
+	it('disarms an unconfirmed resign once the confirmation window lapses', async () => {
+		vi.useFakeTimers();
+		try {
+			const onIntent = vi.fn();
+			const { getByRole, queryByRole } = render(ShowcaseShell, {
+				state: fixtureLivePlayerWhiteTurn,
+				onIntent,
+			});
+
+			await fireEvent.click(getByRole('button', { name: m.home_action_resign() }));
+			expect(getByRole('button', { name: m.home_action_resign_confirm_hint() })).toBeTruthy();
+
+			await vi.advanceTimersByTimeAsync(RESIGN_CONFIRM_MS);
+			await tick();
+
+			expect(queryByRole('button', { name: m.home_action_resign_confirm_hint() })).toBeNull();
+			expect(getByRole('button', { name: m.home_action_resign() })).toBeTruthy();
+			expect(onIntent).not.toHaveBeenCalled();
+		} finally {
+			vi.useRealTimers();
+		}
+	});
+
+	it('drops an armed resign when the game leaves live play', async () => {
+		const onIntent = vi.fn();
+		const { getByRole, queryByRole, rerender } = render(ShowcaseShell, {
+			state: fixtureLivePlayerWhiteTurn,
+			onIntent,
+		});
+
+		await fireEvent.click(getByRole('button', { name: m.home_action_resign() }));
+		expect(getByRole('button', { name: m.home_action_resign_confirm_hint() })).toBeTruthy();
+
+		// The game ends before the second press; the next live game must start unarmed.
+		await rerender({ state: fixtureFinishingMate, onIntent });
+		await rerender({ state: fixtureLivePlayerWhiteTurn, onIntent });
+
+		expect(queryByRole('button', { name: m.home_action_resign_confirm_hint() })).toBeNull();
+		expect(getByRole('button', { name: m.home_action_resign() })).toBeTruthy();
+		expect(onIntent).not.toHaveBeenCalled();
 	});
 
 	it('renders live-player opponent thinking state', () => {
