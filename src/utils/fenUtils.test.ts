@@ -20,24 +20,24 @@ describe('fenUtils', () => {
 
 		it('should return null for empty squares', () => {
 			const fen = 'rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1';
-			expect(getPieceFromFen(fen, 'e4')).toBe(null);
-			expect(getPieceFromFen(fen, 'd4')).toBe(null);
+			expect(getPieceFromFen(fen, 'e4')).toBeNull();
+			expect(getPieceFromFen(fen, 'd4')).toBeNull();
 		});
 
 		it('should return null for invalid inputs', () => {
-			expect(getPieceFromFen('', 'a1')).toBe(null);
-			expect(getPieceFromFen('invalid', 'a1')).toBe(null);
-			expect(getPieceFromFen('rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1', '')).toBe(
-				null,
-			);
+			expect(getPieceFromFen('', 'a1')).toBeNull();
+			expect(getPieceFromFen('invalid', 'a1')).toBeNull();
+			expect(
+				getPieceFromFen('rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1', ''),
+			).toBeNull();
 			expect(
 				getPieceFromFen('rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1', 'i9'),
-			).toBe(null);
+			).toBeNull();
 		});
 
 		it('should handle FEN with numbers correctly', () => {
 			const fen = 'r1bqkbnr/pppp1ppp/2n5/4p3/4P3/5N2/PPPP1PPP/RNBQKB1R w KQkq - 0 1';
-			expect(getPieceFromFen(fen, 'b8')).toBe(null); // b8 is empty (represented by '1')
+			expect(getPieceFromFen(fen, 'b8')).toBeNull(); // b8 is empty (represented by '1')
 			expect(getPieceFromFen(fen, 'c6')).toBe('n');
 		});
 	});
@@ -49,10 +49,10 @@ describe('fenUtils', () => {
 		});
 
 		it('returns null for empty or missing values', () => {
-			expect(getFenBoardPart('')).toBe(null);
-			expect(getFenBoardPart('   ')).toBe(null);
-			expect(getFenBoardPart(null)).toBe(null);
-			expect(getFenBoardPart(undefined)).toBe(null);
+			expect(getFenBoardPart('')).toBeNull();
+			expect(getFenBoardPart('   ')).toBeNull();
+			expect(getFenBoardPart(null)).toBeNull();
+			expect(getFenBoardPart(undefined)).toBeNull();
 		});
 	});
 
