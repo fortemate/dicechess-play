@@ -46,7 +46,7 @@ export type GameResult = -1 | 0 | 1;
  * @param result - Backend result value where 1 is white win, -1 is black win, 0 is draw.
  * @returns Human-readable result text or an empty string when a result is absent/invalid.
  */
-export function formatGameResult(result?: GameResult | number | null): string {
+export function formatGameResult(result?: number | null): string {
 	switch (result) {
 		case 1:
 			return '1-0 • White wins';

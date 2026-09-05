@@ -98,7 +98,7 @@ export interface ShowcaseStateReconnecting {
 export interface ShowcaseStateFinishing {
 	kind: 'finishing';
 	winner?: ShowcaseColor | 'draw';
-	reason?: 'mate' | 'resign' | 'timeout' | 'draw' | string;
+	reason?: string;
 	winnerName?: string;
 	topPlayer: ShowcasePlayerInfo;
 	bottomPlayer: ShowcasePlayerInfo;
