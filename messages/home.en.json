@@ -44,7 +44,6 @@
 	"home_action_opening_soon": "Opening soon…",
 	"home_cue_your_move": "Your turn to move",
 	"home_cue_opponent_thinking": "Opponent is thinking…",
-	"home_cue_spectator_turn": "{player} to move",
 	"home_cue_dice_reserved": "Reserved",
 	"home_cue_dice_clearing": "Clearing",
 	"home_dice_rolled": "Rolled: {dice}",

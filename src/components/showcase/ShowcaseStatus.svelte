@@ -110,17 +110,36 @@
 				}
 		}
 	});
+
+	// Phones. The badge sits in the dice row (the rail card's flex-wrap flow, see ShowcaseShell) for
+	// every state but live play, where the resign control takes that slot and the running clocks
+	// already say the game is live. The message gets a row of its own only where it adds something:
+	// the claim button speaks for the open table, and in live play the seat strip already carries the
+	// turn cue — there the message is kept for screen readers only.
+	const badgeOnPhone = $derived(state.kind !== 'live-player');
+	const messageClass = $derived.by(() => {
+		switch (state.kind) {
+			case 'live-player':
+				return 'sr-only md:not-sr-only';
+			case 'open':
+			case 'claiming':
+				return 'hidden md:block';
+			default:
+				return 'order-3 w-full truncate md:order-none md:w-auto md:whitespace-normal';
+		}
+	});
 </script>
 
-<!-- Responsive Status Slot: mobile single row h-7, desktop fixed min-h-[64px] card -->
+<!-- Phones: `contents`, so the badge and the message become items of the rail card's flow (the
+     shell orders them: badge beside the dice, message on a row of its own). md+: a status card. -->
 <div
-	class="flex h-7 md:h-auto md:min-h-[64px] flex-row md:flex-col items-center md:items-stretch justify-between md:justify-center gap-1.5 rounded-xl md:border md:border-border md:bg-surface px-1 md:p-3 transition-colors"
-	role="status"
-	aria-live="polite"
+	class="contents md:order-1 md:flex md:min-h-16 md:flex-col md:items-stretch md:justify-center md:gap-1.5 md:rounded-xl md:border md:border-border md:bg-surface md:p-3 md:transition-colors"
 >
-	<div class="flex shrink-0 items-center justify-between gap-2">
+	<div class="contents md:flex md:items-center md:justify-between md:gap-2">
 		<span
-			class="inline-flex items-center gap-1.5 rounded-md border px-2 py-0.5 text-[11px] md:text-xs font-bold tracking-wider uppercase whitespace-nowrap {badgeConfig.badgeBorder}"
+			class="{badgeOnPhone
+				? 'inline-flex'
+				: 'hidden md:inline-flex'} order-2 shrink-0 items-center gap-1.5 rounded-md border px-2 py-0.5 text-[11px] font-bold tracking-wider uppercase whitespace-nowrap md:order-none md:text-xs {badgeConfig.badgeBorder}"
 		>
 			<span
 				class="h-2 w-2 rounded-full {badgeConfig.dotClass} {badgeConfig.pulse
@@ -130,12 +149,14 @@
 			></span>
 			{badgeConfig.text}
 		</span>
-		<span class="hidden md:inline-block text-[11px] font-semibold text-content-muted">
+		<span class="hidden text-[11px] font-semibold text-content-muted md:inline-block">
 			{m.home_time_control_blitz()}
 		</span>
 	</div>
 	<p
-		class="truncate md:whitespace-normal text-[11px] md:text-xs text-content-muted leading-relaxed"
+		class="{messageClass} text-[11px] leading-relaxed text-content-muted md:text-xs"
+		role="status"
+		aria-live="polite"
 	>
 		{messageText}
 	</p>

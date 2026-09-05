@@ -98,7 +98,7 @@
 	const isReconnecting = $derived(state.kind === 'reconnecting');
 
 	// The live-player action is a compact control (the resign flag, see ShowcaseAction); every other
-	// action is a full-width button. On phones the compact one shares a row with the status badge.
+	// action is a full-width button. On phones the compact one sits at the right end of the dice row.
 	const actionInline = $derived(state.kind === 'live-player');
 </script>
 
@@ -117,15 +117,20 @@
 	<ShowcaseHeader />
 
 	<main
-		class="flex-grow w-full max-w-5xl mx-auto px-3 sm:px-4 md:px-6 py-3 sm:py-6 flex flex-col justify-center"
+		class="flex-grow w-full max-w-5xl mx-auto px-3 sm:px-4 md:px-6 py-2 sm:py-6 flex flex-col justify-center"
 	>
 		<!-- Desktop / Tablet Grid and Mobile Stack -->
 		<div
 			class="w-full flex flex-col md:grid md:grid-cols-[minmax(0,1fr)_280px] lg:grid-cols-[minmax(0,1fr)_320px] md:items-start gap-3 sm:gap-4 lg:gap-6"
 		>
-			<!-- Board Column: Left -->
+			<!-- Board Column: Left.
+			     Phones: the board takes the full width unless the viewport is too short for everything
+			     above the footer: header 48 + main padding 16 + two 48px seat strips + gaps 28 + the
+			     open-table card 118 + 6px slack = 310px. The footer is deliberately outside that budget,
+			     so on a short phone the board keeps its width and the footer is what drops below the
+			     fold. `svh`, so a mobile browser's collapsing toolbar cannot resize the board mid-game. -->
 			<div
-				class="w-full flex flex-col items-center gap-2 sm:gap-2.5 mx-auto max-w-[min(100vw-24px,max(240px,calc(100dvh-380px)))] md:max-w-[min(480px,max(240px,calc(100dvh-180px)))] lg:max-w-[min(560px,max(240px,calc(100dvh-200px)))]"
+				class="w-full flex flex-col items-center gap-2 sm:gap-2.5 mx-auto max-w-[min(100vw-24px,max(240px,calc(100svh-310px)))] md:max-w-[min(480px,max(240px,calc(100dvh-180px)))] lg:max-w-[min(560px,max(240px,calc(100dvh-200px)))]"
 			>
 				<div class="w-full {isReconnecting ? 'opacity-60 transition-opacity' : ''}">
 					<PlayerStrip
@@ -137,6 +142,7 @@
 						clockMs={state.clocks.topMs}
 						rating={state.topPlayer.rating}
 						href={state.topPlayer.href}
+						compact
 					/>
 				</div>
 
@@ -159,6 +165,7 @@
 						clockMs={state.clocks.bottomMs}
 						rating={state.bottomPlayer.rating}
 						href={state.bottomPlayer.href}
+						compact
 					/>
 				</div>
 			</div>
@@ -167,18 +174,17 @@
 			<div
 				class="w-full md:w-[280px] lg:w-[320px] md:shrink-0 flex flex-col gap-2 md:gap-3 rounded-2xl border border-border bg-surface p-2 md:p-0 md:bg-transparent md:border-none"
 			>
-				<div class="order-1 md:order-2">
-					<ShowcaseDice {state} />
-				</div>
-				<!-- On phones, status and action share one row: a compact action sits beside the status
-				     badge instead of claiming a full-width slot, while a full-width action (claim, retry,
-				     reset) wraps onto its own line. On md+ the wrapper dissolves (`contents`) and the two
-				     keep their own places in the rail column. -->
-				<div class="order-2 flex flex-wrap items-center gap-2 md:contents">
-					<div class="min-w-0 flex-1 md:order-1 md:flex-none">
-						<ShowcaseStatus {state} />
+				<!-- On phones the card is one flex-wrap flow. Row 1: the dice, with the status badge (or, in
+				     live play, the resign control) at the right edge. The status message and a full-width
+				     action (claim, retry, reset…) wrap onto rows of their own. ShowcaseStatus renders as
+				     `contents` on phones so its badge (order 2) and message (order 3) join this flow
+				     directly. On md+ the wrapper dissolves and the rail is a column: status, dice, action. -->
+				<div class="flex flex-wrap items-center gap-2 md:contents">
+					<div class="order-1 min-w-0 flex-1 md:order-2 md:flex-none">
+						<ShowcaseDice {state} />
 					</div>
-					<div class="{actionInline ? 'shrink-0' : 'w-full'} md:order-3 md:w-full">
+					<ShowcaseStatus {state} />
+					<div class="{actionInline ? 'order-2 shrink-0' : 'order-4 w-full'} md:order-3 md:w-full">
 						<ShowcaseAction {state} {onIntent} />
 					</div>
 				</div>
@@ -208,7 +214,7 @@
 		<div
 			class="max-w-5xl mx-auto px-4 flex flex-col sm:flex-row items-center justify-between gap-1 sm:gap-2"
 		>
-			<p class="text-[11px] text-content-muted/80">
+			<p class="hidden text-[11px] text-content-muted/80 sm:block">
 				{m.home_footer_summary()}
 			</p>
 			<p class="text-[11px] text-content-muted/60 flex items-center gap-2">
