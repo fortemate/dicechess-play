@@ -8,6 +8,7 @@
 	import PlayerStrip from '../../components/PlayerStrip.svelte';
 	import GameEndModal from '../../components/GameEndModal.svelte';
 	import DicePanel from '../../components/DicePanel.svelte';
+	import PreRollDrawGate from '../../components/PreRollDrawGate.svelte';
 	import { chromeStore } from '$lib/stores/chromeStore.svelte';
 	import { preferencesStore } from '$lib/preferencesStore.svelte';
 	import { preloadSounds } from '$lib/sound';
@@ -145,6 +146,33 @@
 		void flushOutbox();
 		preloadSounds(); // fetch + arm the gesture unlock before the first roll
 	});
+
+	// The ½ control, in the same five states and with the same wording as the live page: the two
+	// surfaces teach one mental model, which is the whole point of sharing the rules module.
+	const drawControl = $derived(store.drawOfferControlState);
+	const drawLabel = $derived.by(() => {
+		switch (drawControl) {
+			case 'armed':
+				return 'Draw offer armed — sent when your turn completes (click to cancel)';
+			case 'pending':
+				return 'Draw offered — waiting for the bot';
+			case 'forbidden': {
+				const turns = store.drawTurnsUntilAvailable;
+				return turns === null
+					? 'The bot offers the next draw'
+					: `Draw offer available in ${turns} ${turns === 1 ? 'turn' : 'turns'}`;
+			}
+			default:
+				return 'Offer a draw with your next turn';
+		}
+	});
+
+	// A tap on the board while the bot's offer is pending declines it: before dice exist a board
+	// gesture has no other meaning, and it saves the responder from aiming at a button. Guarded to a
+	// non-browsing view so scrubbing history is never mistaken for an answer.
+	function onBoardPointerDown() {
+		if (store.isPreRollResponder && !store.isViewingHistory) store.respondDraw(false);
+	}
 
 	let resignTimeout: ReturnType<typeof setTimeout> | undefined;
 
@@ -434,8 +462,13 @@
 						clockMs={hasClocks ? store.botTimeLeft : undefined}
 					/>
 
-					<!-- Relative wrapper so the promotion overlay covers the board. -->
-					<div class="relative w-full aspect-square">
+					<!-- Relative wrapper so the promotion overlay covers the board. The pointer handler is
+					     on the wrapper, not an overlay: nothing is ever laid over the board, so the king
+					     stays one click away at every moment of the game. -->
+					<!-- svelte-ignore a11y_no_static_element_interactions (declining by tapping the board is
+					     a pointer shortcut; Escape and the gate card's own focused button are the
+					     keyboard paths) -->
+					<div class="relative w-full aspect-square" onpointerdown={onBoardPointerDown}>
 						<Board {store} />
 						{#if store.pendingPromotion}
 							<PawnPromotionSelector
@@ -539,16 +572,29 @@
 					>
 						{@render iconBtn(preferencesStore.soundEnabled ? 'sound-on' : 'sound-off')}
 					</button>
-					{#if !isOver && store.playerCanOfferDraw}
+					<!-- Standing draw offer. Available in every phase, the bot's turn included: arming
+					     reaches nobody until this seat's own turn completes, which is the only way an
+					     offer can ride out on a forced pass. -->
+					{#if drawControl !== 'hidden'}
 						<button
 							type="button"
-							onclick={() => store.offerDraw()}
-							disabled={!store.canUserOfferDraw}
-							aria-label="Offer a draw"
-							title="Offer a draw"
-							class="flex h-8 w-8 items-center justify-center rounded-lg border border-border bg-surface text-sm font-bold text-content-muted transition-colors hover:border-border-strong hover:text-content disabled:opacity-30 disabled:cursor-not-allowed"
+							onclick={() => store.toggleArmDrawOffer()}
+							disabled={drawControl === 'forbidden' || drawControl === 'pending'}
+							aria-label={drawLabel}
+							title={drawLabel}
+							class="relative flex h-8 items-center justify-center gap-1 rounded-lg border px-2 text-xs font-bold transition-colors after:absolute after:-inset-1.5 after:content-[''] disabled:cursor-not-allowed disabled:opacity-40 {drawControl ===
+							'armed'
+								? 'border-primary bg-primary/20 text-primary shadow-sm'
+								: 'border-border bg-surface text-content-muted hover:border-border-strong hover:text-content'}"
 						>
-							½
+							<span class="font-mono text-xs font-extrabold">½–½</span>
+							{#if drawControl === 'armed'}
+								<span class="text-[11px]">Armed</span>
+							{:else if drawControl === 'pending'}
+								<span class="text-[11px]">Sent</span>
+							{:else}
+								<span class="text-[11px] hidden sm:inline">Draw</span>
+							{/if}
 						</button>
 					{/if}
 					{#if !isOver}
@@ -601,46 +647,30 @@
 							Change opponent
 						</button>
 					</div>
-				{:else if store.activeDrawOffer === 'bot'}
-					<!-- Non-modal by design: the board (and its history-scrub nav) stays interactive
-					     so the player can check the live position before deciding — see the
-					     scrubbing guard's comment in the store for why draw offers never block it. -->
-					<div
-						class="order-4 flex-col items-center gap-3 rounded-2xl border border-badge-accent/40 bg-badge-accent/5 p-4 md:order-none md:flex-1 md:justify-center {showHistory
-							? 'hidden md:flex'
-							: 'flex'}"
-					>
-						<p class="text-lg font-bold text-content">The bot offers a draw</p>
-						<p class="text-center text-sm text-content-muted">
-							Accept to end the game as a draw, or decline to keep playing.
-						</p>
-						<button
-							type="button"
-							onclick={() => store.acceptBotDraw()}
-							class="w-full rounded-xl bg-primary py-2.5 font-bold text-primary-content shadow-md transition-colors hover:bg-primary-hover"
-						>
-							Accept draw
-						</button>
-						<button
-							type="button"
-							onclick={() => store.declineBotDraw()}
-							class="w-full rounded-xl border border-border bg-surface py-2.5 font-bold text-content-muted transition-colors hover:text-content"
-						>
-							Decline
-						</button>
-					</div>
 				{:else}
 					<div
 						class="order-4 md:order-none md:min-h-0 md:flex-1 md:flex-col {showHistory
 							? 'hidden md:flex'
 							: 'md:flex'}"
 					>
-						<DicePanel
-							dice={store.currentDice}
-							animating={store.isAnimatingRoll}
-							canRoll={store.canUserRoll && !preferencesStore.autoRollDice}
-							onRoll={() => store.rollDice()}
-						/>
+						<!-- The gate takes the dice panel's slot rather than opening a modal: the board and
+						     its history nav stay live while the clock runs, which is what makes declining
+						     cheap enough to be the honest default. -->
+						{#if store.isPreRollGateActive}
+							<PreRollDrawGate
+								isResponder={store.isPreRollResponder}
+								offeredByName={store.activeDrawOffer === 'bot' ? (bot?.label ?? 'Bot') : null}
+								onAccept={() => store.respondDraw(true)}
+								onDecline={() => store.respondDraw(false)}
+							/>
+						{:else}
+							<DicePanel
+								dice={store.currentDice}
+								animating={store.isAnimatingRoll}
+								canRoll={store.canUserRoll && !preferencesStore.autoRollDice}
+								onRoll={() => store.rollDice()}
+							/>
+						{/if}
 					</div>
 				{/if}
 			</div>

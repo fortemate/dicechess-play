@@ -215,9 +215,13 @@ describe('doubling mode and game-end correctness (issue #37)', () => {
 			await startAndRollPlayerTurn();
 			expect(store.gameStatus).toBe('playing');
 
-			const offered = store.offerDraw();
-			await vi.advanceTimersByTimeAsync(1200);
-			await offered;
+			// The offer is armed and delivered when the player's turn completes (#74), so the bot
+			// answers at its own pre-roll gate — where the position is already its own perspective.
+			store.toggleArmDrawOffer();
+			store.handleBoardMove('e2', 'e4');
+			store.handleBoardMove('e2', 'e4');
+			store.handleBoardMove('e2', 'e4');
+			await vi.advanceTimersByTimeAsync(2000);
 
 			expect(mock.shouldBotAcceptDraw).toHaveBeenCalledTimes(1);
 			const [dfen] = mock.shouldBotAcceptDraw.mock.calls[0];
