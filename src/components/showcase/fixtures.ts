@@ -132,6 +132,21 @@ export const fixtureLivePlayerRolling: ShowcaseStateLivePlayer = {
 	],
 };
 
+/** White pawn just dropped on b8: the move waits for the piece choice, the P die is spent. */
+export const PROMOTION_BOARD_FEN = 'r1bqkbnr/pPpppppp/2n5/8/8/8/1PPPPPPP/RNBQKBNR w KQkq - 0 8';
+
+export const fixtureLivePlayerPromotion: ShowcaseStateLivePlayer = {
+	...fixtureLivePlayerWhiteTurn,
+	boardFen: PROMOTION_BOARD_FEN,
+	dice: [
+		{ value: 'P', allowed: true, used: true },
+		{ value: 'N', allowed: true, used: false },
+		{ value: 'B', allowed: true, used: false },
+	],
+	lastMove: undefined,
+	pendingPromotion: { color: 'w', availablePieces: ['q', 'r', 'b', 'n'] },
+};
+
 export const fixtureLiveSpectator: ShowcaseStateLiveSpectator = {
 	kind: 'live-spectator',
 	activeColor: 'w',
@@ -276,6 +291,7 @@ export const allFixtures: Record<string, ShowcaseState> = {
 	'live-player-white-turn': fixtureLivePlayerWhiteTurn,
 	'live-player-black-turn': fixtureLivePlayerBlackTurn,
 	'live-player-rolling': fixtureLivePlayerRolling,
+	'live-player-promotion': fixtureLivePlayerPromotion,
 	'live-spectator': fixtureLiveSpectator,
 	reconnecting: fixtureReconnecting,
 	'finishing-mate': fixtureFinishingMate,

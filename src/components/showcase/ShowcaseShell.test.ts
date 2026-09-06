@@ -10,6 +10,7 @@ import {
 	fixtureLivePlayerWhiteTurn,
 	fixtureLivePlayerBlackTurn,
 	fixtureLivePlayerRolling,
+	fixtureLivePlayerPromotion,
 	fixtureLiveSpectator,
 	fixtureReconnecting,
 	fixtureFinishingMate,
@@ -185,6 +186,25 @@ describe('ShowcaseShell', () => {
 
 		const settled = render(ShowcaseShell, { state: fixtureLivePlayerWhiteTurn });
 		expect(settled.container.querySelectorAll('.animate-dice-tumble')).toHaveLength(0);
+	});
+
+	it('shows the promotion chooser over the board and emits the piece choice or its cancellation', async () => {
+		const onIntent = vi.fn();
+		const { getByRole } = render(ShowcaseShell, {
+			state: fixtureLivePlayerPromotion,
+			onIntent,
+		});
+
+		await fireEvent.click(getByRole('button', { name: /promote to queen/i }));
+		expect(onIntent).toHaveBeenCalledWith({ type: 'promote', piece: 'q' });
+
+		await fireEvent.click(getByRole('button', { name: /^cancel$/i }));
+		expect(onIntent).toHaveBeenCalledWith({ type: 'cancel-promotion' });
+	});
+
+	it('shows no promotion chooser while no pawn is waiting for its piece', () => {
+		const { queryByRole } = render(ShowcaseShell, { state: fixtureLivePlayerWhiteTurn });
+		expect(queryByRole('button', { name: /promote to/i })).toBeNull();
 	});
 
 	it('renders live-spectator state with no claim or queue controls', () => {

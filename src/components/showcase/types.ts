@@ -67,6 +67,9 @@ export interface ShowcaseStateLivePlayer {
 	rolling?: boolean;
 	legalMovesDests?: Map<Key, Key[]>;
 	lastMove?: Key[];
+	/** One of our pawns stands on the last rank and its move waits for the piece choice (mirrors
+	 * `LiveGameStore.pendingPromotion`); the shell shows the chooser over the board. */
+	pendingPromotion?: { color: ShowcaseColor; availablePieces: string[] };
 }
 
 export interface ShowcaseStateLiveSpectator {
@@ -135,4 +138,6 @@ export type ShowcaseIntent =
 	| { type: 'retry' }
 	| { type: 'reset-now' }
 	| { type: 'move'; orig: string; dest: string }
+	| { type: 'promote'; piece: string }
+	| { type: 'cancel-promotion' }
 	| { type: 'navigate-play' };

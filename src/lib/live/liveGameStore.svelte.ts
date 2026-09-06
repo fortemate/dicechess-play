@@ -595,6 +595,11 @@ export class LiveGameStore {
 	handleBoardMove(orig: string, dest: string): void {
 		if (this.isViewingHistory) return;
 		if (this.isAnimatingRoll) return; // own roll: no moves until the spin lands
+		// A pawn on the last rank is waiting for its piece: no other move until it is chosen or
+		// cancelled. Its die is already spent, so a move made now would leave the turn one move
+		// short and the server would reject it — the showcase table lost a game exactly this way
+		// while it had no promotion chooser.
+		if (this.pendingPromotion) return;
 		if (this.gameStatus !== 'playing' || this.liveActiveColor !== this.playerColor) return;
 		// Don't move optimistically while disconnected — the SubmitTurn would be dropped and the
 		// local board would diverge from the server.
