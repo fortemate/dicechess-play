@@ -8,8 +8,8 @@ describe('boardGrid', () => {
 		const cells = boardGrid(START);
 		expect(cells).toHaveLength(64);
 		expect(cells.slice(0, 8)).toEqual(['r', 'n', 'b', 'q', 'k', 'b', 'n', 'r']);
-		expect(cells.slice(8, 16)).toEqual(Array(8).fill('p'));
-		expect(cells.slice(16, 48)).toEqual(Array(32).fill(null));
+		expect(cells.slice(8, 16)).toEqual(new Array(8).fill('p'));
+		expect(cells.slice(16, 48)).toEqual(new Array(32).fill(null));
 		expect(cells.slice(56)).toEqual(['R', 'N', 'B', 'Q', 'K', 'B', 'N', 'R']);
 	});
 
@@ -19,10 +19,10 @@ describe('boardGrid', () => {
 	});
 
 	it('yields an empty board on malformed or missing input instead of throwing', () => {
-		expect(boardGrid('not-a-fen')).toEqual(Array(64).fill(null));
-		expect(boardGrid('8/8/8 w')).toEqual(Array(64).fill(null));
-		expect(boardGrid('9/8/8/8/8/8/8/8 w - - 0 1')).toEqual(Array(64).fill(null));
-		expect(boardGrid(undefined)).toEqual(Array(64).fill(null)); // a pre-dfen server
+		expect(boardGrid('not-a-fen')).toEqual(new Array(64).fill(null));
+		expect(boardGrid('8/8/8 w')).toEqual(new Array(64).fill(null));
+		expect(boardGrid('9/8/8/8/8/8/8/8 w - - 0 1')).toEqual(new Array(64).fill(null));
+		expect(boardGrid(undefined)).toEqual(new Array(64).fill(null)); // a pre-dfen server
 	});
 });
 
