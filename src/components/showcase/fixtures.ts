@@ -132,7 +132,10 @@ export const fixtureLivePlayerRolling: ShowcaseStateLivePlayer = {
 	],
 };
 
-/** White pawn just dropped on b8: the move waits for the piece choice, the P die is spent. */
+/** Our pawn stands on b7 and its move to b8 waits for the piece choice: exactly the live store's
+ * state during a pending promotion. The board keeps the pre-move position (the FEN advances only
+ * when the piece is chosen) while the P die is already spent. A pawn on the last rank without a
+ * promotion piece is a position the engine never produces. */
 export const PROMOTION_BOARD_FEN = 'r1bqkbnr/pPpppppp/2n5/8/8/8/1PPPPPPP/RNBQKBNR w KQkq - 0 8';
 
 export const fixtureLivePlayerPromotion: ShowcaseStateLivePlayer = {
