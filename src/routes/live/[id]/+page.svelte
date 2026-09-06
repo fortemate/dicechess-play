@@ -340,7 +340,33 @@
 		);
 	});
 
+	// What the ½ control is doing right now, and the one sentence that explains it. The wording of the
+	// forbidden state follows the server: it names a number of turns only where a deployment lets the
+	// right to offer return on its own, and otherwise says plainly whose turn it is to offer.
+	const drawControl = $derived(live.drawOfferControlState);
+	const drawLabel = $derived.by(() => {
+		switch (drawControl) {
+			case 'armed':
+				return 'Draw offer armed — sent when your turn completes (click to cancel)';
+			case 'pending':
+				return 'Draw offered — waiting for your opponent';
+			case 'forbidden': {
+				const turns = live.drawArmRefusal?.availableAfterTurns ?? null;
+				return turns === null
+					? 'Opponent must offer the next draw'
+					: `Draw offer available in ${turns} ${turns === 1 ? 'turn' : 'turns'}`;
+			}
+			default:
+				return 'Offer a draw with your next turn';
+		}
+	});
+
 	let resignTimeout: ReturnType<typeof setTimeout> | undefined;
+
+	function disarmResign() {
+		clearTimeout(resignTimeout);
+		confirmResign = false;
+	}
 
 	function resign() {
 		if (!confirmResign) {
@@ -348,9 +374,25 @@
 			resignTimeout = setTimeout(() => (confirmResign = false), RESIGN_CONFIRM_MS);
 			return;
 		}
-		clearTimeout(resignTimeout);
-		confirmResign = false;
+		disarmResign();
 		live.resign();
+	}
+
+	// Escape backs out of an armed resignation from anywhere; the gate handles its own Escape, and the
+	// two never overlap because the resign control is only ever armed by a deliberate first press.
+	function onGlobalEscape(event: KeyboardEvent) {
+		if (event.key === 'Escape' && confirmResign) {
+			event.preventDefault();
+			disarmResign();
+		}
+	}
+
+	// A tap on the board while an offer is pending declines it: before dice exist a board gesture has
+	// no other meaning, and in bullet it saves the responder from aiming at a button. Guarded to the
+	// responder so a spectator's click does nothing, and to a non-browsing view so scrubbing history
+	// is never mistaken for an answer.
+	function onBoardPointerDown() {
+		if (live.isPreRollResponder && !live.isViewingHistory) live.respondDraw(false);
 	}
 
 	$effect(() => () => clearTimeout(resignTimeout));
@@ -453,7 +495,12 @@
 	<title>{myMove ? '● Your move · Dice Chess' : 'Dice Chess — Play'}</title>
 </svelte:head>
 
-<svelte:window onkeydown={onKeydown} />
+<svelte:window
+	onkeydown={(event) => {
+		onGlobalEscape(event);
+		onKeydown(event);
+	}}
+/>
 
 <GameEndModal
 	open={showEndModal}
@@ -517,8 +564,13 @@
 					rating={seatRatingOf(topSeat)}
 				/>
 
-				<!-- Relative wrapper so the promotion overlay covers the board. -->
-				<div class="relative w-full aspect-square">
+				<!-- Relative wrapper so the promotion overlay covers the board. The pointer handler is on
+				     the wrapper, not an overlay: nothing is ever laid over the board, so the king stays
+				     one click away at every moment of the game. -->
+				<!-- svelte-ignore a11y_no_static_element_interactions, a11y_click_events_have_key_events
+				     (declining by tapping the board is a pointer shortcut; Escape and the card's own
+				     focused button are the keyboard paths) -->
+				<div class="relative w-full aspect-square" onpointerdown={onBoardPointerDown}>
 					<Board store={live} />
 					{#if live.pendingPromotion}
 						<PawnPromotionSelector
@@ -639,39 +691,46 @@
 					<button
 						type="button"
 						onclick={resign}
-						aria-label={confirmResign ? 'Click again to confirm resignation' : 'Resign'}
-						title="Resign"
-						class="flex h-8 items-center justify-center gap-1.5 rounded-lg border transition-colors {confirmResign
+						onblur={disarmResign}
+						disabled={live.connection !== 'open'}
+						aria-label={live.connection !== 'open'
+							? 'Resign unavailable while disconnected'
+							: confirmResign
+								? 'Click again to confirm resignation'
+								: 'Resign'}
+						title={live.connection !== 'open' ? 'Reconnecting…' : 'Resign'}
+						class="relative flex h-8 items-center justify-center gap-1.5 rounded-lg border transition-colors after:absolute after:-inset-1.5 after:content-[''] disabled:cursor-not-allowed disabled:opacity-40 {confirmResign
 							? 'border-danger/50 bg-danger/15 px-2.5 text-xs font-bold text-danger'
 							: 'w-8 border-border bg-surface text-content-muted hover:border-danger/50 hover:text-danger'}"
 					>
 						{@render iconBtn('flag')}
-						{#if confirmResign}Resign?{/if}
+						{#if confirmResign}Resign?{#if live.doubling}
+								&nbsp;−{live.doubling.currentStake}
+							{/if}{/if}
 					</button>
 
-					<!-- Draw offer arm toggle -->
-					{#if live.gameStatus === 'playing' && !live.spectator && live.currentDice.length > 0}
+					<!-- Standing draw offer. Available in every phase, including the opponent's turn: arming
+					     reaches nobody until this seat's own turn completes, which is the only way an
+					     offer can ride on a forced pass. -->
+					{#if drawControl !== 'hidden'}
 						<button
 							type="button"
 							onclick={() => live.toggleArmDrawOffer()}
-							disabled={live.mayOfferDraw === false}
-							aria-label={live.mayOfferDraw === false
-								? 'Cannot offer draw: opponent must offer next'
-								: live.isDrawOfferArmed
-									? 'Draw offer armed — will be sent with your turn (click to cancel)'
-									: 'Offer draw with your turn'}
-							title={live.mayOfferDraw === false
-								? 'Cannot offer draw: opponent must offer next'
-								: live.isDrawOfferArmed
-									? 'Draw offer armed (sent on move submission)'
-									: 'Offer draw'}
-							class="flex h-8 items-center justify-center gap-1 rounded-lg border px-2 text-xs font-bold transition-colors disabled:cursor-not-allowed disabled:opacity-40 {live.isDrawOfferArmed
+							disabled={drawControl === 'forbidden' ||
+								drawControl === 'pending' ||
+								live.connection !== 'open'}
+							aria-label={drawLabel}
+							title={drawLabel}
+							class="relative flex h-8 items-center justify-center gap-1 rounded-lg border px-2 text-xs font-bold transition-colors after:absolute after:-inset-1.5 after:content-[''] disabled:cursor-not-allowed disabled:opacity-40 {drawControl ===
+							'armed'
 								? 'border-primary bg-primary/20 text-primary shadow-sm'
 								: 'border-border bg-surface text-content-muted hover:border-border-strong hover:text-content'}"
 						>
 							<span class="font-mono text-xs font-extrabold">½–½</span>
-							{#if live.isDrawOfferArmed}
-								<span class="text-[11px]">Offered</span>
+							{#if drawControl === 'armed'}
+								<span class="text-[11px]">Armed</span>
+							{:else if drawControl === 'pending'}
+								<span class="text-[11px]">Sent</span>
 							{:else}
 								<span class="text-[11px] hidden sm:inline">Draw</span>
 							{/if}

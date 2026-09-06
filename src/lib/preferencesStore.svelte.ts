@@ -32,6 +32,10 @@ class PreferencesStore {
 	botLobbyBet: number = $state(0);
 	botLobbyMode: 'classic' | 'x2' = $state('classic');
 	soundEnabled: boolean = $state(true);
+	// What to do when an opponent offers a draw (ADR 006 §4.5). `ask` opens the pre-roll gate and lets
+	// the clock run while you decide; `autoDecline` answers immediately so a player who never wants to
+	// be asked pays nothing for someone else's offer. The offerer cannot tell the two apart.
+	drawOfferPolicy: 'ask' | 'autoDecline' = $state('ask');
 	// The rated-bot challenge panel's own setup (#212) — distinct keys from /practice's above because
 	// the two surfaces offer different time-control presets and /practice has no rated concept.
 	botChallengeRated: boolean = $state(false);
@@ -115,6 +119,11 @@ class PreferencesStore {
 			this.soundEnabled = storedSoundEnabled === 'true';
 		}
 
+		const storedDrawOfferPolicy = getStoredValue('drawOfferPolicy');
+		if (storedDrawOfferPolicy === 'ask' || storedDrawOfferPolicy === 'autoDecline') {
+			this.drawOfferPolicy = storedDrawOfferPolicy;
+		}
+
 		const storedBotChallengeRated = getStoredValue('botChallengeRated');
 		if (storedBotChallengeRated !== null) {
 			this.botChallengeRated = storedBotChallengeRated === 'true';
@@ -196,6 +205,11 @@ class PreferencesStore {
 		}
 		this.botLobbyMode = mode;
 		setStoredValue('botLobbyMode', mode);
+	}
+
+	setDrawOfferPolicy(policy: 'ask' | 'autoDecline') {
+		this.drawOfferPolicy = policy;
+		setStoredValue('drawOfferPolicy', policy);
 	}
 
 	setBotChallengeRated(value: boolean) {

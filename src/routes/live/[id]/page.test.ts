@@ -76,6 +76,12 @@ function storeState(overrides: Record<string, unknown> = {}) {
 		whiteClockMs: null,
 		blackClockMs: null,
 		canResign: false,
+		isPreRollResponder: false,
+		isPreRollGateActive: false,
+		respondDraw: vi.fn(),
+		drawOfferControlState: 'hidden',
+		drawArmRefusal: null,
+		doubling: null,
 		pendingPromotion: null,
 		passNoticeSeat: null,
 		connect: vi.fn(),
@@ -167,44 +173,120 @@ describe('live board — finished-game replay actions', () => {
 		expect(getAllByText('Draw by agreement').length).toBeGreaterThan(0);
 	});
 
-	it('shows and toggles draw offer arm button during my active turn with revealed dice', async () => {
+	it('offers the draw control while the opponent is on move, which is what a forced pass needs', async () => {
 		const toggleArmDrawOffer = vi.fn();
 		state.current = storeState({
-			gameStatus: 'playing',
+			gameStatus: 'waiting',
 			canResign: true,
 			playerColor: 'w',
-			activeColor: 'w',
-			currentDice: [{ value: 2, allowed: true, used: false }],
-			mayOfferDraw: true,
-			isDrawOfferArmed: false,
+			activeColor: 'b', // the opponent is thinking; arming still has to be reachable
+			currentDice: [],
+			drawOfferControlState: 'idle',
 			toggleArmDrawOffer,
 		});
 
 		const { getByRole } = render(LivePage);
-		const drawBtn = getByRole('button', {
-			name: /offer draw with your turn/i,
-		}) as HTMLButtonElement;
-		expect(drawBtn).toBeTruthy();
+		const drawBtn = getByRole('button', { name: /offer a draw/i }) as HTMLButtonElement;
 		expect(drawBtn.disabled).toBe(false);
 
 		await fireEvent.click(drawBtn);
 		expect(toggleArmDrawOffer).toHaveBeenCalledOnce();
 	});
 
-	it('disables draw offer arm button when mayOfferDraw is false', () => {
+	it("says whose turn it is to offer when the right is not this seat's", () => {
 		state.current = storeState({
 			gameStatus: 'playing',
 			canResign: true,
-			playerColor: 'w',
-			activeColor: 'w',
-			currentDice: [{ value: 2, allowed: true, used: false }],
-			mayOfferDraw: false,
-			isDrawOfferArmed: false,
+			drawOfferControlState: 'forbidden',
 		});
 
 		const { getByRole } = render(LivePage);
-		const drawBtn = getByRole('button', { name: /cannot offer draw/i }) as HTMLButtonElement;
-		expect(drawBtn.disabled).toBe(true);
+		const drawBtn = getByRole('button', { name: /opponent must offer the next draw/i });
+
+		expect((drawBtn as HTMLButtonElement).disabled).toBe(true);
+	});
+
+	it('counts down the turns instead, where a deployment lets the right return', () => {
+		state.current = storeState({
+			gameStatus: 'playing',
+			canResign: true,
+			drawOfferControlState: 'forbidden',
+			drawArmRefusal: { reason: 'draw offer cooldown', availableAfterTurns: 3 },
+		});
+
+		const { getByRole } = render(LivePage);
+
+		expect(getByRole('button', { name: /draw offer available in 3 turns/i })).toBeTruthy();
+	});
+
+	it('shows the offer as sent, and disables the control, while it is out', () => {
+		state.current = storeState({
+			gameStatus: 'playing',
+			canResign: true,
+			drawOfferControlState: 'pending',
+		});
+
+		const { getByRole } = render(LivePage);
+		const drawBtn = getByRole('button', { name: /waiting for your opponent/i });
+
+		expect((drawBtn as HTMLButtonElement).disabled).toBe(true);
+	});
+
+	it('declines by tapping the board, and only while this seat is the one being asked', async () => {
+		const respondDraw = vi.fn();
+		// Nothing pending: a board tap is an ordinary board gesture and must not answer anything.
+		state.current = storeState({
+			gameStatus: 'playing',
+			isPreRollResponder: false,
+			isViewingHistory: false,
+			respondDraw,
+		});
+		const idle = render(LivePage);
+		await fireEvent.pointerDown(idle.container.querySelector('.aspect-square')!);
+		expect(respondDraw).not.toHaveBeenCalled();
+		cleanup();
+
+		// An offer is pending for this seat: before dice exist a board gesture has no other meaning.
+		state.current = storeState({
+			gameStatus: 'playing',
+			isPreRollResponder: true,
+			isViewingHistory: false,
+			respondDraw,
+		});
+		const gated = render(LivePage);
+		await fireEvent.pointerDown(gated.container.querySelector('.aspect-square')!);
+		expect(respondDraw).toHaveBeenCalledWith(false);
+		cleanup();
+
+		// Scrubbing history is not an answer.
+		respondDraw.mockClear();
+		state.current = storeState({
+			gameStatus: 'playing',
+			isPreRollResponder: true,
+			isViewingHistory: true,
+			respondDraw,
+		});
+		const browsing = render(LivePage);
+		await fireEvent.pointerDown(browsing.container.querySelector('.aspect-square')!);
+		expect(respondDraw).not.toHaveBeenCalled();
+	});
+
+	it('disables resigning while the socket is down, rather than dropping the command', () => {
+		state.current = storeState({
+			gameStatus: 'playing',
+			canResign: true,
+			connection: 'connecting',
+			drawOfferControlState: 'idle',
+		});
+
+		const { getByRole } = render(LivePage);
+		const resignBtn = getByRole('button', { name: /resign unavailable while disconnected/i });
+
+		expect((resignBtn as HTMLButtonElement).disabled).toBe(true);
+		// The draw control travels with it: neither command can reach a closed socket.
+		expect((getByRole('button', { name: /offer a draw/i }) as HTMLButtonElement).disabled).toBe(
+			true,
+		);
 	});
 });
 

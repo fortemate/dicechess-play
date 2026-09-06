@@ -60,6 +60,15 @@ export interface DrawOffer {
 	pending: boolean;
 }
 
+// Whether each seat currently holds the right to offer a draw (play-api #105). The right is a
+// passing one: it starts centred, a delivered offer hands it to the opponent, and whether it ever
+// returns on its own is a server setting. Per-seat, unlike `mayOfferDraw`, which only ever answers
+// for the side to move — so this is what a control belonging to MY seat must read.
+export interface MayOfferDrawBy {
+	white: boolean;
+	black: boolean;
+}
+
 // ── Stake doubling (play-api ADR-0019, reserved contract; this repo's #68 / #75) ─────────────
 // A staked game carries `doubling` on every state; a classic game omits it or sends `null`. Every
 // amount is the server's: the client never derives a stake, a cube value or a settlement locally.
@@ -99,6 +108,7 @@ export interface PublicGameState {
 	// forbids `activeSeat` from offering (e.g. after having just offered a declined draw).
 	drawOffer?: DrawOffer | null;
 	mayOfferDraw?: boolean | null;
+	mayOfferDrawBy?: MayOfferDrawBy | null;
 	// Present (never null) on a staked game, absent or null on a classic one — treat both alike.
 	doubling?: Doubling | null;
 }
@@ -122,6 +132,16 @@ export type ServerEvent =
 	| { TurnPlayed: { v: number; seat: Seat; moves: string[]; fenAfter: string } }
 	| { DrawOffered: { v: number; by: Seat } }
 	| { DrawDeclined: { v: number; by: Seat } }
+	// Seat-private, and unlike every other frame here it carries no `v`: it is the server's answer to
+	// this socket's own ArmDrawOffer, plus one unprompted greeting when a seated socket connects. It
+	// never reaches the opponent or a spectator, which is what keeps arming invisible mid-turn.
+	| {
+			DrawOfferArmed: {
+				armed: boolean;
+				reason?: string | null;
+				availableAfterTurns?: number | null;
+			};
+	  }
 	| { GameEnded: { v: number; over: Over } }
 	| { Rejected: { v: number; seat: Seat; reason: string } }
 	// Stake-doubling events (ADR-0019). Only the two that change the settled amount are modelled here;
@@ -151,6 +171,7 @@ export type ServerEvent =
 export type ClientCommand =
 	| { SubmitTurn: { moves: string[]; offerDraw?: boolean } }
 	| { RespondDraw: { accept: boolean } }
+	| { ArmDrawOffer: { armed: boolean } }
 	| { SubmitSeed: { seed: string } } // post-commit dice entropy, sent on join (see Provably-Fair Dice)
 	| { Resign: Record<string, never> };
 
