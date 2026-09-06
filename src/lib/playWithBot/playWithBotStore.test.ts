@@ -328,6 +328,8 @@ describe('PlayWithBotStore draw offers (shared lifecycle, #74)', () => {
 		vi.useRealTimers();
 		preferencesStore.drawOfferPolicy = 'ask';
 		preferencesStore.autoRollDice = false;
+		preferencesStore.timeLimit = null;
+		preferencesStore.timeBonus = 0;
 	});
 
 	async function startAndRollPlayerTurn() {
@@ -471,6 +473,23 @@ describe('PlayWithBotStore draw offers (shared lifecycle, #74)', () => {
 		store.respondDraw(true);
 		expect(store.gameStatus).toBe('draw');
 		expect(store.gameEndReason).toBe('agreement');
+	});
+
+	it('keeps the responder’s clock running while an offer waits — the whole point of the gate', async () => {
+		preferencesStore.timeLimit = 5;
+		preferencesStore.timeBonus = 0;
+		mock.shouldBotOfferDraw.mockReturnValue(true);
+		await startAndRollPlayerTurn();
+		playOutPlayerTurn();
+		await vi.advanceTimersByTimeAsync(5800);
+		expect(store.isPreRollResponder).toBe(true);
+
+		const before = store.playerTimeLeft;
+		await vi.advanceTimersByTimeAsync(2000);
+
+		// Holding a delivered offer must cost the responder time; freezing the clock here is exactly
+		// the DiceChess.com abuse ADR 006 §4.5 exists to make impossible.
+		expect(store.playerTimeLeft).toBeLessThanOrEqual(before - 1900);
 	});
 
 	it('answers for a player who has asked never to be interrupted by an offer', async () => {

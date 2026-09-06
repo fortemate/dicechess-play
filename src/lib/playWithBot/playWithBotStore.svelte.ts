@@ -379,8 +379,10 @@ export class PlayWithBotStore {
 		this.stopTimer();
 		this.lastTickTimestamp = Date.now();
 		this.timerIntervalId = setInterval(() => {
-			// Pause timers if choice overlays are open
-			if (this.pendingPromotion !== null || this.activeDrawOffer !== null) {
+			// Pause only for an overlay that blocks the board mid-turn. A pending draw offer is NOT one
+			// of them: the responder's clock runs while they decide, exactly as it does on /live, and
+			// that is what makes declining the honest cheap answer instead of a way to buy time.
+			if (this.pendingPromotion !== null) {
 				this.lastTickTimestamp = Date.now();
 				return;
 			}
@@ -1291,7 +1293,7 @@ export class PlayWithBotStore {
 			return;
 		}
 		toastStore.info('You declined the draw offer.');
-		this.startTimer();
+		// No timer to restart: it never stopped for the offer.
 		void this.rollDice();
 	}
 
