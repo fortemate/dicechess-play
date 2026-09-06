@@ -25,7 +25,7 @@ export const fixtureOpenWhite: ShowcaseStateOpen = {
 		bot: true,
 	},
 	bottomPlayer: {
-		name: 'You (Guest)',
+		name: 'You',
 		sub: 'Assigned color · Claimable',
 	},
 	boardFen: INITIAL_BOARD_FEN,
@@ -42,7 +42,7 @@ export const fixtureOpenBlack: ShowcaseStateOpen = {
 		bot: true,
 	},
 	bottomPlayer: {
-		name: 'You (Guest)',
+		name: 'You',
 		sub: 'Assigned color · Claimable',
 	},
 	boardFen: INITIAL_BOARD_FEN,
@@ -59,7 +59,7 @@ export const fixtureClaiming: ShowcaseStateClaiming = {
 		bot: true,
 	},
 	bottomPlayer: {
-		name: 'You (Guest)',
+		name: 'You',
 		sub: 'Reserving seat…',
 	},
 	boardFen: INITIAL_BOARD_FEN,
@@ -279,7 +279,7 @@ export const fixtureUnavailable: ShowcaseStateUnavailable = {
 		bot: true,
 	},
 	bottomPlayer: {
-		name: 'You (Guest)',
+		name: 'You',
 		sub: 'Unavailable',
 	},
 	boardFen: INITIAL_BOARD_FEN,

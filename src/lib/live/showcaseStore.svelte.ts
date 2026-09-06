@@ -25,6 +25,7 @@ import {
 import type {
 	ShowcaseColor,
 	ShowcaseIntent,
+	ShowcasePlayerInfo,
 	ShowcaseState,
 	ShowcaseStateKind,
 } from '../../components/showcase/types';
@@ -37,6 +38,7 @@ import {
 	showcaseBottomPlayerName,
 } from './playerLabel';
 import { toastStore } from '../toastStore.svelte';
+import { authStore } from '../authStore.svelte';
 import { createSeatStore, type SeatStore } from './showcaseSeat';
 
 const START_FEN = 'rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1';
@@ -48,12 +50,19 @@ const FINISHING_COUNTDOWN_SECONDS = 15;
 
 type ShowcaseServerView = NonNullable<GetShowcaseResult['view']>;
 
+export interface ShowcaseAuthView {
+	readonly isAuthenticated: boolean;
+	readonly nickname: string | null;
+	readonly account: { rating?: number } | null;
+}
+
 export interface ShowcaseStoreDeps {
 	live?: LiveGameStore;
 	getShowcaseFn?: (ifNoneMatch?: string) => Promise<GetShowcaseResult>;
 	claimShowcaseFn?: () => Promise<ShowcaseClaimOutcome>;
 	/** Where this tab keeps its seat across reloads; tests pass an in-memory one. */
 	seatStore?: SeatStore;
+	auth?: ShowcaseAuthView;
 }
 
 export class ShowcaseStore {
@@ -61,6 +70,7 @@ export class ShowcaseStore {
 	private readonly getShowcaseFn: (ifNoneMatch?: string) => Promise<GetShowcaseResult>;
 	private readonly claimShowcaseFn: () => Promise<ShowcaseClaimOutcome>;
 	private readonly seatStore: SeatStore;
+	private readonly auth: ShowcaseAuthView;
 
 	// Internal phase
 	private phase = $state<ShowcaseStateKind>('unavailable');
@@ -103,6 +113,7 @@ export class ShowcaseStore {
 		this.getShowcaseFn = deps?.getShowcaseFn ?? getShowcase;
 		this.claimShowcaseFn = deps?.claimShowcaseFn ?? claimShowcase;
 		this.seatStore = deps?.seatStore ?? createSeatStore();
+		this.auth = deps?.auth ?? authStore;
 
 		// Listen to game lifecycle events from LiveGameStore
 		this.live.onEnd = (over) => {
@@ -164,6 +175,15 @@ export class ShowcaseStore {
 		return seat === 'White' ? this.live.whiteClockMs : this.live.blackClockMs;
 	}
 
+	private openBottomPlayer(sub: string): ShowcasePlayerInfo {
+		const isAuth = this.auth.isAuthenticated && Boolean(this.auth.nickname);
+		return {
+			name: isAuth ? this.auth.nickname! : 'You',
+			sub,
+			rating: isAuth ? this.auth.account?.rating : undefined,
+		};
+	}
+
 	private buildUnavailableState(): ShowcaseState {
 		return {
 			kind: 'unavailable',
@@ -176,10 +196,7 @@ export class ShowcaseStore {
 				sub: 'Unavailable',
 				bot: true,
 			},
-			bottomPlayer: {
-				name: 'You (Guest)',
-				sub: 'Unavailable',
-			},
+			bottomPlayer: this.openBottomPlayer('Unavailable'),
 		};
 	}
 
@@ -195,10 +212,7 @@ export class ShowcaseStore {
 				sub: 'Open seat',
 				bot: true,
 			},
-			bottomPlayer: {
-				name: 'You (Guest)',
-				sub: 'Assigned color · Claimable',
-			},
+			bottomPlayer: this.openBottomPlayer('Assigned color · Claimable'),
 		};
 	}
 
@@ -214,10 +228,7 @@ export class ShowcaseStore {
 				sub: 'Connecting…',
 				bot: true,
 			},
-			bottomPlayer: {
-				name: 'You (Guest)',
-				sub: 'Reserving seat…',
-			},
+			bottomPlayer: this.openBottomPlayer('Reserving seat…'),
 		};
 	}
 
