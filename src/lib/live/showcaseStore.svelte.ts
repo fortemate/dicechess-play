@@ -8,8 +8,9 @@
  *    as a player with the returned credential on win, or tokenless spectator on race loss.
  * 3. Live session integration: binds to LiveGameStore for real-time moves, dice, clocks,
  *    and outcomes, cleanly mapping them into ShowcaseState without move-history surfaces.
- * 4. Zero-CLS geometry & Credential isolation: keeps board and grid mounted stably; preserves
- *    the seat token in memory only, clearing it immediately when the game ends or table resets.
+ * 4. Zero-CLS geometry & Credential isolation: keeps board and grid mounted stably; keeps the
+ *    seat token in memory and in this tab's sessionStorage (showcaseSeat.ts) so a reload rejoins
+ *    the seat, and clears both the moment the game ends or the table changes.
  */
 
 import { LiveGameStore } from './liveGameStore.svelte';
@@ -30,6 +31,7 @@ import type {
 import type { Over, Seat } from './liveTypes';
 import { publicPlayer, seatDisplayName, seatRating } from './playerLabel';
 import { toastStore } from '../toastStore.svelte';
+import { createSeatStore, type SeatStore } from './showcaseSeat';
 
 const START_FEN = 'rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1';
 const DEFAULT_TIME_CONTROL = '5 + 3 Blitz';
@@ -38,16 +40,21 @@ const RESET_POLL_MS = 1500;
 const UNAVAILABLE_POLL_MS = 5000;
 const FINISHING_COUNTDOWN_SECONDS = 15;
 
+type ShowcaseServerView = NonNullable<GetShowcaseResult['view']>;
+
 export interface ShowcaseStoreDeps {
 	live?: LiveGameStore;
 	getShowcaseFn?: (ifNoneMatch?: string) => Promise<GetShowcaseResult>;
 	claimShowcaseFn?: () => Promise<ShowcaseClaimOutcome>;
+	/** Where this tab keeps its seat across reloads; tests pass an in-memory one. */
+	seatStore?: SeatStore;
 }
 
 export class ShowcaseStore {
 	private readonly live: LiveGameStore;
 	private readonly getShowcaseFn: (ifNoneMatch?: string) => Promise<GetShowcaseResult>;
 	private readonly claimShowcaseFn: () => Promise<ShowcaseClaimOutcome>;
+	private readonly seatStore: SeatStore;
 
 	// Internal phase
 	private phase = $state<ShowcaseStateKind>('unavailable');
@@ -59,7 +66,8 @@ export class ShowcaseStore {
 	// Pending claim state
 	private isClaimPending = $state<boolean>(false);
 
-	// Credential isolation: seatToken lives strictly in memory, never logged or exposed
+	// Credential: the seat token, never logged or exposed. Mirrored to this tab's storage
+	// (seatStore, see showcaseSeat.ts) so a reload can rejoin the seat within play-api's grace.
 	private seatToken: string | null = null;
 	private currentGameId = $state<string | null>(null);
 
@@ -77,11 +85,17 @@ export class ShowcaseStore {
 	private countdownTimer: ReturnType<typeof setInterval> | null = null;
 	private lastEtag: string | undefined = undefined;
 	private isDestroyed = false;
+	// Bumped by every claim, connection and stop. A discovery request that was in flight across one
+	// of those describes a table that no longer exists for us and is discarded when it resolves
+	// (pollDiscovery). Applying such a stale `open` is how a seated player was demoted to spectator
+	// of their own game: the token nulled, the seat's socket closed, the seat forfeited (2026-09-05).
+	private pollEpoch = 0;
 
 	constructor(deps?: ShowcaseStoreDeps) {
 		this.live = deps?.live ?? new LiveGameStore();
 		this.getShowcaseFn = deps?.getShowcaseFn ?? getShowcase;
 		this.claimShowcaseFn = deps?.claimShowcaseFn ?? claimShowcase;
+		this.seatStore = deps?.seatStore ?? createSeatStore();
 
 		// Listen to game lifecycle events from LiveGameStore
 		this.live.onEnd = (over) => {
@@ -439,10 +453,13 @@ export class ShowcaseStore {
 	}
 
 	stop(): void {
+		this.pollEpoch += 1; // a poll still in flight must not act on a page we have left
 		this.clearPollTimer();
 		this.stopCountdownTimer();
 		this.live.dispose();
 		this.seatToken = null;
+		// The stored seat is deliberately kept: leaving the page is exactly the case it exists for —
+		// coming back within play-api's disconnect grace rejoins the game (applyServerView, `live`).
 	}
 
 	destroy(): void {
@@ -476,9 +493,10 @@ export class ShowcaseStore {
 	async pollDiscovery(): Promise<void> {
 		if (this.isDestroyed) return;
 
+		const epoch = this.pollEpoch;
 		try {
 			const res = await this.getShowcaseFn(this.lastEtag);
-			if (this.isDestroyed) return;
+			if (this.isDestroyed || epoch !== this.pollEpoch) return; // stale: see pollEpoch
 
 			if (res.etag) {
 				this.lastEtag = res.etag;
@@ -498,6 +516,7 @@ export class ShowcaseStore {
 
 			this.applyServerView(view);
 		} catch {
+			if (this.isDestroyed || epoch !== this.pollEpoch) return;
 			// Network failure or 500 error
 			if (this.phase === 'unavailable' || this.phase === 'open') {
 				this.phase = 'unavailable';
@@ -507,75 +526,99 @@ export class ShowcaseStore {
 		}
 	}
 
-	private applyServerView(view: NonNullable<GetShowcaseResult['view']>): void {
+	private applyServerView(view: ShowcaseServerView): void {
+		// While a claim is pending its own response decides where we go, and while we hold a seat the
+		// WebSocket is the source of truth. A table view reaching us in either state is a poll that
+		// raced the claim (pollEpoch catches the known cases; this is the belt to its braces).
+		if (this.phase === 'claiming') return;
+		if (this.phase === 'live-player' && (view.status === 'open' || view.status === 'live')) return;
+
 		if (view.featuredBot) this.featuredBot = view.featuredBot;
 		if (view.timeControl) this.timeControl = view.timeControl.display;
 
 		switch (view.status) {
-			case 'unavailable': {
-				this.seatToken = null;
-				this.currentGameId = null;
-				this.lastOver = null;
-				this.phase = 'unavailable';
-				this.unavailableReason = view.reason ?? 'disabled';
-				this.schedulePoll(UNAVAILABLE_POLL_MS);
+			case 'unavailable':
+				this.applyUnavailableView(view);
 				break;
-			}
-			case 'open': {
-				// Transition back to open: clear credential, dispose any finished live game
-				this.stopCountdownTimer();
-				this.seatToken = null;
-				this.currentGameId = null;
-				this.lastOver = null;
-				this.isReconnecting = false;
-				this.live.dispose();
-
-				this.assignedColor = view.nextHumanColor === 'Black' ? 'b' : 'w';
-				this.phase = 'open';
-				this.schedulePoll(DISCOVERY_POLL_MS);
+			case 'open':
+				this.applyOpenView(view);
 				break;
-			}
-			case 'live': {
-				const gameId = view.currentGame?.gameId;
-				if (!gameId) {
-					this.schedulePoll(DISCOVERY_POLL_MS);
-					return;
-				}
-
-				// If we are already connected to this game (as player or spectator), keep live connection
-				if (
-					this.currentGameId === gameId &&
-					(this.phase === 'live-player' || this.phase === 'live-spectator')
-				) {
-					return;
-				}
-
-				// Someone else claimed or we discovered an active game: connect as spectator
-				this.seatToken = null;
-				this.currentGameId = gameId;
-				this.isReconnecting = false;
-				this.phase = 'live-spectator';
-				this.live.connect(gameId, null, null);
-				this.clearPollTimer(); // WebSocket drives updates during active game
+			case 'live':
+				this.applyLiveView(view);
 				break;
-			}
-			case 'finishing': {
-				const gameId = view.currentGame?.gameId;
-				if (gameId && this.currentGameId !== gameId) {
-					// Discovered a game that is already finishing
-					this.seatToken = null;
-					this.currentGameId = gameId;
-					this.phase = 'finishing';
-					this.startFinishingCountdown();
-					this.live.connect(gameId, null, null);
-				} else if (this.phase !== 'finishing' && this.phase !== 'reset') {
-					this.phase = 'finishing';
-					this.startFinishingCountdown();
-				}
-				this.schedulePoll(RESET_POLL_MS);
+			case 'finishing':
+				this.applyFinishingView(view);
 				break;
-			}
 		}
+	}
+
+	private applyUnavailableView(view: ShowcaseServerView): void {
+		this.seatToken = null;
+		this.seatStore.clear();
+		this.currentGameId = null;
+		this.lastOver = null;
+		this.phase = 'unavailable';
+		this.unavailableReason = view.reason ?? 'disabled';
+		this.schedulePoll(UNAVAILABLE_POLL_MS);
+	}
+
+	/** Back to an open table: clear the credential, dispose any finished live game. */
+	private applyOpenView(view: ShowcaseServerView): void {
+		this.stopCountdownTimer();
+		this.seatToken = null;
+		this.seatStore.clear();
+		this.currentGameId = null;
+		this.lastOver = null;
+		this.isReconnecting = false;
+		this.live.dispose();
+
+		this.assignedColor = view.nextHumanColor === 'Black' ? 'b' : 'w';
+		this.phase = 'open';
+		this.schedulePoll(DISCOVERY_POLL_MS);
+	}
+
+	private applyLiveView(view: ShowcaseServerView): void {
+		const gameId = view.currentGame?.gameId;
+		if (!gameId) {
+			this.schedulePoll(DISCOVERY_POLL_MS);
+			return;
+		}
+
+		// Already on this game (as player or spectator): keep the live connection.
+		if (
+			this.currentGameId === gameId &&
+			(this.phase === 'live-player' || this.phase === 'live-spectator')
+		) {
+			return;
+		}
+
+		// Our own seat from before a reload (or a quick trip to another page): rejoin it.
+		// play-api keeps a disconnected seat for its disconnect grace, so the game goes on.
+		const stored = this.seatStore.load();
+		if (stored?.gameId === gameId) {
+			this.connectAsPlayer(gameId, stored.seatToken, stored.seat);
+		} else {
+			// Someone else's game (or a seat of ours that is long gone): spectate.
+			this.connectAsSpectator(gameId);
+		}
+		this.clearPollTimer(); // WebSocket drives updates during active game
+	}
+
+	private applyFinishingView(view: ShowcaseServerView): void {
+		const gameId = view.currentGame?.gameId;
+		this.seatStore.clear(); // whichever game it is, it is over: a stored seat has no future
+		if (gameId && this.currentGameId !== gameId) {
+			// Discovered a game that is already finishing
+			this.seatToken = null;
+			this.currentGameId = gameId;
+			this.phase = 'finishing';
+			this.startFinishingCountdown();
+			this.live.connect(gameId, null, null);
+		} else if (this.phase !== 'finishing' && this.phase !== 'reset') {
+			this.phase = 'finishing';
+			this.startFinishingCountdown();
+		}
+		this.schedulePoll(RESET_POLL_MS);
 	}
 
 	private scheduleNextPoll(): void {
@@ -633,6 +676,7 @@ export class ShowcaseStore {
 
 		this.isClaimPending = true;
 		this.phase = 'claiming';
+		this.pollEpoch += 1; // a discovery poll still in flight must not outvote the claim
 		this.clearPollTimer();
 
 		try {
@@ -640,21 +684,14 @@ export class ShowcaseStore {
 			this.isClaimPending = false;
 
 			if (outcome.outcome === 'claimed') {
-				// Winner: store token strictly in memory and connect to game
-				this.seatToken = outcome.seatToken;
-				this.currentGameId = outcome.gameId;
-				this.phase = 'live-player';
-				this.isReconnecting = false;
-				const seatColor = outcome.seat.toLowerCase() as 'white' | 'black';
-				this.live.connect(outcome.gameId, outcome.seatToken, seatColor);
+				// Winner: take the seat (token in memory and in this tab's storage) and connect
+				this.connectAsPlayer(outcome.gameId, outcome.seatToken, outcome.seat);
 			} else {
 				// Race lost: transition directly to spectator
 				this.seatToken = null;
+				this.seatStore.clear();
 				if (outcome.gameId) {
-					this.currentGameId = outcome.gameId;
-					this.phase = 'live-spectator';
-					this.isReconnecting = false;
-					this.live.connect(outcome.gameId, null, null);
+					this.connectAsSpectator(outcome.gameId);
 				} else {
 					this.phase = 'open';
 					void this.pollDiscovery();
@@ -680,6 +717,28 @@ export class ShowcaseStore {
 		}
 	}
 
+	/** Take (or retake) a seat: credential in memory and in this tab's storage, then connect. */
+	private connectAsPlayer(gameId: string, seatToken: string, seat: Seat): void {
+		this.pollEpoch += 1;
+		this.seatToken = seatToken;
+		this.currentGameId = gameId;
+		this.phase = 'live-player';
+		this.isReconnecting = false;
+		this.seatStore.save({ gameId, seatToken, seat });
+		this.live.connect(gameId, seatToken, seat === 'Black' ? 'black' : 'white');
+	}
+
+	/** Watch a game we hold no seat in — and forget any stored seat, it is not for this game. */
+	private connectAsSpectator(gameId: string): void {
+		this.pollEpoch += 1;
+		this.seatToken = null;
+		this.seatStore.clear();
+		this.currentGameId = gameId;
+		this.phase = 'live-spectator';
+		this.isReconnecting = false;
+		this.live.connect(gameId, null, null);
+	}
+
 	private async executeRetry(): Promise<void> {
 		if (this.isReconnecting) {
 			if (this.reconnectAttempt < this.maxReconnectAttempts) {
@@ -701,6 +760,7 @@ export class ShowcaseStore {
 
 	private handleGameEnded(over?: Over): void {
 		if (over) this.lastOver = over;
+		this.seatStore.clear(); // the game is over; a reload must not try to rejoin it
 		if (this.phase === 'finishing' || this.phase === 'reset') return;
 		this.phase = 'finishing';
 		this.startFinishingCountdown();

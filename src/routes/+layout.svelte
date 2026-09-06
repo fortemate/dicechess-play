@@ -17,10 +17,13 @@
 
 	// This layout also renders at build time when the static content pages (/rules,
 	// #254) are prerendered, so browser-only boot work is gated on `browser`.
+	// registerType: 'autoUpdate' (vite.config.ts): once a new service worker activates, the plugin
+	// reloads the page — at that very instant, which after every deploy lands on whoever is mid-game
+	// and drops their seat. A game screen raises chromeStore.holdReload instead, and the effect
+	// below performs the reload once the screen is idle again.
+	let reloadPending = $state(false);
 	if (browser) {
-		// registerType: 'autoUpdate' (vite.config.ts) — registering is enough, the
-		// service worker reloads the page itself once a new version activates.
-		useRegisterSW();
+		useRegisterSW({ onNeedReload: () => (reloadPending = true) });
 
 		// Tell app.html's boot watchdog (#223) that the module graph made it: from here on a
 		// failed import is a runtime matter for staleBundleRecovery, never a wedged boot.
@@ -31,6 +34,10 @@
 		// failed import with one full reload instead of a dead UI.
 		attachStaleBundleRecovery();
 	}
+
+	$effect(() => {
+		if (reloadPending && !chromeStore.holdReload) window.location.reload();
+	});
 
 	// Ask play-api who we are, once per page load. There is no local shortcut: the session is an
 	// HttpOnly cookie on play-api's host, so the SPA cannot inspect it and a stale local flag would
