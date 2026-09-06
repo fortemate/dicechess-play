@@ -813,4 +813,104 @@ describe('ShowcaseStore', () => {
 			expect(seatStore.load()).toBeNull();
 		});
 	});
+
+	describe('seated player identity (authenticated vs guest)', () => {
+		const claimedOutcome: ShowcaseClaimOutcome = {
+			outcome: 'claimed',
+			gameId: 'game-auth-1',
+			seat: 'White',
+			seatToken: 'token-auth-1',
+			wsUrl: '/games/game-auth-1/ws?token=token-auth-1',
+		};
+
+		it('shows registered nickname and rating for authenticated player in live-player', async () => {
+			await openTable(store);
+			mockClaimShowcase.mockResolvedValue(claimedOutcome);
+			await store.handleIntent({ type: 'claim' });
+			liveGameStore.onConnectionStatus?.('open');
+
+			liveGameStore.players = {
+				white: { kind: 'Human', name: 'RollingDice', rating: 1862 },
+				black: { kind: 'Bot', name: 'rpi3 hunter', rating: 2196 },
+			};
+
+			expect(store.state.kind).toBe('live-player');
+			expect(store.state.bottomPlayer.name).toBe('RollingDice');
+			expect(store.state.bottomPlayer.rating).toBe(1862);
+			expect(store.state.topPlayer.name).toBe('rpi3 hunter');
+			expect(store.state.topPlayer.rating).toBe(2196);
+		});
+
+		it('falls back to "You (White)" or "You (Black)" for an anonymous guest in live-player', async () => {
+			await openTable(store);
+			mockClaimShowcase.mockResolvedValue(claimedOutcome);
+			await store.handleIntent({ type: 'claim' });
+			liveGameStore.onConnectionStatus?.('open');
+
+			liveGameStore.players = {
+				white: { kind: 'Human', name: null },
+				black: { kind: 'Bot', name: 'rpi3 hunter' },
+			};
+
+			expect(store.state.kind).toBe('live-player');
+			expect(store.state.bottomPlayer.name).toBe('You (White)');
+			expect(store.state.bottomPlayer.rating).toBeUndefined();
+		});
+
+		it('preserves registered nickname during reconnecting state', async () => {
+			await openTable(store);
+			mockClaimShowcase.mockResolvedValue(claimedOutcome);
+			await store.handleIntent({ type: 'claim' });
+			liveGameStore.onConnectionStatus?.('open');
+
+			liveGameStore.players = {
+				white: { kind: 'Human', name: 'RollingDice', rating: 1862 },
+				black: { kind: 'Bot', name: 'rpi3 hunter' },
+			};
+
+			// Connection drops
+			liveGameStore.onConnectionStatus?.('closed');
+
+			expect(store.state.kind).toBe('reconnecting');
+			expect(store.state.bottomPlayer.name).toBe('RollingDice');
+			expect(store.state.bottomPlayer.rating).toBe(1862);
+		});
+
+		it('shows registered nickname and profile href in finishing state', async () => {
+			await openTable(store);
+			mockClaimShowcase.mockResolvedValue(claimedOutcome);
+			await store.handleIntent({ type: 'claim' });
+			liveGameStore.onConnectionStatus?.('open');
+
+			liveGameStore.players = {
+				white: { kind: 'Human', name: 'RollingDice', rating: 1862 },
+				black: { kind: 'Bot', name: 'rpi3 hunter' },
+			};
+
+			liveGameStore.onEnd?.({ termination: 'Resign', result: { Win: { side: 'White' } } });
+
+			expect(store.state.kind).toBe('finishing');
+			expect(store.state.bottomPlayer.name).toBe('RollingDice');
+			expect(store.state.bottomPlayer.href).toBe('/players/RollingDice');
+			expect(store.state.topPlayer.href).toBeUndefined(); // bot has no profile
+		});
+
+		it('keeps guest fallback in finishing state without profile href', async () => {
+			await openTable(store);
+			mockClaimShowcase.mockResolvedValue(claimedOutcome);
+			await store.handleIntent({ type: 'claim' });
+			liveGameStore.onConnectionStatus?.('open');
+
+			liveGameStore.players = {
+				white: { kind: 'Human', name: null },
+				black: { kind: 'Bot', name: 'rpi3 hunter' },
+			};
+
+			liveGameStore.onEnd?.({ termination: 'Resign', result: { Win: { side: 'White' } } });
+
+			expect(store.state.kind).toBe('finishing');
+			expect(store.state.bottomPlayer.name).toBe('You (White)');
+			expect(store.state.bottomPlayer.href).toBeUndefined();
+		});
+	});
 });

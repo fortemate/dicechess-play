@@ -54,3 +54,26 @@ export function seekOffer(seek: Seek): { name: string; bot: boolean } {
 	const bot = seek.kind === 'Bot';
 	return { name: seek.name ?? 'Anonymous player', bot };
 }
+
+/**
+ * Board-strip name for the seated human player on the showcase table.
+ * A registered player shows their nickname; an anonymous guest shows "You (White)" or "You (Black)".
+ */
+export function showcaseBottomPlayerName(players: Players | null | undefined, seat: Seat): string {
+	const name = publicPlayer(players, seat)?.name;
+	if (name) return name;
+	return `You (${seat})`;
+}
+
+/**
+ * Public profile link for a registered human participant, or undefined for bots and anonymous guests (#213).
+ */
+export function seatProfileHref(
+	players: Players | null | undefined,
+	seat: Seat,
+): string | undefined {
+	const face = publicPlayer(players, seat);
+	return face?.kind === 'Human' && face.name
+		? `/players/${encodeURIComponent(face.name)}`
+		: undefined;
+}
