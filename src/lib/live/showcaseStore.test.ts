@@ -1,6 +1,7 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import { ShowcaseStore } from './showcaseStore.svelte';
 import { LiveGameStore } from './liveGameStore.svelte';
+import { memorySeatStore, type SeatStore } from './showcaseSeat';
 import type {
 	GetShowcaseResult,
 	ShowcaseClaimOutcome,
@@ -53,6 +54,7 @@ describe('ShowcaseStore', () => {
 		typeof vi.fn<(ifNoneMatch?: string) => Promise<GetShowcaseResult>>
 	>;
 	let mockClaimShowcase: ReturnType<typeof vi.fn<() => Promise<ShowcaseClaimOutcome>>>;
+	let seatStore: SeatStore;
 
 	beforeEach(() => {
 		ShowcaseTestSocket.latest = null;
@@ -62,11 +64,13 @@ describe('ShowcaseStore', () => {
 		liveGameStore = new LiveGameStore();
 		mockGetShowcase = vi.fn<(ifNoneMatch?: string) => Promise<GetShowcaseResult>>();
 		mockClaimShowcase = vi.fn<() => Promise<ShowcaseClaimOutcome>>();
+		seatStore = memorySeatStore();
 
 		store = new ShowcaseStore({
 			live: liveGameStore,
 			getShowcaseFn: mockGetShowcase,
 			claimShowcaseFn: mockClaimShowcase,
+			seatStore,
 		});
 	});
 
@@ -561,6 +565,180 @@ describe('ShowcaseStore', () => {
 			if (store.state.kind === 'reconnecting') {
 				expect(store.state.attempt).toBe(2);
 			}
+		});
+	});
+	describe('Seat resilience: a discovery poll racing the claim, and a reload (2026-09-05 report)', () => {
+		const bot = { team: 'rpi3', name: 'hunter', displayName: 'rpi3 hunter' };
+		const timeControl = { initialSeconds: 300, incrementSeconds: 3, display: '5+3' };
+		const openView: ShowcaseView = {
+			status: 'open',
+			featuredBot: bot,
+			timeControl,
+			nextHumanColor: 'White',
+			currentGame: null,
+			spectator: null,
+			reason: null,
+		};
+		const liveView = (gameId: string): ShowcaseView => ({
+			status: 'live',
+			featuredBot: bot,
+			timeControl,
+			nextHumanColor: 'Black',
+			currentGame: {
+				gameId,
+				players: null,
+				humanSeat: 'White',
+				activeSeat: 'White',
+				dicePending: false,
+				clocks: null,
+				version: 1,
+				dfen: 'rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1',
+				status: { Active: {} },
+			},
+			spectator: { wsUrl: `/games/${gameId}/ws` },
+			reason: null,
+		});
+		const claimed = (gameId: string): ShowcaseClaimOutcome => ({
+			outcome: 'claimed',
+			gameId,
+			seat: 'White',
+			seatToken: `token-${gameId}`,
+			wsUrl: `/games/${gameId}/ws?token=token-${gameId}`,
+		});
+		function deferred<T>() {
+			let resolve!: (value: T) => void;
+			const promise = new Promise<T>((r) => {
+				resolve = r;
+			});
+			return { promise, resolve };
+		}
+
+		it('discards a discovery poll that was in flight when the seat was claimed', async () => {
+			await openTable(store);
+
+			// A poll leaves just before the click and is still in flight…
+			const inFlight = deferred<GetShowcaseResult>();
+			mockGetShowcase.mockReturnValueOnce(inFlight.promise);
+			const polling = store.pollDiscovery();
+
+			// …the visitor claims and is seated.
+			mockClaimShowcase.mockResolvedValue(claimed('game-race-1'));
+			await store.handleIntent({ type: 'claim' });
+			liveGameStore.onConnectionStatus?.('open');
+			expect(store.currentPhase).toBe('live-player');
+			const seatSocket = ShowcaseTestSocket.latest!;
+			const closeSpy = vi.spyOn(seatSocket, 'close');
+
+			// The old poll now answers with the table as it was before the claim. Applying it used to
+			// null the token, close the seat's socket and show the open table again.
+			inFlight.resolve({ notModified: false, view: openView });
+			await polling;
+
+			expect(store.currentPhase).toBe('live-player');
+			expect(store.hasSeatToken).toBe(true);
+			expect(closeSpy).not.toHaveBeenCalled();
+			expect(seatStore.load()?.gameId).toBe('game-race-1');
+		});
+
+		it('discards a discovery poll that resolves while the claim is still pending', async () => {
+			await openTable(store);
+
+			const inFlight = deferred<GetShowcaseResult>();
+			mockGetShowcase.mockReturnValueOnce(inFlight.promise);
+			const polling = store.pollDiscovery();
+
+			const claim = deferred<ShowcaseClaimOutcome>();
+			mockClaimShowcase.mockReturnValue(claim.promise);
+			const claiming = store.handleIntent({ type: 'claim' });
+			expect(store.currentPhase).toBe('claiming');
+
+			// The server already lists the game we are about to be handed. Connecting as a spectator
+			// here would be a detour at best.
+			inFlight.resolve({ notModified: false, view: liveView('game-race-2') });
+			await polling;
+			expect(store.currentPhase).toBe('claiming');
+			expect(ShowcaseTestSocket.latest).toBeNull();
+
+			claim.resolve(claimed('game-race-2'));
+			await claiming;
+			expect(store.currentPhase).toBe('live-player');
+			expect(ShowcaseTestSocket.latest?.url).toContain('token=token-game-race-2');
+		});
+
+		it('stores the seat for this tab on claim and rejoins it after a reload', async () => {
+			await openTable(store);
+			mockClaimShowcase.mockResolvedValue(claimed('game-reload-1'));
+			await store.handleIntent({ type: 'claim' });
+			expect(seatStore.load()).toEqual({
+				gameId: 'game-reload-1',
+				seatToken: 'token-game-reload-1',
+				seat: 'White',
+			});
+
+			// A reload: a fresh store over the same tab storage discovers the game still live.
+			store.destroy();
+			const reloadedLive = new LiveGameStore();
+			const reloaded = new ShowcaseStore({
+				live: reloadedLive,
+				getShowcaseFn: mockGetShowcase,
+				claimShowcaseFn: mockClaimShowcase,
+				seatStore,
+			});
+			mockGetShowcase.mockResolvedValue({ notModified: false, view: liveView('game-reload-1') });
+			await reloaded.pollDiscovery();
+			reloadedLive.onConnectionStatus?.('open');
+
+			expect(reloaded.currentPhase).toBe('live-player');
+			expect(reloaded.hasSeatToken).toBe(true);
+			expect(ShowcaseTestSocket.latest?.url).toContain('token=token-game-reload-1');
+			expect(reloaded.state.kind === 'live-player' && reloaded.state.playerColor).toBe('w');
+			reloaded.destroy();
+		});
+
+		it('keeps the stored seat when the page is left, so a quick return can rejoin', async () => {
+			await openTable(store);
+			mockClaimShowcase.mockResolvedValue(claimed('game-away-1'));
+			await store.handleIntent({ type: 'claim' });
+
+			store.stop(); // navigating away from the home page
+			expect(store.hasSeatToken).toBe(false);
+			expect(seatStore.load()?.gameId).toBe('game-away-1');
+		});
+
+		it('drops a stored seat that belongs to another game and spectates', async () => {
+			const own = memorySeatStore({ gameId: 'game-old', seatToken: 'token-old', seat: 'Black' });
+			const stale = new ShowcaseStore({
+				live: new LiveGameStore(),
+				getShowcaseFn: mockGetShowcase,
+				claimShowcaseFn: mockClaimShowcase,
+				seatStore: own,
+			});
+			mockGetShowcase.mockResolvedValue({ notModified: false, view: liveView('game-new') });
+			await stale.pollDiscovery();
+
+			expect(stale.currentPhase).toBe('live-spectator');
+			expect(stale.hasSeatToken).toBe(false);
+			expect(ShowcaseTestSocket.latest?.url).not.toContain('token=');
+			expect(own.load()).toBeNull();
+			stale.destroy();
+		});
+
+		it('forgets the stored seat when the game ends and when the table reopens', async () => {
+			await openTable(store);
+			mockClaimShowcase.mockResolvedValue(claimed('game-end-1'));
+			await store.handleIntent({ type: 'claim' });
+			expect(seatStore.load()).not.toBeNull();
+
+			liveGameStore.onEnd?.({ termination: 'Resign', result: { Win: { side: 'Black' } } });
+			expect(store.currentPhase).toBe('finishing');
+			expect(seatStore.load()).toBeNull();
+
+			// A stored seat left over from before (say, the reload never came) goes with the table.
+			seatStore.save({ gameId: 'game-end-1', seatToken: 'token-game-end-1', seat: 'White' });
+			mockGetShowcase.mockResolvedValue({ notModified: false, view: openView });
+			await store.pollDiscovery();
+			expect(store.currentPhase).toBe('open');
+			expect(seatStore.load()).toBeNull();
 		});
 	});
 });

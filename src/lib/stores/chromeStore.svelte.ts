@@ -5,6 +5,9 @@
  */
 class ChromeStore {
 	zen = $state(false);
+	/** A game is in progress on screen. The layout defers the service worker's update reload while
+	 * this is set: a reload mid-game drops the seat (see +layout.svelte and +page.svelte). */
+	holdReload = $state(false);
 }
 
 export const chromeStore = new ChromeStore();
