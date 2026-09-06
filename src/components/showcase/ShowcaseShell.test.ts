@@ -42,7 +42,7 @@ describe('ShowcaseShell', () => {
 		// Featured bot & player
 		expect(getAllByText('DeepDiceBot').length).toBeGreaterThan(0);
 		expect(getAllByText('Open seat').length).toBeGreaterThan(0);
-		expect(getAllByText('You (Guest)').length).toBeGreaterThan(0);
+		expect(getAllByText('You').length).toBeGreaterThan(0);
 
 		// Clocks (formatted as 5:00)
 		expect(getAllByText('5:00').length).toBeGreaterThan(0);

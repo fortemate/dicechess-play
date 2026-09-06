@@ -1,5 +1,5 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
-import { ShowcaseStore } from './showcaseStore.svelte';
+import { ShowcaseStore, type ShowcaseAuthView } from './showcaseStore.svelte';
 import { LiveGameStore } from './liveGameStore.svelte';
 import { memorySeatStore, type SeatStore } from './showcaseSeat';
 import type {
@@ -117,7 +117,7 @@ describe('ShowcaseStore', () => {
 				expect(state.timeControl).toBe('5+3');
 				expect(state.topPlayer.name).toBe('rpi3 hunter');
 				expect(state.topPlayer.sub).toBe('Open seat');
-				expect(state.bottomPlayer.name).toBe('You (Guest)');
+				expect(state.bottomPlayer.name).toBe('You');
 			}
 		});
 
@@ -994,6 +994,109 @@ describe('ShowcaseStore', () => {
 			expect(store.state.kind).toBe('finishing');
 			expect(store.state.bottomPlayer.name).toBe('You (White)');
 			expect(store.state.bottomPlayer.href).toBeUndefined();
+		});
+
+		it('shows authenticated nickname and rating in open state', async () => {
+			const authMock: ShowcaseAuthView = {
+				isAuthenticated: true,
+				nickname: 'RollingDice',
+				account: { rating: 1862 },
+			};
+			const authStoreInstance = new ShowcaseStore({
+				live: liveGameStore,
+				getShowcaseFn: mockGetShowcase,
+				claimShowcaseFn: mockClaimShowcase,
+				seatStore,
+				auth: authMock,
+			});
+
+			await openTable(authStoreInstance);
+
+			expect(authStoreInstance.state.kind).toBe('open');
+			expect(authStoreInstance.state.bottomPlayer.name).toBe('RollingDice');
+			expect(authStoreInstance.state.bottomPlayer.rating).toBe(1862);
+			expect(authStoreInstance.state.bottomPlayer.sub).toBe('Assigned color · Claimable');
+
+			authStoreInstance.destroy();
+		});
+
+		it('shows "You" with undefined rating for anonymous guest in open state', async () => {
+			const authMock: ShowcaseAuthView = {
+				isAuthenticated: false,
+				nickname: null,
+				account: null,
+			};
+			const guestStore = new ShowcaseStore({
+				live: liveGameStore,
+				getShowcaseFn: mockGetShowcase,
+				claimShowcaseFn: mockClaimShowcase,
+				seatStore,
+				auth: authMock,
+			});
+
+			await openTable(guestStore);
+
+			expect(guestStore.state.kind).toBe('open');
+			expect(guestStore.state.bottomPlayer.name).toBe('You');
+			expect(guestStore.state.bottomPlayer.rating).toBeUndefined();
+			expect(guestStore.state.bottomPlayer.sub).toBe('Assigned color · Claimable');
+
+			guestStore.destroy();
+		});
+
+		it('shows authenticated nickname and rating in claiming state', async () => {
+			const authMock: ShowcaseAuthView = {
+				isAuthenticated: true,
+				nickname: 'RollingDice',
+				account: { rating: 1862 },
+			};
+			let resolveClaim!: (outcome: ShowcaseClaimOutcome) => void;
+			mockClaimShowcase.mockImplementation(
+				() =>
+					new Promise((res) => {
+						resolveClaim = res;
+					}),
+			);
+			const authStoreInstance = new ShowcaseStore({
+				live: liveGameStore,
+				getShowcaseFn: mockGetShowcase,
+				claimShowcaseFn: mockClaimShowcase,
+				seatStore,
+				auth: authMock,
+			});
+
+			await openTable(authStoreInstance);
+			void authStoreInstance.handleIntent({ type: 'claim' });
+
+			expect(authStoreInstance.state.kind).toBe('claiming');
+			expect(authStoreInstance.state.bottomPlayer.name).toBe('RollingDice');
+			expect(authStoreInstance.state.bottomPlayer.rating).toBe(1862);
+			expect(authStoreInstance.state.bottomPlayer.sub).toBe('Reserving seat…');
+
+			resolveClaim(claimedOutcome);
+			authStoreInstance.destroy();
+		});
+
+		it('shows authenticated nickname and rating in unavailable state', () => {
+			const authMock: ShowcaseAuthView = {
+				isAuthenticated: true,
+				nickname: 'RollingDice',
+				account: { rating: 1862 },
+			};
+			const authStoreInstance = new ShowcaseStore({
+				live: liveGameStore,
+				getShowcaseFn: mockGetShowcase,
+				claimShowcaseFn: mockClaimShowcase,
+				seatStore,
+				auth: authMock,
+			});
+
+			expect(authStoreInstance.state.kind).toBe('unavailable');
+			expect(authStoreInstance.state.bottomPlayer.name).toBe('RollingDice');
+			expect(authStoreInstance.state.bottomPlayer.rating).toBe(1862);
+			expect(authStoreInstance.state.bottomPlayer.sub).toBe('Unavailable');
+
+			authStoreInstance.destroy();
 		});
 	});
 });
