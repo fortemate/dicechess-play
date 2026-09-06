@@ -29,7 +29,13 @@ import type {
 	ShowcaseStateKind,
 } from '../../components/showcase/types';
 import type { Over, Seat } from './liveTypes';
-import { publicPlayer, seatDisplayName, seatRating } from './playerLabel';
+import {
+	publicPlayer,
+	seatDisplayName,
+	seatProfileHref,
+	seatRating,
+	showcaseBottomPlayerName,
+} from './playerLabel';
 import { toastStore } from '../toastStore.svelte';
 import { createSeatStore, type SeatStore } from './showcaseSeat';
 
@@ -237,7 +243,7 @@ export class ShowcaseStore {
 				clockMs: topClock,
 			},
 			bottomPlayer: {
-				name: `You (${this.live.playerColor === 'w' ? 'White' : 'Black'})`,
+				name: showcaseBottomPlayerName(this.live.players, bottomSeat),
 				sub: isMyTurn ? 'Your turn to move' : 'Opponent thinking',
 				rating: seatRating(this.live.players, bottomSeat),
 				active: isMyTurn,
@@ -303,8 +309,7 @@ export class ShowcaseStore {
 
 		let bottomName: string;
 		if (isPlayer) {
-			const colorLabel = this.live.playerColor === 'w' ? 'White' : 'Black';
-			bottomName = `You (${colorLabel})`;
+			bottomName = showcaseBottomPlayerName(this.live.players, bottomSeat);
 		} else {
 			bottomName = seatDisplayName(this.live.players, bottomSeat, bottomSeat, true);
 		}
@@ -398,7 +403,7 @@ export class ShowcaseStore {
 		const winnerName = this.resolveFinishingWinnerName(winner, bottomSeat, !isPlayer);
 
 		const bottomName = isPlayer
-			? `You (${bottomSeat})`
+			? showcaseBottomPlayerName(this.live.players, bottomSeat)
 			: seatDisplayName(this.live.players, bottomSeat, bottomSeat, true);
 
 		return {
@@ -413,12 +418,14 @@ export class ShowcaseStore {
 				sub: this.resolveSeatOutcomeSub(topSeat),
 				bot: publicPlayer(this.live.players, topSeat)?.kind === 'Bot',
 				rating: seatRating(this.live.players, topSeat),
+				href: seatProfileHref(this.live.players, topSeat),
 				clockMs: topClock,
 			},
 			bottomPlayer: {
 				name: bottomName,
 				sub: this.resolveSeatOutcomeSub(bottomSeat),
 				rating: seatRating(this.live.players, bottomSeat),
+				href: seatProfileHref(this.live.players, bottomSeat),
 				clockMs: bottomClock,
 			},
 			boardFen: this.live.currentBoardFen,

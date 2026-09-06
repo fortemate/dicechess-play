@@ -3,8 +3,10 @@ import {
 	publicPlayer,
 	seatDisplayName,
 	seatDisplaySub,
+	seatProfileHref,
 	seatRating,
 	seekOffer,
+	showcaseBottomPlayerName,
 } from './playerLabel';
 import type { Players, Seek } from './liveTypes';
 
@@ -113,5 +115,50 @@ describe('a registered player is not a guest (#194 step 4)', () => {
 
 	it('keeps a bot a bot regardless', () => {
 		expect(seatDisplaySub(named('QuietRook'), 'Black', false)).toBe('bot · black');
+	});
+});
+
+describe('showcaseBottomPlayerName', () => {
+	it('shows a registered player by nickname', () => {
+		const players: Players = {
+			white: { kind: 'Bot', name: 'rpi3 hunter' },
+			black: { kind: 'Human', name: 'RollingDice', rating: 1862 },
+		};
+		expect(showcaseBottomPlayerName(players, 'Black')).toBe('RollingDice');
+	});
+
+	it('falls back to "You (White)" or "You (Black)" for an anonymous guest', () => {
+		const guestBlack: Players = {
+			white: { kind: 'Bot', name: 'rpi3 hunter' },
+			black: { kind: 'Human', name: null },
+		};
+		const guestWhite: Players = {
+			white: { kind: 'Human', name: null },
+			black: { kind: 'Bot', name: 'rpi3 hunter' },
+		};
+		expect(showcaseBottomPlayerName(guestBlack, 'Black')).toBe('You (Black)');
+		expect(showcaseBottomPlayerName(guestWhite, 'White')).toBe('You (White)');
+		expect(showcaseBottomPlayerName(null, 'White')).toBe('You (White)');
+	});
+});
+
+describe('seatProfileHref', () => {
+	it('resolves a public profile link for a registered human', () => {
+		const players: Players = {
+			white: { kind: 'Human', name: 'RollingDice' },
+			black: { kind: 'Human', name: 'Alice & Bob' },
+		};
+		expect(seatProfileHref(players, 'White')).toBe('/players/RollingDice');
+		expect(seatProfileHref(players, 'Black')).toBe('/players/Alice%20%26%20Bob');
+	});
+
+	it('returns undefined for bots, anonymous guests, and missing data', () => {
+		const players: Players = {
+			white: { kind: 'Bot', name: 'rpi3 hunter' },
+			black: { kind: 'Human', name: null },
+		};
+		expect(seatProfileHref(players, 'White')).toBeUndefined();
+		expect(seatProfileHref(players, 'Black')).toBeUndefined();
+		expect(seatProfileHref(null, 'White')).toBeUndefined();
 	});
 });
