@@ -132,7 +132,7 @@
 		>
 			<span>{m.home_action_reset_now()}</span>
 			<span class="rounded bg-primary-content/20 px-1.5 py-0.5 text-xs font-mono font-bold">
-				{showcase.countdownSeconds}s
+				{showcase.countdownSeconds}
 			</span>
 		</button>
 	{:else if showcase.kind === 'reset'}
