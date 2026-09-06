@@ -9,6 +9,8 @@
 	import FirstLoginOnboarding from '../components/FirstLoginOnboarding.svelte';
 	import ThemeMenu from '../components/ThemeMenu.svelte';
 	import ToastContainer from '../components/ToastContainer.svelte';
+	import ShowcaseMark from '../components/showcase/ShowcaseMark.svelte';
+	import { m } from '$lib/paraglide/messages.js';
 	import { browser } from '$app/environment';
 	import { resolve } from '$app/paths';
 	import { page } from '$app/state';
@@ -130,17 +132,16 @@
 				<div class="flex items-center gap-3 sm:gap-5 min-w-0">
 					<a
 						href={resolve('/')}
-						class="flex items-center gap-2 hover:opacity-80 transition-opacity"
+						class="flex items-center gap-2 text-content hover:opacity-80 transition-opacity"
+						aria-label={m.home_brand_name()}
 					>
 						<span
-							class="w-7 h-7 rounded-lg bg-primary flex items-center justify-center shadow-md shadow-primary/20"
+							class="flex h-7 w-7 items-center justify-center rounded-lg bg-surface border border-border text-content"
 						>
-							<span class="text-sm">🎲</span>
+							<ShowcaseMark class="h-4 w-4 text-content" />
 						</span>
-						<span
-							class="text-xs font-bold tracking-widest text-content uppercase whitespace-nowrap"
-						>
-							Dice Chess <span class="text-primary">Play</span>
+						<span class="text-sm font-bold tracking-tight text-content whitespace-nowrap">
+							{m.home_brand_name()}
 						</span>
 					</a>
 

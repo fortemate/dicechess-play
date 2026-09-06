@@ -44,4 +44,28 @@ describe('+layout.svelte', () => {
 		expect(sourceLink).not.toBeNull();
 		expect(sourceLink?.textContent?.trim()).toBe('Source code');
 	});
+
+	it('renders header with the Fortemate logo mark and brand link pointing to home', () => {
+		const snippet = createRawSnippet(() => ({
+			render: () => '<div>Content</div>',
+		}));
+
+		const { container } = render(Layout, {
+			props: {
+				children: snippet,
+			},
+		});
+
+		const header = container.querySelector('header');
+		expect(header).not.toBeNull();
+
+		const brandLink = header?.querySelector<HTMLAnchorElement>('a[href="/"]');
+		expect(brandLink).not.toBeNull();
+		expect(brandLink?.getAttribute('aria-label')).toBe('Fortemate');
+		expect(brandLink?.textContent).toContain('Fortemate');
+
+		const svgMark = brandLink?.querySelector('svg');
+		expect(svgMark).not.toBeNull();
+		expect(svgMark?.getAttribute('aria-label')).toBe('Fortemate');
+	});
 });
