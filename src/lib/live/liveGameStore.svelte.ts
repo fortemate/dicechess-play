@@ -22,6 +22,7 @@ import type {
 	ServerEvent,
 	SnapshotTurn,
 	Doubling,
+	MayOfferDrawBy,
 } from './liveTypes';
 import * as DiceChessEngine from '@fortemate/dicechess-engine';
 import { buildTurnBlocks } from '../playWithBot/turnBlocks';
@@ -31,6 +32,7 @@ import { playDiceSound, playDrawOfferSound } from '../sound';
 import { ROLL_ANIMATION_MS, MOVE_STEP_MS, PASS_DWELL_MS, GAME_END_SUSPENSE_MS } from '../timings';
 import { lastMoveKeys } from '../lastMove';
 import { toastStore } from '../toastStore.svelte';
+import { preferencesStore } from '../preferencesStore.svelte';
 import { settlementLine } from './stakeSettlement';
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -94,7 +96,15 @@ export class LiveGameStore {
 	drawOffer = $state<DrawOffer | null>(null);
 	drawOfferedBy = $state<Seat | null>(null);
 	mayOfferDraw = $state<boolean | null>(null);
+	// Per-seat right to offer, which is what MY control reads; `mayOfferDraw` only answers for the
+	// side to move and so says nothing while the opponent is on move.
+	mayOfferDrawBy = $state<MayOfferDrawBy | null>(null);
+	// Mirrors the server's standing flag. Set optimistically when the toggle is used and overwritten
+	// by the seat-private DrawOfferArmed frame, which is the only authority on it.
 	isDrawOfferArmed = $state<boolean>(false);
+	// The last refusal the server gave for arming, so the control can say why rather than just sit
+	// disabled. `availableAfterTurns` is present only where a deployment lets the right return.
+	drawArmRefusal = $state<{ reason: string; availableAfterTurns: number | null } | null>(null);
 
 	// ── Move History ─────────────────────────────────────────────────────────
 	historyMap = $state<Record<string, BotMoveHistoryState>>({});
@@ -191,16 +201,40 @@ export class LiveGameStore {
 		return this.drawOffer?.pending === true;
 	}
 
-	/** True when the active player can arm a draw offer to accompany their turn. */
+	/**
+	 * True when this seat may arm a standing draw offer right now — in ANY phase, including the
+	 * opponent's turn, which is the only way to carry an offer into a forced pass. Arming reaches
+	 * nobody until this seat's own turn completes, so it cannot interrupt the opponent.
+	 */
 	get canArmDrawOffer(): boolean {
 		return (
 			!this.spectator &&
-			this.gameStatus === 'playing' &&
-			this.liveActiveColor === this.playerColor &&
-			this.liveDice.length > 0 &&
-			this.mayOfferDraw !== false &&
-			!this.isDrawOfferPending
+			this.mySeat !== null &&
+			this.gameStatus !== 'over' &&
+			this.gameStatus !== 'connecting' &&
+			!this.isDrawOfferPending &&
+			this.mayOfferDrawBySeat !== false
 		);
+	}
+
+	/** This seat's entry in `mayOfferDrawBy`; `null` when the server has not said. */
+	get mayOfferDrawBySeat(): boolean | null {
+		if (this.mySeat === null || this.mayOfferDrawBy === null) return null;
+		return this.mySeat === 'White' ? this.mayOfferDrawBy.white : this.mayOfferDrawBy.black;
+	}
+
+	/** True while THIS seat's delivered offer is waiting on the opponent's answer. */
+	get isMyDrawOfferPending(): boolean {
+		return this.isDrawOfferPending && this.mySeat !== null && this.drawOfferedBy === this.mySeat;
+	}
+
+	/** What the ½ control should show. `hidden` while I am the one being asked: the gate owns that. */
+	get drawOfferControlState(): 'hidden' | 'pending' | 'forbidden' | 'armed' | 'idle' {
+		if (this.spectator || this.mySeat === null || this.gameStatus === 'over') return 'hidden';
+		if (this.isPreRollResponder) return 'hidden';
+		if (this.isMyDrawOfferPending) return 'pending';
+		if (this.mayOfferDrawBySeat === false) return 'forbidden';
+		return this.isDrawOfferArmed ? 'armed' : 'idle';
 	}
 
 	/** True when the pre-roll gate is active: a draw offer is pending and dice have not yet rolled. */
@@ -280,6 +314,12 @@ export class LiveGameStore {
 		this.client = client;
 		client.onStatus((s) => {
 			this.connection = s;
+			// The standing flag is transient server state, dropped when the room's writer forgets this
+			// socket, so a reconnect re-states this seat's intent. The server answers with its own view
+			// either way, so the two cannot silently disagree.
+			if (s === 'open' && this.isDrawOfferArmed) {
+				client.send({ ArmDrawOffer: { armed: true } });
+			}
 			this.onConnectionStatus?.(s);
 		});
 		client.onEvent((ev) => this.applyEvent(ev));
@@ -314,7 +354,9 @@ export class LiveGameStore {
 		this.drawOffer = null;
 		this.drawOfferedBy = null;
 		this.mayOfferDraw = null;
+		this.mayOfferDrawBy = null;
 		this.isDrawOfferArmed = false;
+		this.drawArmRefusal = null;
 		this.gameStatus = 'connecting';
 		// The connection status must restart too: the store is reused across /live/[id] navigations, and the previous
 		// game's 'open' would otherwise show through until the new socket actually connects.
@@ -343,15 +385,20 @@ export class LiveGameStore {
 	}
 
 	toggleArmDrawOffer(): void {
-		if (this.canArmDrawOffer) {
-			this.isDrawOfferArmed = !this.isDrawOfferArmed;
-		}
+		this.setArmDrawOffer(!this.isDrawOfferArmed);
 	}
 
+	/**
+	 * Ask the server to arm or disarm this seat's standing offer. The local flag moves at once so the
+	 * control responds to the tap, and the server's own answer overwrites it a moment later — including
+	 * snapping back, with a reason, when the request is refused.
+	 */
 	setArmDrawOffer(armed: boolean): void {
-		if (!armed || this.canArmDrawOffer) {
-			this.isDrawOfferArmed = armed;
-		}
+		if (this.spectator || this.mySeat === null) return;
+		if (armed && !this.canArmDrawOffer) return;
+		this.isDrawOfferArmed = armed;
+		this.drawArmRefusal = null;
+		this.client?.send({ ArmDrawOffer: { armed } });
 	}
 
 	respondDraw(accept: boolean): void {
@@ -359,11 +406,26 @@ export class LiveGameStore {
 		this.client?.send({ RespondDraw: { accept } });
 	}
 
+	/**
+	 * Answer an incoming offer immediately when the viewer has asked never to be interrupted by one.
+	 * The offerer cannot distinguish this from a decline made by hand, which is the point: it costs a
+	 * player nothing to opt out, and reveals nothing about them.
+	 */
+	private autoDeclineIfPreferred(): void {
+		if (preferencesStore.drawOfferPolicy !== 'autoDecline') return;
+		if (!this.isPreRollResponder) return;
+		this.client?.send({ RespondDraw: { accept: false } });
+		toastStore.info('Draw offer declined automatically.');
+	}
+
 	// ── server events ──────────────────────────────────────────────────────────
 	private applyEvent(ev: ServerEvent): void {
 		if ('Snapshot' in ev) {
 			this.version = ev.Snapshot.v;
 			this.syncState(ev.Snapshot.state, ev.Snapshot.history);
+			// A reconnect can land straight into someone else's pending offer, so the preference has to
+			// be honoured here too and not only on the live event.
+			this.autoDeclineIfPreferred();
 			return;
 		}
 		if ('DiceRolled' in ev) {
@@ -404,9 +466,20 @@ export class LiveGameStore {
 			if (this.mySeat === responderSeat) {
 				this.gameStatus = 'playing';
 				playDrawOfferSound();
+				this.autoDeclineIfPreferred();
 			} else {
 				this.gameStatus = 'waiting';
 			}
+			return;
+		}
+		if ('DrawOfferArmed' in ev) {
+			// Carries no version: it is this socket's private answer, not a room event, so it is applied
+			// as-is and never compared against `version`.
+			const { armed, reason, availableAfterTurns } = ev.DrawOfferArmed;
+			this.isDrawOfferArmed = armed;
+			this.drawArmRefusal = reason
+				? { reason, availableAfterTurns: availableAfterTurns ?? null }
+				: null;
 			return;
 		}
 		if ('DrawDeclined' in ev) {
@@ -475,6 +548,7 @@ export class LiveGameStore {
 		this.doubling = state.doubling ?? null;
 		this.drawOffer = state.drawOffer ?? null;
 		this.mayOfferDraw = state.mayOfferDraw ?? null;
+		this.mayOfferDrawBy = state.mayOfferDrawBy ?? null;
 		if (this.drawOffer?.pending) {
 			this.drawOfferedBy = state.activeSeat === 'White' ? 'Black' : 'White';
 		} else {

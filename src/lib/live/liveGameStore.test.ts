@@ -6,6 +6,7 @@ import type { ClientCommand, PublicGameState, ServerEvent } from './liveTypes';
 import { getPieceFromFen } from '../../utils/fenUtils';
 import { playDiceSound, playDrawOfferSound } from '../sound';
 import { toastStore } from '../toastStore.svelte';
+import { preferencesStore } from '../preferencesStore.svelte';
 
 // The store triggers real audio through the shared sound service; stub it so tests can
 // assert WHEN a roll sounds (aligned with its presented spin) without touching Audio.
@@ -936,30 +937,152 @@ describe('LiveGameStore draw offers (play-api #327, this repo #253)', () => {
 	const deliver = (ev: ServerEvent) =>
 		MockWebSocket.last!.onmessage?.({ data: JSON.stringify(ev) });
 
-	it('allows arming a draw offer during active turn with revealed dice', () => {
-		deliver(snapshot({ dfen: `${START_FEN} N`, dicePending: true, activeSeat: 'White' }));
+	const lastSent = () => JSON.parse(MockWebSocket.last!.sent[MockWebSocket.last!.sent.length - 1]);
+
+	it('arms and disarms through the server, in any phase', () => {
+		// Black is on move: the whole point of a standing flag is that it can be set while waiting, which
+		// is the only way an offer can ride on a forced pass.
+		deliver(
+			snapshot({
+				dfen: `${START_FEN_BLACK} n`,
+				dicePending: true,
+				activeSeat: 'Black',
+				mayOfferDrawBy: { white: true, black: true },
+			}),
+		);
 		expect(live.canArmDrawOffer).toBe(true);
-		expect(live.isDrawOfferArmed).toBe(false);
+		expect(live.drawOfferControlState).toBe('idle');
 
 		live.toggleArmDrawOffer();
-		expect(live.isDrawOfferArmed).toBe(true);
+		expect(lastSent()).toEqual({ ArmDrawOffer: { armed: true } });
+		expect(live.drawOfferControlState).toBe('armed');
 
 		live.toggleArmDrawOffer();
-		expect(live.isDrawOfferArmed).toBe(false);
+		expect(lastSent()).toEqual({ ArmDrawOffer: { armed: false } });
+		expect(live.drawOfferControlState).toBe('idle');
 	});
 
-	it('disallows arming when mayOfferDraw is false', () => {
+	it('lets the private frame overrule the optimistic flag, and keeps the refusal reason', () => {
+		deliver(snapshot({ mayOfferDrawBy: { white: true, black: true } }));
+		live.setArmDrawOffer(true);
+		expect(live.isDrawOfferArmed).toBe(true);
+
+		// The server refuses: the control snaps back and can say why rather than sit mutely disabled.
+		deliver({ DrawOfferArmed: { armed: false, reason: 'opponent must offer next' } });
+		expect(live.isDrawOfferArmed).toBe(false);
+		expect(live.drawArmRefusal).toEqual({
+			reason: 'opponent must offer next',
+			availableAfterTurns: null,
+		});
+
+		// A deployment that lets the right return quotes a number of turns with it.
+		deliver({
+			DrawOfferArmed: { armed: false, reason: 'draw offer cooldown', availableAfterTurns: 7 },
+		});
+		expect(live.drawArmRefusal?.availableAfterTurns).toBe(7);
+
+		// And a plain confirmation clears it.
+		deliver({ DrawOfferArmed: { armed: true, reason: null, availableAfterTurns: null } });
+		expect(live.isDrawOfferArmed).toBe(true);
+		expect(live.drawArmRefusal).toBeNull();
+	});
+
+	it('re-states the armed intent on every socket open, because the flag is transient server state', () => {
+		deliver(snapshot({ mayOfferDrawBy: { white: true, black: true } }));
+		live.setArmDrawOffer(true);
+
+		const before = MockWebSocket.last!.sent.length;
+		MockWebSocket.last!.onopen?.(); // a reconnect re-opens the same mock socket
+		expect(MockWebSocket.last!.sent.slice(before)).toContain(
+			JSON.stringify({ ArmDrawOffer: { armed: true } }),
+		);
+	});
+
+	it('does not re-state anything when the flag is not armed', () => {
+		deliver(snapshot({ mayOfferDrawBy: { white: true, black: true } }));
+
+		const before = MockWebSocket.last!.sent.length;
+		MockWebSocket.last!.onopen?.();
+		expect(
+			MockWebSocket.last!.sent.slice(before).filter((m) => m.includes('ArmDrawOffer')),
+		).toHaveLength(0);
+	});
+
+	it('reads the right to offer from this seat, not from the side to move', () => {
 		deliver(
 			snapshot({
 				dfen: `${START_FEN} N`,
 				dicePending: true,
 				activeSeat: 'White',
-				mayOfferDraw: false,
+				mayOfferDrawBy: { white: false, black: true },
 			}),
 		);
 		expect(live.canArmDrawOffer).toBe(false);
+		expect(live.drawOfferControlState).toBe('forbidden');
+
 		live.toggleArmDrawOffer();
 		expect(live.isDrawOfferArmed).toBe(false);
+		expect(MockWebSocket.last!.sent.filter((m) => m.includes('ArmDrawOffer'))).toHaveLength(0);
+	});
+
+	it("shows the control as pending while this seat's own offer is out", () => {
+		deliver(snapshot({ activeSeat: 'White', mayOfferDrawBy: { white: true, black: true } }));
+		deliver({ DrawOffered: { v: 1, by: 'White' } });
+
+		expect(live.isMyDrawOfferPending).toBe(true);
+		expect(live.drawOfferControlState).toBe('pending');
+	});
+
+	it('answers an incoming offer at once when the viewer asked never to be interrupted', () => {
+		preferencesStore.setDrawOfferPolicy('autoDecline');
+		try {
+			deliver(snapshot({ activeSeat: 'White', dicePending: false }));
+			deliver({ DrawOffered: { v: 1, by: 'Black' } });
+
+			expect(lastSent()).toEqual({ RespondDraw: { accept: false } });
+			expect(toastStore.info).toHaveBeenCalled();
+		} finally {
+			preferencesStore.setDrawOfferPolicy('ask');
+		}
+	});
+
+	it('answers a pending offer found in a reconnect snapshot too', () => {
+		preferencesStore.setDrawOfferPolicy('autoDecline');
+		try {
+			deliver(
+				snapshot({
+					activeSeat: 'White',
+					dicePending: false,
+					drawOffer: { pending: true },
+				}),
+			);
+
+			expect(lastSent()).toEqual({ RespondDraw: { accept: false } });
+		} finally {
+			preferencesStore.setDrawOfferPolicy('ask');
+		}
+	});
+
+	it('leaves the gate open under the default preference', () => {
+		deliver(snapshot({ activeSeat: 'White', dicePending: false }));
+		deliver({ DrawOffered: { v: 1, by: 'Black' } });
+
+		expect(live.isPreRollResponder).toBe(true);
+		expect(MockWebSocket.last!.sent.filter((m) => m.includes('RespondDraw'))).toHaveLength(0);
+	});
+
+	it('hides the control while this seat is the one being asked', () => {
+		deliver(
+			snapshot({
+				activeSeat: 'White',
+				dicePending: false,
+				mayOfferDrawBy: { white: true, black: true },
+			}),
+		);
+		deliver({ DrawOffered: { v: 1, by: 'Black' } });
+
+		expect(live.isPreRollResponder).toBe(true);
+		expect(live.drawOfferControlState).toBe('hidden');
 	});
 
 	it('disallows arming when spectating', () => {
