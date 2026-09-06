@@ -3,7 +3,11 @@
 
 export type Seat = 'White' | 'Black';
 
-export type Termination = 'KingCaptured' | 'Resign' | 'Draw' | 'Aborted' | 'Timeout';
+// `DoubleDeclined` is the additive member play-api ADR-0019 introduces for an explicit cube drop in a
+// staked game. The server may grow this list again; consumers keep `termination` as a string and
+// render unknown values neutrally rather than crashing (see the live page's endReason).
+export type Termination =
+	'KingCaptured' | 'Resign' | 'Draw' | 'Aborted' | 'Timeout' | 'DoubleDeclined';
 
 export type GameResultWire = { Win: { side: Seat } } | { Draw: Record<string, never> };
 
@@ -56,6 +60,25 @@ export interface DrawOffer {
 	pending: boolean;
 }
 
+// ── Stake doubling (play-api ADR-0019, reserved contract; this repo's #68 / #75) ─────────────
+// A staked game carries `doubling` on every state; a classic game omits it or sends `null`. Every
+// amount is the server's: the client never derives a stake, a cube value or a settlement locally.
+export type DoublingDecision =
+	| { id: string; kind: 'offer'; seat: Seat; proposedStake: number }
+	| { id: string; kind: 'response'; seat: Seat; offeredBy: Seat; proposedStake: number };
+
+export interface Doubling {
+	currency: string; // 'PLAY_CREDIT' in v1 — a closed-loop game credit, never money
+	initialStake: number;
+	currentStake: number; // one seat's exposure at the current cube value
+	cubeValue: number;
+	cubeOwner: Seat | null; // null while the cube is centered
+	maximumMultiplier: number;
+	mayOfferDouble: boolean;
+	turnSeat: Seat; // the chess side to move, which differs from activeSeat during a response
+	decision: DoublingDecision | null;
+}
+
 export interface PublicGameState {
 	version: number;
 	dfen: string;
@@ -76,6 +99,8 @@ export interface PublicGameState {
 	// forbids `activeSeat` from offering (e.g. after having just offered a declined draw).
 	drawOffer?: DrawOffer | null;
 	mayOfferDraw?: boolean | null;
+	// Present (never null) on a staked game, absent or null on a classic one — treat both alike.
+	doubling?: Doubling | null;
 }
 
 // One completed turn, replayed to a (re)joining client in a Snapshot so its move history starts at
@@ -98,7 +123,29 @@ export type ServerEvent =
 	| { DrawOffered: { v: number; by: Seat } }
 	| { DrawDeclined: { v: number; by: Seat } }
 	| { GameEnded: { v: number; over: Over } }
-	| { Rejected: { v: number; seat: Seat; reason: string } };
+	| { Rejected: { v: number; seat: Seat; reason: string } }
+	// Stake-doubling events (ADR-0019). Only the two that change the settled amount are modelled here;
+	// the decision events (DoubleOpportunity / DoubleOffered) arrive with the decision cards in #68.
+	| {
+			DoubleAccepted: {
+				v: number;
+				offerId: string;
+				by: Seat;
+				currentStake: number;
+				cubeValue: number;
+				cubeOwner: Seat;
+			};
+	  }
+	| {
+			DoubleDeclined: {
+				v: number;
+				offerId: string;
+				by: Seat;
+				currentStake: number;
+				proposedStake: number;
+				reason: string; // 'declined' | 'timeout' | 'disconnect' | 'resign' — tolerate more
+			};
+	  };
 
 // Client -> server commands.
 export type ClientCommand =

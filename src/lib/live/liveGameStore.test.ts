@@ -1,3 +1,5 @@
+import { readFileSync } from 'node:fs';
+import path from 'node:path';
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import { LiveGameStore } from './liveGameStore.svelte';
 import type { ClientCommand, PublicGameState, ServerEvent } from './liveTypes';
@@ -1174,5 +1176,111 @@ describe('LiveGameStore draw offers (play-api #327, this repo #253)', () => {
 		expect(live.isPreRollGateActive).toBe(true);
 		expect(live.isPreRollResponder).toBe(true);
 		expect(live.drawOfferedBy).toBe('Black');
+	});
+});
+
+describe('LiveGameStore stake doubling (#75)', () => {
+	let live: LiveGameStore;
+
+	beforeEach(() => {
+		vi.useFakeTimers();
+		vi.clearAllMocks();
+		vi.stubGlobal('WebSocket', MockWebSocket as unknown as typeof WebSocket);
+		MockWebSocket.last = null;
+		live = new LiveGameStore();
+		live.connect('g', 'tok', 'white');
+		MockWebSocket.last!.onopen?.();
+	});
+
+	afterEach(() => {
+		live.dispose();
+		vi.useRealTimers();
+		vi.unstubAllGlobals();
+	});
+
+	const deliver = (ev: ServerEvent) =>
+		MockWebSocket.last!.onmessage?.({ data: JSON.stringify(ev) });
+
+	// The canonical play-api contract examples (fixtures/stake-doubling/README.md).
+	const fixture = <T>(name: string): T =>
+		JSON.parse(
+			readFileSync(
+				path.join(process.cwd(), 'src/lib/live/fixtures/stake-doubling', `${name}.json`),
+				'utf8',
+			),
+		) as T;
+	const stakedState = fixture<PublicGameState>('state-response');
+	const accepted = fixture<Extract<ServerEvent, { DoubleAccepted: unknown }>>('event-accepted');
+	const declined = fixture<Extract<ServerEvent, { DoubleDeclined: unknown }>>('event-declined');
+
+	it('mirrors the server’s doubling state from the snapshot and adjusts it on cube events', () => {
+		deliver({ Snapshot: { v: 1, state: stakedState } });
+		expect(live.doubling?.currentStake).toBe(10);
+		expect(live.doubling?.cubeOwner).toBeNull();
+		expect(live.doubling?.decision?.kind).toBe('response');
+
+		deliver(accepted); // v 2: the take moves the stake to 20 and the cube to Black
+		expect(live.doubling?.currentStake).toBe(20);
+		expect(live.doubling?.cubeValue).toBe(2);
+		expect(live.doubling?.cubeOwner).toBe('Black');
+		expect(live.doubling?.decision).toBeNull();
+
+		deliver({ DoubleDeclined: { ...declined.DoubleDeclined, v: 3 } });
+		expect(live.doubling?.currentStake).toBe(10); // the drop names the pre-offer stake
+	});
+
+	it('announces a declined double as a loss at the pre-offer stake', async () => {
+		deliver({ Snapshot: { v: 1, state: stakedState } });
+		deliver(declined); // v 2
+		deliver({
+			GameEnded: {
+				v: 3,
+				over: { result: { Win: { side: 'Black' } }, termination: 'DoubleDeclined' },
+			},
+		});
+		expect(live.settlement).toBeNull(); // nothing is announced before the suspense beat
+
+		await vi.advanceTimersByTimeAsync(800);
+		expect(live.gameStatus).toBe('over');
+		expect(live.termination).toBe('DoubleDeclined');
+		expect(live.outcome).toBe('lost');
+		expect(live.settlement).toBe('−10 credits');
+	});
+
+	it('signs the settled stake from the winner’s side after a take', async () => {
+		deliver({ Snapshot: { v: 1, state: stakedState } });
+		deliver(accepted); // stake 20
+		deliver({
+			GameEnded: { v: 3, over: { result: { Win: { side: 'White' } }, termination: 'Resign' } },
+		});
+		await vi.advanceTimersByTimeAsync(800);
+		expect(live.outcome).toBe('won');
+		expect(live.settlement).toBe('+20 credits');
+	});
+
+	it('stays silent about credits in a classic game', async () => {
+		deliver(snapshot());
+		deliver({
+			GameEnded: { v: 1, over: { result: { Win: { side: 'White' } }, termination: 'Resign' } },
+		});
+		await vi.advanceTimersByTimeAsync(800);
+		expect(live.gameStatus).toBe('over');
+		expect(live.doubling).toBeNull();
+		expect(live.settlement).toBeNull();
+	});
+
+	it('tolerates a termination this build does not know', async () => {
+		deliver(snapshot());
+		const unknown = {
+			GameEnded: {
+				v: 1,
+				over: { result: { Win: { side: 'White' } }, termination: 'SomethingNew' },
+			},
+		} as unknown as ServerEvent;
+		expect(() => deliver(unknown)).not.toThrow();
+		await vi.advanceTimersByTimeAsync(800);
+		expect(live.gameStatus).toBe('over');
+		expect(live.termination).toBe('SomethingNew');
+		expect(live.outcome).toBe('won');
 	});
 });

@@ -12,13 +12,23 @@
 		tone?: 'win' | 'loss' | 'neutral';
 		/** Caption under the headline (humanized end reason). */
 		reason?: string;
+		/** The credits line of a staked game ("+10 credits"), from the server's amounts; absent for classic games. */
+		settlement?: string | null;
 		/** Backdrop click, Escape, or the "View board" link. */
 		onDismiss: () => void;
 		/** Page-specific action buttons. */
 		children?: Snippet;
 	}
 
-	let { open, headline, tone = 'neutral', reason, onDismiss, children }: Props = $props();
+	let {
+		open,
+		headline,
+		tone = 'neutral',
+		reason,
+		settlement = null,
+		onDismiss,
+		children,
+	}: Props = $props();
 
 	const toneClass: Record<NonNullable<Props['tone']>, string> = {
 		win: 'text-success',
@@ -59,6 +69,11 @@
 			<p id="game-end-headline" class="text-2xl font-bold {toneClass[tone]}">{headline}</p>
 			{#if reason}
 				<p class="mt-1.5 text-sm text-content-muted">{reason}</p>
+			{/if}
+			{#if settlement}
+				<p class="mt-1.5 text-sm font-semibold text-content" data-testid="settlement-line">
+					{settlement}
+				</p>
 			{/if}
 			<div class="mt-5 flex flex-col gap-2.5">
 				{@render children?.()}
