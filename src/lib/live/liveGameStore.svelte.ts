@@ -34,6 +34,7 @@ import { lastMoveKeys } from '../lastMove';
 import { toastStore } from '../toastStore.svelte';
 import { preferencesStore } from '../preferencesStore.svelte';
 import { settlementLine } from './stakeSettlement';
+import { DEFAULT_DRAW_RULES, mayOffer, type DrawOfferState } from '../draw/drawRules';
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 const DiceChess = (DiceChessEngine as any).DiceChess;
@@ -205,6 +206,10 @@ export class LiveGameStore {
 	 * True when this seat may arm a standing draw offer right now — in ANY phase, including the
 	 * opponent's turn, which is the only way to carry an offer into a forced pass. Arming reaches
 	 * nobody until this seat's own turn completes, so it cannot interrupt the opponent.
+	 *
+	 * The rule itself comes from the shared `drawRules` module, the same code `/practice` plays out
+	 * locally; only the facts it reads are the server's. Everything the server refuses it refuses
+	 * again — this decides what the control looks like, never what is allowed.
 	 */
 	get canArmDrawOffer(): boolean {
 		return (
@@ -212,9 +217,28 @@ export class LiveGameStore {
 			this.mySeat !== null &&
 			this.gameStatus !== 'over' &&
 			this.gameStatus !== 'connecting' &&
-			!this.isDrawOfferPending &&
-			this.mayOfferDrawBySeat !== false
+			mayOffer(this.drawRulesState, this.mySeat, DEFAULT_DRAW_RULES)
 		);
+	}
+
+	/**
+	 * The server's own answers, in the shared module's vocabulary.
+	 *
+	 * `lastOfferBy` is read back out of `mayOfferDrawBy`: a seat the server currently withholds the
+	 * right from IS the last offerer whose right has not returned yet, and only this seat's own
+	 * restriction can matter to the question asked here. That keeps the client correct under any
+	 * `PLAY_DRAW_REOFFER_TURNS` — the deployment's value is never shipped to the browser, and the
+	 * counter stays 0 because the server flips the flag itself the moment the right comes back.
+	 */
+	private get drawRulesState(): DrawOfferState<Seat> {
+		const seat = this.mySeat;
+		const offeredBy = this.drawOfferedBy ?? (seat === 'White' ? 'Black' : 'White');
+		return {
+			armed: seat !== null && this.isDrawOfferArmed ? [seat] : [],
+			pending: this.isDrawOfferPending ? { by: offeredBy } : null,
+			lastOfferBy: seat !== null && this.mayOfferDrawBySeat === false ? seat : null,
+			turnsSinceLastOffer: 0,
+		};
 	}
 
 	/** This seat's entry in `mayOfferDrawBy`; `null` when the server has not said. */
@@ -233,7 +257,7 @@ export class LiveGameStore {
 		if (this.spectator || this.mySeat === null || this.gameStatus === 'over') return 'hidden';
 		if (this.isPreRollResponder) return 'hidden';
 		if (this.isMyDrawOfferPending) return 'pending';
-		if (this.mayOfferDrawBySeat === false) return 'forbidden';
+		if (!mayOffer(this.drawRulesState, this.mySeat, DEFAULT_DRAW_RULES)) return 'forbidden';
 		return this.isDrawOfferArmed ? 'armed' : 'idle';
 	}
 

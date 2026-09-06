@@ -15,6 +15,25 @@ import { authStore } from '../authStore.svelte';
 import { playDiceSound } from '../sound';
 import { ROLL_ANIMATION_MS, PASS_DWELL_MS } from '../timings';
 import { lastMoveKeys } from '../lastMove';
+import {
+	answerDrawOffer,
+	armDrawOffer,
+	completeTurn,
+	DEFAULT_DRAW_RULES,
+	disarmDrawOffer,
+	initialDrawOfferState,
+	isArmed,
+	mayOffer,
+	turnsUntilRightReturns,
+	type DrawOfferState,
+	type DrawRules,
+} from '../draw/drawRules';
+
+/** The two seats of a practice game, in this surface's own vocabulary. */
+export type DrawSide = 'player' | 'bot';
+
+/** How long the bot dwells on a cube or draw decision before answering. */
+const BOT_DECISION_MS = 1200;
 
 let DiceChess = (DiceChessEngine as any).DiceChess;
 
@@ -85,10 +104,14 @@ export class PlayWithBotStore {
 		dieIndex: number;
 	} | null>(null);
 
-	// Draw & Resign States
-	playerCanOfferDraw = $state<boolean>(true);
-	botCanOfferDraw = $state<boolean>(true);
-	activeDrawOffer = $state<'player' | 'bot' | null>(null);
+	// ── Draw offers (ADR 006 §4.6, this repo #74) ────────────────────────────
+	// The same lifecycle /live plays out against play-api, kept locally here and driven entirely
+	// through the shared pure rules in `$lib/draw/drawRules`: arm at any time, delivery at the
+	// armer's completed turn (a forced pass included), the responder answers at their pre-roll gate,
+	// and the right to offer passes to the opponent on delivery.
+	drawState = $state<DrawOfferState<DrawSide>>(initialDrawOfferState<DrawSide>());
+	/** Configurable, as on the server: non-positive `reofferTurns` = the right never returns. */
+	drawRules = $state<DrawRules>(DEFAULT_DRAW_RULES);
 
 	// Time Control States
 	timeLimit = $state<number | null>(null);
@@ -268,9 +291,7 @@ export class PlayWithBotStore {
 		this.stopTimer();
 
 		// Reset draw & resign states
-		this.playerCanOfferDraw = true;
-		this.botCanOfferDraw = true;
-		this.activeDrawOffer = null;
+		this.drawState = initialDrawOfferState<DrawSide>();
 		this.activeDoubleOffer = null;
 		this.cubeOwner = null;
 		this.insufficientFundsForfeit = false;
@@ -468,9 +489,7 @@ export class PlayWithBotStore {
 		this.history.clear();
 
 		// Reset draw states on session end
-		this.playerCanOfferDraw = true;
-		this.botCanOfferDraw = true;
-		this.activeDrawOffer = null;
+		this.drawState = initialDrawOfferState<DrawSide>();
 
 		// Reset doubling and roll-animation state too — a stale offer or a stuck animation flag
 		// would leak into (and block) the next session.
@@ -489,6 +508,46 @@ export class PlayWithBotStore {
 	private get isGameLive(): boolean {
 		return !['idle', 'victory', 'defeat', 'draw'].includes(this.gameStatus);
 	}
+
+	/** The delivered offer awaiting an answer, if any — `null` while nothing is in flight. */
+	activeDrawOffer = $derived<DrawSide | null>(this.drawState.pending?.by ?? null);
+
+	/** The player's standing offer: armed, silent, and not yet delivered to the bot. */
+	isDrawOfferArmed = $derived(isArmed(this.drawState, 'player'));
+
+	/**
+	 * Whether the player may arm an offer right now. Phase-independent, exactly as in /live: arming
+	 * during the bot's turn is what lets an offer ride out on a forced pass, and it reaches the bot
+	 * no earlier either way.
+	 */
+	canArmDrawOffer = $derived(this.isGameLive && mayOffer(this.drawState, 'player', this.drawRules));
+
+	/** Own turns left before the player may offer again; null where the right never returns. */
+	drawTurnsUntilAvailable = $derived(
+		turnsUntilRightReturns(this.drawState, 'player', this.drawRules),
+	);
+
+	/** What the ½ control shows — the same five states as the live page's control. */
+	drawOfferControlState = $derived.by<'hidden' | 'pending' | 'forbidden' | 'armed' | 'idle'>(() => {
+		if (!this.isGameLive) return 'hidden';
+		if (this.isPreRollResponder) return 'hidden'; // the gate owns the decision
+		if (this.activeDrawOffer === 'player') return 'pending';
+		if (!mayOffer(this.drawState, 'player', this.drawRules)) return 'forbidden';
+		return this.isDrawOfferArmed ? 'armed' : 'idle';
+	});
+
+	/** True while an offer sits in the dice panel's slot — as the gate card, or as withheld dice. */
+	isPreRollGateActive = $derived(
+		this.activeDrawOffer !== null && this.dice.currentDice.length === 0 && this.isGameLive,
+	);
+
+	/** True when the player is the one being asked, before their own dice are revealed. */
+	isPreRollResponder = $derived(
+		this.activeDrawOffer === 'bot' &&
+			this.liveActiveColor === this.playerColor &&
+			this.dice.currentDice.length === 0 &&
+			this.isGameLive,
+	);
 
 	/** Roll 3 random dice for Human */
 	canUserRoll = $derived(
@@ -511,15 +570,6 @@ export class PlayWithBotStore {
 			// isAuthenticated, not `user !== null`: the user getter always returns the guest stub.
 			authStore.isAuthenticated &&
 			authStore.user.balance >= this.bet,
-	);
-
-	/** Mirrors offerDraw()'s own guard, so the UI can disable/hide the button instead of letting
-	 * a click silently no-op. */
-	canUserOfferDraw = $derived(
-		this.playerCanOfferDraw &&
-			this.liveActiveColor === this.playerColor &&
-			this.gameStatus === 'playing' &&
-			this.activeDrawOffer === null,
 	);
 
 	async rollDice() {
@@ -591,6 +641,9 @@ export class PlayWithBotStore {
 			this.gameStatus = 'bot_thinking';
 			if (this.toggleActiveColorInFen()) {
 				this.updateStateInHistory({ fen: this.liveBoardFen });
+				// The forced pass that motivates the standing flag: nothing was played this turn, but
+				// the turn is over, so an armed offer goes out with it.
+				this.completeTurnForDraw('player');
 				setTimeout(() => {
 					if (this.startTime !== gameId) return; // session ended/restarted during the dwell
 					this.liveActiveColor = this.botColor;
@@ -835,6 +888,7 @@ export class PlayWithBotStore {
 			this.gameStatus = 'bot_thinking';
 			if (this.toggleActiveColorInFen()) {
 				this.updateStateInHistory({ fen: this.liveBoardFen });
+				this.completeTurnForDraw('player');
 
 				const gameId = this.startTime;
 				setTimeout(() => {
@@ -852,6 +906,13 @@ export class PlayWithBotStore {
 	/** Greedy Bot Turn logic */
 	async botTurn(bypassDoubleCheck = false) {
 		if (this.gameStatus !== 'bot_thinking' || this.liveActiveColor === this.playerColor) return;
+
+		// The player's offer — delivered when their turn completed, forced pass included — is answered
+		// here, at the bot's own pre-roll gate, which is where a live responder answers one.
+		if (this.activeDrawOffer === 'player') {
+			const answered = await this.answerPlayerDrawOffer();
+			if (!answered) return; // game ended in a draw, or the session moved on beneath us
+		}
 
 		// Bot Doubling Check
 		if (
@@ -892,8 +953,9 @@ export class PlayWithBotStore {
 			}
 		}
 
-		// Check if bot wants to offer a draw before making its moves
-		if (this.botCanOfferDraw) {
+		// The bot arms its standing offer before its roll; like the player's, it is delivered only when
+		// this turn completes, so the player meets it at their own pre-roll gate and never mid-turn.
+		if (mayOffer(this.drawState, 'bot', this.drawRules) && !isArmed(this.drawState, 'bot')) {
 			const currentDfen = buildDfen(this.liveBoardFen, [], this.botColor);
 			try {
 				const wantsDraw =
@@ -901,11 +963,7 @@ export class PlayWithBotStore {
 						? DiceChess.shouldBotOfferDraw(currentDfen, { algorithm: this.botAlgorithm })
 						: false;
 				if (wantsDraw) {
-					this.botCanOfferDraw = false;
-					this.activeDrawOffer = 'bot';
-					this.stopTimer();
-					toastStore.info('The bot offers a draw!');
-					return;
+					this.drawState = armDrawOffer(this.drawState, 'bot', this.drawRules).state;
 				}
 			} catch (e) {
 				logger.error('Error checking bot draw offer', e as Error);
@@ -977,6 +1035,8 @@ export class PlayWithBotStore {
 				this.liveActiveColor = this.playerColor;
 				this.updateStateInHistory({ fen: this.liveBoardFen });
 				this.dice.currentDice = [];
+				// A forfeited turn is a completed turn: this is the pass an armed offer rides out on.
+				this.completeTurnForDraw('bot');
 				this.tryAutoRoll();
 			} else {
 				toastStore.error('System error: Turn transition failed.');
@@ -1150,6 +1210,7 @@ export class PlayWithBotStore {
 			this.liveActiveColor = this.playerColor;
 			this.updateStateInHistory({ fen: this.liveBoardFen });
 			this.dice.currentDice = [];
+			this.completeTurnForDraw('bot');
 			this.tryAutoRoll();
 		} else {
 			toastStore.error('System error: Turn transition failed.');
@@ -1175,7 +1236,7 @@ export class PlayWithBotStore {
 			return;
 		this.stopTimer();
 		// Clear pending offers so their responders cannot fire on the settled game.
-		this.activeDrawOffer = null;
+		this.drawState = initialDrawOfferState<DrawSide>();
 		this.activeDoubleOffer = null;
 		this.gameEndReason = 'resign';
 		this.gameStatus = 'defeat';
@@ -1189,75 +1250,49 @@ export class PlayWithBotStore {
 		this.saveGameRecord(this.playerColor === 'w' ? -1 : 1);
 	}
 
-	async offerDraw() {
-		if (
-			!this.playerCanOfferDraw ||
-			this.liveActiveColor !== this.playerColor ||
-			this.gameStatus !== 'playing'
-		) {
+	/** Arm or withdraw the player's standing offer. Withdrawing is always allowed. */
+	setArmDrawOffer(armed: boolean) {
+		if (!this.isGameLive) return;
+		if (!armed) {
+			this.drawState = disarmDrawOffer(this.drawState, 'player');
 			return;
 		}
-
-		const gameId = this.startTime;
-		this.playerCanOfferDraw = false;
-		this.activeDrawOffer = 'player';
-		toastStore.info('Offering a draw...');
-
-		// Simulate bot thinking time
-		await new Promise((resolve) => setTimeout(resolve, 1200));
-
-		// If game session changed, abort silently without modifying new game state
-		if (this.startTime !== gameId) {
+		const { state, refusal } = armDrawOffer(this.drawState, 'player', this.drawRules);
+		this.drawState = state;
+		if (refusal) {
+			// The control is already disabled in this state, so this only answers a stray call; it says
+			// why rather than doing nothing, the same courtesy the server's refusal gets on /live.
+			toastStore.error(
+				refusal.availableAfterTurns === null
+					? 'The bot offers the next draw.'
+					: `You can offer a draw again in ${refusal.availableAfterTurns} turns.`,
+			);
 			return;
 		}
+		toastStore.info('Draw offer armed — it goes out when your turn completes.');
+	}
 
-		// If game state changed during delay (e.g. user resigned)
-		if (this.gameStatus !== 'playing') {
-			this.activeDrawOffer = null;
-			return;
-		}
+	toggleArmDrawOffer() {
+		this.setArmDrawOffer(!this.isDrawOfferArmed);
+	}
 
-		// Same perspective rule as offerDouble: the engine evaluates the dfen's ACTIVE color, so
-		// flip the turn to ask the BOT. The remaining dice are the player's and are dropped —
-		// the engine's draw hooks evaluate the position statically with an empty pool.
-		let botAccepts = false;
-		try {
-			const botFen =
-				typeof DiceChess?.endTurn === 'function' ? DiceChess.endTurn(this.liveBoardFen) : null;
-			if (botFen && typeof DiceChess?.shouldBotAcceptDraw === 'function') {
-				const botDfen = botFen.trim().split(/\s+/).slice(0, 6).join(' ');
-				botAccepts = DiceChess.shouldBotAcceptDraw(botDfen, { algorithm: this.botAlgorithm });
-			}
-		} catch (e) {
-			logger.error('Error checking bot accept draw', e as Error);
-		}
-
-		this.activeDrawOffer = null;
-
-		if (botAccepts) {
-			toastStore.success('The bot accepted the draw offer! 🤝');
+	/**
+	 * Answer the bot's delivered offer at the player's own pre-roll gate. Declining rolls the dice,
+	 * because at this gate revealing the dice is exactly what a decline means — the same thing the
+	 * server does for a live player who declines.
+	 */
+	respondDraw(accept: boolean) {
+		if (!this.isPreRollResponder) return;
+		const { state, agreed } = answerDrawOffer(this.drawState, accept);
+		this.drawState = state;
+		if (agreed) {
+			toastStore.success('You accepted the draw offer.');
 			this.triggerDrawEnd();
-		} else {
-			toastStore.error('The bot declined the draw offer.');
+			return;
 		}
-	}
-
-	acceptBotDraw() {
-		if (this.activeDrawOffer !== 'bot') return;
-		toastStore.success('You accepted the draw offer.');
-		this.activeDrawOffer = null;
-		this.triggerDrawEnd();
-	}
-
-	declineBotDraw() {
-		if (this.activeDrawOffer !== 'bot') return;
 		toastStore.info('You declined the draw offer.');
-		this.activeDrawOffer = null;
-		this.playerCanOfferDraw = true; // Player regains ability to offer draw
-
-		// Resume the timer and bot's turn
 		this.startTimer();
-		this.botTurn();
+		void this.rollDice();
 	}
 
 	async offerDouble() {
@@ -1410,6 +1445,67 @@ export class PlayWithBotStore {
 		}
 
 		this.saveGameRecord(this.playerColor === 'w' ? -1 : 1);
+	}
+
+	/**
+	 * The bot's answer to a delivered offer, given before it rolls. Returns false when the caller must
+	 * stop: the game ended in a draw, or the session moved on during the decision dwell.
+	 *
+	 * The turn has already passed to the bot, so the live position IS the bot's perspective — the
+	 * synthetic `endTurn` flip the old immediate offer needed is now the position itself. The dice
+	 * pool is empty because none have been rolled yet, which is what the engine's draw hooks expect.
+	 */
+	private async answerPlayerDrawOffer(): Promise<boolean> {
+		const gameId = this.startTime;
+		await new Promise((resolve) => setTimeout(resolve, BOT_DECISION_MS));
+		if (this.startTime !== gameId || this.gameStatus !== 'bot_thinking') return false;
+
+		let botAccepts = false;
+		try {
+			if (typeof DiceChess?.shouldBotAcceptDraw === 'function') {
+				botAccepts = DiceChess.shouldBotAcceptDraw(
+					buildDfen(this.liveBoardFen, [], this.botColor),
+					{ algorithm: this.botAlgorithm },
+				);
+			}
+		} catch (e) {
+			logger.error('Error checking bot accept draw', e as Error);
+		}
+
+		const { state, agreed } = answerDrawOffer(this.drawState, botAccepts);
+		this.drawState = state;
+		if (agreed) {
+			toastStore.success('The bot accepted the draw offer! 🤝');
+			this.triggerDrawEnd();
+			return false;
+		}
+		toastStore.error('The bot declined the draw offer.');
+		return true;
+	}
+
+	/**
+	 * `side` has just completed a turn — micro-moves played, or a forced pass, which is the case the
+	 * standing flag exists for. Delivers their armed offer, if they still hold the right to offer.
+	 *
+	 * Called at every turn boundary of both seats; the rules module decides whether anything happens.
+	 */
+	private completeTurnForDraw(side: DrawSide): boolean {
+		const { state, delivered } = completeTurn(this.drawState, side, this.drawRules);
+		this.drawState = state;
+		if (!delivered) return false;
+		if (side === 'player') {
+			toastStore.info('Draw offer sent.');
+			return true;
+		}
+		toastStore.info('The bot offers a draw!');
+		// The viewer who never wants to be asked is answered on their behalf, exactly as in /live:
+		// the offerer cannot tell this apart from a decline made by hand.
+		if (preferencesStore.drawOfferPolicy === 'autoDecline') {
+			this.drawState = answerDrawOffer(this.drawState, false).state;
+			toastStore.info('Draw offer declined automatically.');
+			return false;
+		}
+		return true;
 	}
 
 	private triggerDrawEnd() {
