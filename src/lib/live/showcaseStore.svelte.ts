@@ -235,6 +235,12 @@ export class ShowcaseStore {
 			rolling: this.live.isAnimatingRoll,
 			legalMovesDests: this.live.legalMovesDests,
 			lastMove: this.live.lastMove,
+			pendingPromotion: this.live.pendingPromotion
+				? {
+						color: this.live.pendingPromotion.color,
+						availablePieces: this.live.pendingPromotion.availablePieces,
+					}
+				: undefined,
 		};
 	}
 
@@ -597,6 +603,16 @@ export class ShowcaseStore {
 			case 'move':
 				if (this.phase === 'live-player') {
 					this.live.handleBoardMove(intent.orig, intent.dest);
+				}
+				break;
+			case 'promote':
+				if (this.phase === 'live-player') {
+					this.live.completePromotion(intent.piece);
+				}
+				break;
+			case 'cancel-promotion':
+				if (this.phase === 'live-player') {
+					this.live.cancelPromotion();
 				}
 				break;
 			case 'retry':

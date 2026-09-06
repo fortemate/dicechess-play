@@ -132,6 +132,24 @@ export const fixtureLivePlayerRolling: ShowcaseStateLivePlayer = {
 	],
 };
 
+/** Our pawn stands on b7 and its move to b8 waits for the piece choice: exactly the live store's
+ * state during a pending promotion. The board keeps the pre-move position (the FEN advances only
+ * when the piece is chosen) while the P die is already spent. A pawn on the last rank without a
+ * promotion piece is a position the engine never produces. */
+export const PROMOTION_BOARD_FEN = 'r1bqkbnr/pPpppppp/2n5/8/8/8/1PPPPPPP/RNBQKBNR w KQkq - 0 8';
+
+export const fixtureLivePlayerPromotion: ShowcaseStateLivePlayer = {
+	...fixtureLivePlayerWhiteTurn,
+	boardFen: PROMOTION_BOARD_FEN,
+	dice: [
+		{ value: 'P', allowed: true, used: true },
+		{ value: 'N', allowed: true, used: false },
+		{ value: 'B', allowed: true, used: false },
+	],
+	lastMove: undefined,
+	pendingPromotion: { color: 'w', availablePieces: ['q', 'r', 'b', 'n'] },
+};
+
 export const fixtureLiveSpectator: ShowcaseStateLiveSpectator = {
 	kind: 'live-spectator',
 	activeColor: 'w',
@@ -276,6 +294,7 @@ export const allFixtures: Record<string, ShowcaseState> = {
 	'live-player-white-turn': fixtureLivePlayerWhiteTurn,
 	'live-player-black-turn': fixtureLivePlayerBlackTurn,
 	'live-player-rolling': fixtureLivePlayerRolling,
+	'live-player-promotion': fixtureLivePlayerPromotion,
 	'live-spectator': fixtureLiveSpectator,
 	reconnecting: fixtureReconnecting,
 	'finishing-mate': fixtureFinishingMate,

@@ -746,6 +746,24 @@ describe('LiveGameStore connection feedback (issue #76)', () => {
 		expect(submittedTurns()).toEqual([['c7c8r']]);
 	});
 
+	it('refuses other moves while a promotion waits for its piece, then takes them once chosen', async () => {
+		await rollKingCapturePosition('PB', [1, 3]);
+
+		live.handleBoardMove('c7', 'c8');
+		expect(live.pendingPromotion).not.toBeNull();
+
+		// The bishop's die is free, but the turn cannot continue around the unfinished pawn move: it
+		// would go out one move short and be rejected (the showcase table lost a game this way while
+		// it had no promotion chooser).
+		live.handleBoardMove('d7', 'e8');
+		expect(live.currentDice.filter((d) => d.used)).toHaveLength(1); // only the pawn's die
+		expect(submittedTurns()).toEqual([]);
+
+		live.completePromotion('q');
+		live.handleBoardMove('d7', 'e8');
+		expect(submittedTurns()).toEqual([['c7c8q', 'd7e8']]);
+	});
+
 	it('updates hasClocks correctly when initialized with clocks from a snapshot', () => {
 		expect(live.hasClocks).toBe(false);
 		deliver(snapshot({ clocks: { white: 60000, black: 60000 } }));

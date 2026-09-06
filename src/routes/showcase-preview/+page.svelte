@@ -50,6 +50,11 @@
 			case 'resign':
 				selectFixture('finishing-mate');
 				break;
+			case 'promote':
+			case 'cancel-promotion':
+				// Either way the pawn's turn is over for the harness: back to a plain live turn.
+				selectFixture('live-player-white-turn');
+				break;
 			case 'retry':
 				selectFixture('live-player-white-turn');
 				break;

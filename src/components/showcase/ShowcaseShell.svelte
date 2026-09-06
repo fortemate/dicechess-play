@@ -4,6 +4,7 @@
 	import type { BoardStore } from '$lib/boardStore';
 	import { m } from '$lib/paraglide/messages.js';
 	import Board from '../Board.svelte';
+	import PawnPromotionSelector from '../PawnPromotionSelector.svelte';
 	import PlayerStrip from '../PlayerStrip.svelte';
 	import ShowcaseHeader from './ShowcaseHeader.svelte';
 	import ShowcaseStatus from './ShowcaseStatus.svelte';
@@ -153,6 +154,17 @@
 						: ''}"
 				>
 					<Board store={boardStore} />
+					<!-- A pawn on the last rank waits for its piece. Without this chooser the move never
+					     completes: the die stays spent, the next moves go out in a turn one move short and
+					     the server rejects it. Same component and wiring as /live and /practice. -->
+					{#if state.kind === 'live-player' && state.pendingPromotion}
+						<PawnPromotionSelector
+							color={state.pendingPromotion.color}
+							availablePieces={state.pendingPromotion.availablePieces}
+							onSelect={(piece) => onIntent?.({ type: 'promote', piece })}
+							onCancel={() => onIntent?.({ type: 'cancel-promotion' })}
+						/>
+					{/if}
 				</div>
 
 				<div class="w-full {isReconnecting ? 'opacity-60 transition-opacity' : ''}">

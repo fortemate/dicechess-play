@@ -313,6 +313,39 @@ describe('ShowcaseStore', () => {
 			expect(store.state.kind === 'live-player' && store.state.rolling).toBe(false);
 		});
 
+		it('mirrors a pending promotion into the seated player state and routes the choice back', async () => {
+			mockClaimShowcase.mockResolvedValue({
+				outcome: 'claimed',
+				gameId: 'game-promo-1',
+				seat: 'White',
+				seatToken: 'token-promo-1',
+				wsUrl: '/games/game-promo-1/ws?token=token-promo-1',
+			});
+			await store.handleIntent({ type: 'claim' });
+			liveGameStore.onConnectionStatus?.('open');
+			expect(store.state.kind).toBe('live-player');
+			expect(store.state.kind === 'live-player' && store.state.pendingPromotion).toBeUndefined();
+
+			liveGameStore.pendingPromotion = {
+				orig: 'b7',
+				dest: 'b8',
+				color: 'w',
+				availablePieces: ['q', 'n'],
+				dieIndex: 0,
+			};
+			expect(store.state.kind === 'live-player' && store.state.pendingPromotion).toEqual({
+				color: 'w',
+				availablePieces: ['q', 'n'],
+			});
+
+			const complete = vi.spyOn(liveGameStore, 'completePromotion').mockImplementation(() => {});
+			const cancel = vi.spyOn(liveGameStore, 'cancelPromotion').mockImplementation(() => {});
+			await store.handleIntent({ type: 'promote', piece: 'q' });
+			expect(complete).toHaveBeenCalledWith('q');
+			await store.handleIntent({ type: 'cancel-promotion' });
+			expect(cancel).toHaveBeenCalledTimes(1);
+		});
+
 		it('spectator cannot emit moves or resign (DoD #7)', async () => {
 			mockClaimShowcase.mockResolvedValue({
 				outcome: 'spectating',
