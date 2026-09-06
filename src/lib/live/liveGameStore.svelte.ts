@@ -21,6 +21,7 @@ import type {
 	Seat,
 	ServerEvent,
 	SnapshotTurn,
+	Doubling,
 } from './liveTypes';
 import * as DiceChessEngine from '@fortemate/dicechess-engine';
 import { buildTurnBlocks } from '../playWithBot/turnBlocks';
@@ -30,6 +31,7 @@ import { playDiceSound, playDrawOfferSound } from '../sound';
 import { ROLL_ANIMATION_MS, MOVE_STEP_MS, PASS_DWELL_MS, GAME_END_SUSPENSE_MS } from '../timings';
 import { lastMoveKeys } from '../lastMove';
 import { toastStore } from '../toastStore.svelte';
+import { settlementLine } from './stakeSettlement';
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 const DiceChess = (DiceChessEngine as any).DiceChess;
@@ -81,6 +83,12 @@ export class LiveGameStore {
 	rated = $state<boolean | undefined>(undefined);
 	onEnd?: ((over: Over) => void) | null = null;
 	onConnectionStatus?: ((status: ConnStatus) => void) | null = null;
+
+	// ── Stake doubling (play-api ADR-0019, this repo #75) ───────────────────
+	// The server's doubling state verbatim; null for a classic game. Amounts are never derived here.
+	doubling = $state<Doubling | null>(null);
+	// The terminal `Over`, kept so the settlement line can be read from the server's result.
+	private over = $state<Over | null>(null);
 
 	// ── Draw offers (play-api #327, this repo #253) ─────────────────────────
 	drawOffer = $state<DrawOffer | null>(null);
@@ -299,6 +307,8 @@ export class LiveGameStore {
 		this.outcome = null;
 		this.winner = null;
 		this.termination = null;
+		this.over = null;
+		this.doubling = null;
 		this.players = null;
 		this.rated = undefined;
 		this.drawOffer = null;
@@ -427,11 +437,42 @@ export class LiveGameStore {
 			}
 			return;
 		}
+		// Cube events only ever ADJUST the server's doubling object: a take moves the stake and the
+		// cube, a drop settles at the pre-offer stake the event names. Without a `doubling` snapshot
+		// there is nothing to adjust and the event is ignored (a classic game never receives one).
+		if ('DoubleAccepted' in ev) {
+			if (ev.DoubleAccepted.v <= this.version) return;
+			this.version = ev.DoubleAccepted.v;
+			if (this.doubling) {
+				const { currentStake, cubeValue, cubeOwner } = ev.DoubleAccepted;
+				this.doubling = { ...this.doubling, currentStake, cubeValue, cubeOwner, decision: null };
+			}
+			return;
+		}
+		if ('DoubleDeclined' in ev) {
+			if (ev.DoubleDeclined.v <= this.version) return;
+			this.version = ev.DoubleDeclined.v;
+			if (this.doubling) {
+				this.doubling = {
+					...this.doubling,
+					currentStake: ev.DoubleDeclined.currentStake,
+					decision: null,
+				};
+			}
+			return;
+		}
+	}
+
+	/** The credits line for a staked game's end ("+10 credits"); null for classic games or while playing. */
+	get settlement(): string | null {
+		if (this.gameStatus !== 'over' || this.over === null) return null;
+		return settlementLine(this.doubling, this.over, this.mySeat);
 	}
 
 	private syncState(state: PublicGameState, history?: SnapshotTurn[]): void {
 		this.players = state.players ?? null;
 		this.rated = state.rated;
+		this.doubling = state.doubling ?? null;
 		this.drawOffer = state.drawOffer ?? null;
 		this.mayOfferDraw = state.mayOfferDraw ?? null;
 		if (this.drawOffer?.pending) {
@@ -509,6 +550,7 @@ export class LiveGameStore {
 	private finalizeEnd(over: Over): void {
 		this.pendingOver = null;
 		this.gameStatus = 'over';
+		this.over = over;
 		this.termination = over.termination;
 		this.liveDice = [];
 		this.drawOffer = null;

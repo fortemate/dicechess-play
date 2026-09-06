@@ -207,3 +207,55 @@ describe('live board — finished-game replay actions', () => {
 		expect(drawBtn.disabled).toBe(true);
 	});
 });
+
+describe('live board — how a staked game ends (#75)', () => {
+	beforeEach(() => {
+		toastStore.error.mockReset();
+	});
+	afterEach(() => {
+		cleanup();
+	});
+
+	it('names a declined double and the credits lost, from the server’s amounts', () => {
+		state.current = storeState({
+			termination: 'DoubleDeclined',
+			outcome: 'lost',
+			winner: 'Black',
+			settlement: '\u221210 credits',
+		});
+
+		const { getAllByText } = render(LivePage);
+
+		expect(getAllByText('Double declined').length).toBeGreaterThan(0);
+		expect(getAllByText('\u221210 credits').length).toBeGreaterThan(0);
+	});
+
+	it('keeps a resignation and a timeout at stake distinct from a dropped cube', () => {
+		state.current = storeState({ termination: 'Timeout', settlement: '+10 credits' });
+		const timeout = render(LivePage);
+		expect(timeout.getAllByText('On time').length).toBeGreaterThan(0);
+		expect(timeout.getAllByText('+10 credits').length).toBeGreaterThan(0);
+		cleanup();
+
+		state.current = storeState({ termination: 'Resign', settlement: '+10 credits' });
+		const resigned = render(LivePage);
+		expect(resigned.getAllByText('Resigned').length).toBeGreaterThan(0);
+		expect(resigned.queryAllByText('Double declined')).toHaveLength(0);
+	});
+
+	it('shows no credits line for a classic game', () => {
+		state.current = storeState();
+
+		const { queryByTestId } = render(LivePage);
+
+		expect(queryByTestId('settlement-line')).toBeNull();
+	});
+
+	it('renders a neutral reason for a termination this build does not know', () => {
+		state.current = storeState({ termination: 'SomethingNew' });
+
+		const { getAllByText } = render(LivePage);
+
+		expect(getAllByText('Game over').length).toBeGreaterThan(0);
+	});
+});

@@ -310,8 +310,15 @@
 				return endReasonLabel('timeout');
 			case 'Draw':
 				return 'Draw by agreement';
+			case 'DoubleDeclined':
+				return endReasonLabel('double_declined');
+			case 'Aborted':
+			case null:
+				return ''; // Aborted gets its own headline
 			default:
-				return ''; // Aborted gets its own headline; unknown values stay silent
+				// A termination this build does not know (the server may add members): say something
+				// neutral rather than a blank or a debug dump, and never throw.
+				return 'Game over';
 		}
 	});
 
@@ -453,6 +460,7 @@
 	headline={statusText ?? 'Game over.'}
 	tone={endTone}
 	reason={endReason}
+	settlement={live.settlement}
 	onDismiss={() => (endModalDismissed = true)}
 >
 	<RatingDeltaLine outcome={ratingOutcome} />
@@ -704,6 +712,9 @@
 					<p class="text-lg font-bold text-content">{statusText}</p>
 					{#if endReason}
 						<p class="text-sm text-content-muted">{endReason}</p>
+					{/if}
+					{#if live.settlement}
+						<p class="text-sm font-semibold text-content">{live.settlement}</p>
 					{/if}
 					<!-- Silent while the modal is up: this card is mounted underneath it the whole time, and
 					     two live regions announce the same line twice. It takes the duty back on dismissal,
