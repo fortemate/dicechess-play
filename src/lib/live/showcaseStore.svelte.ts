@@ -80,6 +80,7 @@ export class ShowcaseStore {
 	// Finishing & Reset countdown
 	private countdownSeconds = $state<number>(FINISHING_COUNTDOWN_SECONDS);
 	private lastOver = $state<Over | null>(null);
+	private lastServerView: ShowcaseServerView | null = null;
 
 	// Reconnection tracking
 	private isReconnecting = $state<boolean>(false);
@@ -510,7 +511,11 @@ export class ShowcaseStore {
 			}
 
 			if (res.notModified) {
-				// State is unchanged on server
+				// State is unchanged on server. If waiting in reset phase, reopen with last known open view.
+				if (this.phase === 'reset' && this.lastServerView?.status === 'open') {
+					this.applyOpenView(this.lastServerView);
+					return;
+				}
 				this.scheduleNextPoll();
 				return;
 			}
@@ -521,6 +526,7 @@ export class ShowcaseStore {
 				return;
 			}
 
+			this.lastServerView = view;
 			this.applyServerView(view);
 		} catch {
 			if (this.isDestroyed || epoch !== this.pollEpoch) return;
@@ -680,8 +686,13 @@ export class ShowcaseStore {
 				await this.executeRetry();
 				break;
 			case 'reset-now':
-				this.phase = 'reset';
-				await this.pollDiscovery();
+				this.stopCountdownTimer();
+				if (this.lastServerView?.status === 'open') {
+					this.applyOpenView(this.lastServerView);
+				} else {
+					this.phase = 'reset';
+					await this.pollDiscovery();
+				}
 				break;
 			case 'navigate-play':
 				// UI navigation handled by standard anchor links
@@ -781,6 +792,7 @@ export class ShowcaseStore {
 		this.seatStore.clear(); // the game is over; a reload must not try to rejoin it
 		if (this.phase === 'finishing' || this.phase === 'reset') return;
 		this.phase = 'finishing';
+		this.lastServerView = null;
 		this.startFinishingCountdown();
 		// Poll server frequently to catch the transition to 'open'
 		this.schedulePoll(RESET_POLL_MS);
@@ -797,7 +809,12 @@ export class ShowcaseStore {
 			if (this.countdownSeconds <= 0) {
 				this.stopCountdownTimer();
 				if (this.phase === 'finishing') {
-					this.phase = 'reset';
+					if (this.lastServerView?.status === 'open') {
+						this.applyOpenView(this.lastServerView);
+					} else {
+						this.phase = 'reset';
+						void this.pollDiscovery();
+					}
 				}
 			}
 		}, 1000);
