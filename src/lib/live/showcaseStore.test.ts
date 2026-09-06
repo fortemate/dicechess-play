@@ -473,6 +473,77 @@ describe('ShowcaseStore', () => {
 			}
 		});
 
+		it('keeps the final position for the whole countdown even though the server reopens the table at once', async () => {
+			mockClaimShowcase.mockResolvedValue({
+				outcome: 'claimed',
+				gameId: 'game-dwell-1',
+				seat: 'White',
+				seatToken: 'token-dwell-1',
+				wsUrl: '/games/game-dwell-1/ws?token=token-dwell-1',
+			});
+			await store.handleIntent({ type: 'claim' });
+
+			// In production the table reads `open` again ~200 ms after the game ends: the server's
+			// `finishing` is a persistence transaction, not a display state.
+			mockGetShowcase.mockResolvedValue({
+				notModified: false,
+				view: {
+					status: 'open',
+					featuredBot: { team: 'rpi3', name: 'hunter', displayName: 'rpi3 hunter' },
+					timeControl: { initialSeconds: 300, incrementSeconds: 3, display: '5+3' },
+					nextHumanColor: 'Black',
+					currentGame: null,
+					spectator: null,
+					reason: null,
+				},
+			});
+			liveGameStore.onEnd?.({ termination: 'Resign', result: { Win: { side: 'Black' } } });
+			expect(store.currentPhase).toBe('finishing');
+
+			// Several reset polls come and go; the final position stays up and the countdown keeps running.
+			await vi.advanceTimersByTimeAsync(6000);
+			expect(store.currentPhase).toBe('finishing');
+			expect(store.state.kind === 'finishing' && store.state.countdownSeconds).toBe(9);
+
+			await vi.advanceTimersByTimeAsync(8000);
+			expect(store.currentPhase).toBe('finishing');
+			expect(store.state.kind === 'finishing' && store.state.countdownSeconds).toBe(1);
+
+			// The countdown lapses, and only then the next poll reopens the table with the server's colour.
+			await vi.advanceTimersByTimeAsync(2500);
+			expect(store.currentPhase).toBe('open');
+			expect(store.state.kind === 'open' && store.state.assignedColor).toBe('b');
+		});
+
+		it('"Reset table now" during the countdown reopens the table on the next poll', async () => {
+			mockClaimShowcase.mockResolvedValue({
+				outcome: 'claimed',
+				gameId: 'game-dwell-2',
+				seat: 'White',
+				seatToken: 'token-dwell-2',
+				wsUrl: '/games/game-dwell-2/ws?token=token-dwell-2',
+			});
+			await store.handleIntent({ type: 'claim' });
+			mockGetShowcase.mockResolvedValue({
+				notModified: false,
+				view: {
+					status: 'open',
+					featuredBot: { team: 'rpi3', name: 'hunter', displayName: 'rpi3 hunter' },
+					timeControl: { initialSeconds: 300, incrementSeconds: 3, display: '5+3' },
+					nextHumanColor: 'White',
+					currentGame: null,
+					spectator: null,
+					reason: null,
+				},
+			});
+			liveGameStore.onEnd?.({ termination: 'KingCaptured', result: { Win: { side: 'White' } } });
+			await vi.advanceTimersByTimeAsync(3000);
+			expect(store.currentPhase).toBe('finishing');
+
+			await store.handleIntent({ type: 'reset-now' });
+			expect(store.currentPhase).toBe('open');
+		});
+
 		it('reset-now intent advances directly to reset state and forces discovery poll', async () => {
 			mockClaimShowcase.mockResolvedValue({
 				outcome: 'claimed',
@@ -733,10 +804,11 @@ describe('ShowcaseStore', () => {
 			expect(store.currentPhase).toBe('finishing');
 			expect(seatStore.load()).toBeNull();
 
-			// A stored seat left over from before (say, the reload never came) goes with the table.
+			// A stored seat left over from before (say, the reload never came) goes with the table once
+			// the final-position dwell is over and the open view is applied for real.
 			seatStore.save({ gameId: 'game-end-1', seatToken: 'token-game-end-1', seat: 'White' });
 			mockGetShowcase.mockResolvedValue({ notModified: false, view: openView });
-			await store.pollDiscovery();
+			await store.handleIntent({ type: 'reset-now' });
 			expect(store.currentPhase).toBe('open');
 			expect(seatStore.load()).toBeNull();
 		});

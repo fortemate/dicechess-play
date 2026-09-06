@@ -536,6 +536,17 @@ export class ShowcaseStore {
 		if (view.featuredBot) this.featuredBot = view.featuredBot;
 		if (view.timeControl) this.timeControl = view.timeControl.display;
 
+		// The server's `finishing` is a persistence transaction that lasts a fraction of a second; the
+		// table reads `open` again long before our countdown is over. The dwell on the final position
+		// is ours to keep: while it runs, an `open` view only records the next seat colour and keeps
+		// the reset poll going, and the table reopens when the countdown ends or the visitor presses
+		// "Reset table now" (either sets phase `reset`, and the next poll applies `open` for real).
+		if (this.phase === 'finishing' && view.status === 'open') {
+			this.assignedColor = view.nextHumanColor === 'Black' ? 'b' : 'w';
+			this.schedulePoll(RESET_POLL_MS);
+			return;
+		}
+
 		switch (view.status) {
 			case 'unavailable':
 				this.applyUnavailableView(view);
