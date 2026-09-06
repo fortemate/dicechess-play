@@ -579,6 +579,89 @@ describe('ShowcaseStore', () => {
 			expect(store.currentPhase).toBe('open');
 			expect(store.hasSeatToken).toBe(false);
 		});
+
+		it('reopens the table when countdown lapses even if polls return 304 Not Modified', async () => {
+			mockClaimShowcase.mockResolvedValue({
+				outcome: 'claimed',
+				gameId: 'game-dwell-etag-1',
+				seat: 'White',
+				seatToken: 'token-dwell-etag-1',
+				wsUrl: '/games/game-dwell-etag-1/ws?token=token-dwell-etag-1',
+			});
+			await store.handleIntent({ type: 'claim' });
+
+			// First poll after end returns 200 with open view and ETag
+			mockGetShowcase.mockResolvedValueOnce({
+				notModified: false,
+				etag: 'W/"open-etag-1"',
+				view: {
+					status: 'open',
+					featuredBot: { team: 'rpi3', name: 'hunter', displayName: 'rpi3 hunter' },
+					timeControl: { initialSeconds: 300, incrementSeconds: 3, display: '5+3' },
+					nextHumanColor: 'Black',
+					currentGame: null,
+					spectator: null,
+					reason: null,
+				},
+			});
+			// All subsequent polls return 304 Not Modified
+			mockGetShowcase.mockResolvedValue({
+				notModified: true,
+				etag: 'W/"open-etag-1"',
+			});
+
+			liveGameStore.onEnd?.({ termination: 'Resign', result: { Win: { side: 'Black' } } });
+			expect(store.currentPhase).toBe('finishing');
+
+			// First poll happens at 1.5s
+			await vi.advanceTimersByTimeAsync(1500);
+			expect(store.currentPhase).toBe('finishing');
+
+			// Countdown completes (15s total)
+			await vi.advanceTimersByTimeAsync(14000);
+			expect(store.currentPhase).toBe('open');
+			expect(store.state.kind).toBe('open');
+			if (store.state.kind === 'open') {
+				expect(store.state.assignedColor).toBe('b');
+			}
+		});
+
+		it('"Reset table now" reopens the table immediately even when server returns 304 Not Modified', async () => {
+			mockClaimShowcase.mockResolvedValue({
+				outcome: 'claimed',
+				gameId: 'game-dwell-etag-2',
+				seat: 'White',
+				seatToken: 'token-dwell-etag-2',
+				wsUrl: '/games/game-dwell-etag-2/ws?token=token-dwell-etag-2',
+			});
+			await store.handleIntent({ type: 'claim' });
+
+			mockGetShowcase.mockResolvedValueOnce({
+				notModified: false,
+				etag: 'W/"open-etag-2"',
+				view: {
+					status: 'open',
+					featuredBot: { team: 'rpi3', name: 'hunter', displayName: 'rpi3 hunter' },
+					timeControl: { initialSeconds: 300, incrementSeconds: 3, display: '5+3' },
+					nextHumanColor: 'White',
+					currentGame: null,
+					spectator: null,
+					reason: null,
+				},
+			});
+			mockGetShowcase.mockResolvedValue({
+				notModified: true,
+				etag: 'W/"open-etag-2"',
+			});
+
+			liveGameStore.onEnd?.({ termination: 'KingCaptured', result: { Win: { side: 'White' } } });
+			await vi.advanceTimersByTimeAsync(1500);
+			expect(store.currentPhase).toBe('finishing');
+
+			await store.handleIntent({ type: 'reset-now' });
+			expect(store.currentPhase).toBe('open');
+			expect(store.state.kind).toBe('open');
+		});
 	});
 
 	describe('Connection drop and recovery (DoD #12)', () => {
