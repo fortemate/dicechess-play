@@ -2,6 +2,7 @@
 	import { resolve } from '$app/paths';
 	import { m } from '$lib/paraglide/messages.js';
 	import ShowcaseMark from './ShowcaseMark.svelte';
+	import AuthMenu from '../AuthMenu.svelte';
 	import ThemeMenu from '../ThemeMenu.svelte';
 </script>
 
@@ -53,7 +54,10 @@
 				</a>
 			</nav>
 
-			<ThemeMenu />
+			<div class="flex items-center gap-1">
+				<AuthMenu />
+				<ThemeMenu />
+			</div>
 		</div>
 	</div>
 </header>
