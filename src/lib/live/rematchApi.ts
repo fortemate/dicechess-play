@@ -37,6 +37,8 @@ async function parseError(res: Response): Promise<RematchApiError> {
 	return new RematchApiError(res.status, code, state);
 }
 
+const REMATCH_TIMEOUT_MS = 10_000;
+
 /**
  * Fetch the private rematch state for an authorized participant of a finished game.
  */
@@ -53,6 +55,7 @@ export async function getRematch(
 		method: 'GET',
 		credentials: 'include',
 		headers,
+		signal: AbortSignal.timeout(REMATCH_TIMEOUT_MS),
 	});
 
 	if (!res.ok) {
@@ -89,6 +92,7 @@ export async function postRematch(
 		credentials: 'include',
 		headers,
 		body: JSON.stringify(payload),
+		signal: AbortSignal.timeout(REMATCH_TIMEOUT_MS),
 	});
 
 	if (!res.ok) {

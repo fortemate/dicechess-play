@@ -33,6 +33,7 @@ export class RematchStore {
 	private tickTimer: ReturnType<typeof setInterval> | null = null;
 	private destroyed = false;
 	private matchedNotified = false;
+	private pendingRequestIds = new Map<RematchAction, string>();
 
 	onMatched?: (nextGameId: string, join: RematchJoin, joinDeadlineAt?: string | null) => void;
 
@@ -45,6 +46,7 @@ export class RematchStore {
 		this.seatToken = seatToken ?? null;
 		this.phase = 'idle';
 		this.error = null;
+		this.isSubmitting = false;
 
 		if (typeof window !== 'undefined') {
 			document.addEventListener('visibilitychange', this.handleVisibilityChange);
@@ -70,7 +72,9 @@ export class RematchStore {
 	};
 
 	private isTerminal(): boolean {
-		return this.phase === 'matched' || this.phase === 'closed';
+		return (
+			(this.phase === 'matched' && Boolean(this.nextGameId && this.join)) || this.phase === 'closed'
+		);
 	}
 
 	private startTick(): void {
@@ -111,6 +115,10 @@ export class RematchStore {
 			return;
 		}
 		const deadlineMs = new Date(this.deadlineAt).getTime();
+		if (Number.isNaN(deadlineMs)) {
+			this.secondsRemaining = 0;
+			return;
+		}
 		const serverNowEst = Date.now() + this.serverClockOffsetMs;
 		const diffMs = deadlineMs - serverNowEst;
 		const secs = Math.max(0, Math.ceil(diffMs / 1000));
@@ -129,7 +137,10 @@ export class RematchStore {
 		this.closedReason = state.closedReason ?? null;
 
 		if (state.serverNow) {
-			this.serverClockOffsetMs = new Date(state.serverNow).getTime() - Date.now();
+			const serverNowMs = new Date(state.serverNow).getTime();
+			if (!Number.isNaN(serverNowMs)) {
+				this.serverClockOffsetMs = serverNowMs - Date.now();
+			}
 		}
 		this.updateCountdown();
 
@@ -137,7 +148,7 @@ export class RematchStore {
 			this.matchedNotified = true;
 			this.stopPoll();
 			this.onMatched?.(this.nextGameId, this.join, this.joinDeadlineAt);
-		} else if (this.isTerminal()) {
+		} else if (this.phase === 'closed') {
 			this.stopPoll();
 		}
 	}
@@ -154,14 +165,20 @@ export class RematchStore {
 			if (err instanceof RematchApiError) {
 				if (err.state) {
 					this.adoptState(err.state);
+					return;
 				} else if (err.status === 410 || err.code === 'rematch_closed') {
 					this.phase = 'closed';
 					this.closedReason = 'expired';
 					this.stopPoll();
+					return;
 				} else if (err.status === 401 || err.status === 403) {
 					this.phase = 'closed';
 					this.stopPoll();
+					return;
 				}
+			}
+			if (this.phase === 'idle') {
+				this.error = 'Unable to load rematch status.';
 			}
 			// Transient network failures don't clobber active state; keep polling
 		} finally {
@@ -171,21 +188,26 @@ export class RematchStore {
 		}
 	}
 
-	private async mutate(action: RematchAction, resumePoll: boolean): Promise<void> {
+	private async mutate(action: RematchAction): Promise<void> {
 		if (!this.gameId || this.isSubmitting || this.destroyed) return;
 		this.isSubmitting = true;
 		this.error = null;
-		const reqId = uuidv4();
+		let reqId = this.pendingRequestIds.get(action);
+		if (!reqId) {
+			reqId = uuidv4();
+			this.pendingRequestIds.set(action, reqId);
+		}
 		try {
 			const res = await postRematch(this.gameId, action, reqId, this.seatToken);
 			if (this.destroyed) return;
+			this.pendingRequestIds.delete(action);
 			this.adoptState(res);
 		} catch (err) {
-			this.handleMutationError(err);
+			this.handleMutationError(action, err);
 		} finally {
 			if (!this.destroyed) {
 				this.isSubmitting = false;
-				if (resumePoll && !this.isTerminal()) {
+				if (!this.isTerminal()) {
 					this.scheduleNextPoll();
 				}
 			}
@@ -193,19 +215,19 @@ export class RematchStore {
 	}
 
 	async propose(): Promise<void> {
-		await this.mutate('propose', true);
+		await this.mutate('propose');
 	}
 
 	async accept(): Promise<void> {
-		await this.mutate('accept', true);
+		await this.mutate('accept');
 	}
 
 	async decline(): Promise<void> {
-		await this.mutate('decline', false);
+		await this.mutate('decline');
 	}
 
 	async cancel(): Promise<void> {
-		await this.mutate('cancel', false);
+		await this.mutate('cancel');
 	}
 
 	retry(): void {
@@ -213,14 +235,16 @@ export class RematchStore {
 		void this.pollOnce();
 	}
 
-	private handleMutationError(err: unknown): void {
+	private handleMutationError(action: RematchAction, err: unknown): void {
 		if (this.destroyed) return;
 		if (err instanceof RematchApiError) {
 			if (err.state) {
+				this.pendingRequestIds.delete(action);
 				this.adoptState(err.state);
 				return;
 			}
 			if (err.status === 410 || err.code === 'rematch_closed') {
+				this.pendingRequestIds.delete(action);
 				this.phase = 'closed';
 				this.closedReason = 'expired';
 				this.stopPoll();
@@ -236,6 +260,7 @@ export class RematchStore {
 
 	dispose(): void {
 		this.destroyed = true;
+		this.pendingRequestIds.clear();
 		this.stopPoll();
 		this.stopTick();
 		if (typeof window !== 'undefined') {

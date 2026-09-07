@@ -38,6 +38,13 @@ function mockStore(overrides: Partial<RematchStore> = {}): RematchStore {
 }
 
 describe('RematchControl', () => {
+	it('renders loading status in idle state', () => {
+		const store = mockStore({ phase: 'idle' });
+		const { getByText } = render(RematchControl, { store });
+
+		expect(getByText(/checking rematch availability…/i)).toBeDefined();
+	});
+
 	it('renders rematch button and settings in available state', async () => {
 		const store = mockStore({ phase: 'available', secondsRemaining: 14 });
 		const { getByRole, getByText } = render(RematchControl, { store });

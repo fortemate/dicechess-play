@@ -76,6 +76,7 @@ describe('rematchApi', () => {
 			expect(capturedUrl).toBe('http://localhost:8080/games/game-123/rematch');
 			expect(capturedInit?.method).toBe('GET');
 			expect(capturedInit?.credentials).toBe('include');
+			expect(capturedInit?.signal).toBeDefined();
 			expect((capturedInit?.headers as Record<string, string>)?.['X-Rematch-Seat-Token']).toBe(
 				'tok-abc',
 			);
@@ -134,6 +135,7 @@ describe('rematchApi', () => {
 			expect(capturedUrl).toBe('http://localhost:8080/games/game-123/rematch');
 			expect(capturedInit?.method).toBe('POST');
 			expect(capturedInit?.credentials).toBe('include');
+			expect(capturedInit?.signal).toBeDefined();
 			const headers = capturedInit?.headers as Record<string, string>;
 			expect(headers['Content-Type']).toBe('application/json');
 			expect(headers['X-DiceChess-CSRF']).toBe('1');

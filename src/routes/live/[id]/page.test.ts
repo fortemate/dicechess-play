@@ -433,6 +433,18 @@ describe('live board — ordinary HvH rematch flow (issue #105)', () => {
 		expect(queryByRole('button', { name: /rematch/i })).toBeNull();
 	});
 
+	it('excludes rematch when game was aborted authoritatively during play', () => {
+		state.current = storeState({
+			gameStatus: 'playing',
+			termination: null,
+			authoritativeOver: { result: { Draw: {} }, termination: 'Aborted' },
+			spectator: false,
+		});
+
+		const { queryByRole } = render(LivePage);
+		expect(queryByRole('button', { name: /rematch/i })).toBeNull();
+	});
+
 	it('shows prompt rematch control in rail when authoritativeOver is set before gameStatus is over', async () => {
 		state.current = storeState({
 			gameStatus: 'playing',

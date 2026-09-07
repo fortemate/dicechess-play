@@ -228,10 +228,9 @@
 		return id ? recallBotGame(id) : null;
 	});
 
-	// Ordinary completed human-versus-human rematch flow (issue #105, play-api ADR 007).
-	// Exclude spectators, bot games, staked/doubling games, and technical aborts.
+	const effectiveTermination = $derived(live.authoritativeOver?.termination ?? live.termination);
 	const rematchEligible = $derived(
-		!live.spectator && !opponentIsBot && !live.doubling && live.termination !== 'Aborted',
+		!live.spectator && !opponentIsBot && !live.doubling && effectiveTermination !== 'Aborted',
 	);
 
 	const rematchStore = new RematchStore();

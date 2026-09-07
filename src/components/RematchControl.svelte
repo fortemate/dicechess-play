@@ -51,7 +51,11 @@
 		</div>
 	{/if}
 
-	{#if store.phase === 'available'}
+	{#if store.phase === 'idle'}
+		<p class="text-center text-sm text-content-muted" role="status">
+			Checking rematch availability…
+		</p>
+	{:else if store.phase === 'available'}
 		<div class="flex w-full flex-col items-center gap-1.5">
 			<button
 				type="button"

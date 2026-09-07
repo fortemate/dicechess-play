@@ -254,4 +254,97 @@ describe('RematchStore', () => {
 
 		store.dispose();
 	});
+
+	it('reuses requestId on retry after a failed mutation', async () => {
+		vi.spyOn(rematchApi, 'getRematch').mockResolvedValue(AVAILABLE_STATE);
+		const postSpy = vi
+			.spyOn(rematchApi, 'postRematch')
+			.mockRejectedValueOnce(new Error('Network error'))
+			.mockResolvedValueOnce(OFFERED_MINE);
+
+		const store = new RematchStore();
+		store.init('game-1', 'tok-1');
+		await vi.advanceTimersByTimeAsync(0);
+
+		await store.propose();
+		expect(store.error).toBeTruthy();
+		const firstReqId = postSpy.mock.calls[0][2];
+
+		await store.propose();
+		const secondReqId = postSpy.mock.calls[1][2];
+
+		expect(firstReqId).toBe(secondReqId);
+		expect(store.phase).toBe('offered');
+
+		store.dispose();
+	});
+
+	it('resets isSubmitting on re-init', () => {
+		const store = new RematchStore();
+		store.isSubmitting = true;
+		store.init('game-1', 'tok-1');
+
+		expect(store.isSubmitting).toBe(false);
+
+		store.dispose();
+	});
+
+	it('safely handles invalid deadline and serverNow timestamps', async () => {
+		vi.spyOn(rematchApi, 'getRematch').mockResolvedValueOnce({
+			...AVAILABLE_STATE,
+			serverNow: 'invalid-date',
+			deadlineAt: 'not-a-timestamp',
+		});
+
+		const store = new RematchStore();
+		store.init('game-1', 'tok-1');
+		await vi.advanceTimersByTimeAsync(0);
+
+		expect(store.secondsRemaining).toBe(0);
+		expect(Number.isNaN(store.secondsRemaining)).toBe(false);
+
+		store.dispose();
+	});
+
+	it('continues polling when matched phase is missing join credentials', async () => {
+		const incompleteMatched: PrivateRematch = {
+			...AVAILABLE_STATE,
+			phase: 'matched',
+			nextGameId: null,
+			join: null,
+		};
+
+		const getSpy = vi
+			.spyOn(rematchApi, 'getRematch')
+			.mockResolvedValueOnce(AVAILABLE_STATE)
+			.mockResolvedValueOnce(incompleteMatched)
+			.mockResolvedValueOnce(MATCHED_STATE);
+
+		const store = new RematchStore();
+		const matchedHandler = vi.fn();
+		store.onMatched = matchedHandler;
+
+		store.init('game-1', 'tok-1');
+		await vi.advanceTimersByTimeAsync(0);
+
+		// Advance for incomplete matched poll
+		vi.advanceTimersByTime(1000);
+		await vi.advanceTimersByTimeAsync(0);
+
+		expect(store.phase).toBe('matched');
+		expect(matchedHandler).not.toHaveBeenCalled();
+
+		// Advance for complete matched poll
+		vi.advanceTimersByTime(1000);
+		await vi.advanceTimersByTimeAsync(0);
+
+		expect(matchedHandler).toHaveBeenCalledWith(
+			'game-next',
+			{ seat: 'White', token: 'token-new-game' },
+			'2026-09-07T12:00:30Z',
+		);
+		expect(getSpy).toHaveBeenCalledTimes(3);
+
+		store.dispose();
+	});
 });
