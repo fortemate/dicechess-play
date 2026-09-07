@@ -17,12 +17,13 @@ vi.mock('$app/paths', () => ({
 	resolve: (path: string, params?: Record<string, string>) =>
 		params ? path.replace('[id]', params.id) : path,
 }));
-vi.mock('$app/state', () => ({
-	page: { params: { id: 'game-1' }, url: new URL('http://x/live/game-1') },
+const pageState = vi.hoisted(() => ({
+	params: { id: 'game-1' } as Record<string, string>,
+	url: new URL('http://x/live/game-1'),
 }));
-vi.mock('$app/navigation', () => ({
-	goto: vi.fn(),
-}));
+vi.mock('$app/state', () => ({ page: pageState }));
+const goto = vi.hoisted(() => vi.fn());
+vi.mock('$app/navigation', () => ({ goto }));
 
 // `vi.mock` factories are hoisted above every top-level binding, so the stub has to be reached
 // through `vi.hoisted` (or re-imported per factory) rather than a plain const.
@@ -40,6 +41,17 @@ vi.mock('../../../components/BotRematchButton.svelte', stub);
 vi.mock('$lib/sound', () => ({ preloadSounds: vi.fn(), playSound: vi.fn() }));
 vi.mock('$lib/catalog/lastBotGame', () => ({ recallBotGame: () => null }));
 vi.mock('$lib/leaderboard/leaderboardApi', () => ({ fetchPlayerProfile: vi.fn() }));
+// The spectator's public continuation read (#106). Default answer: an ordinary game still being
+// played — `waiting` with no deadline — so existing cases see no follow activity.
+const continuation = vi.hoisted(() => ({
+	getContinuation: vi.fn(),
+}));
+vi.mock('$lib/live/continuationApi', async () => {
+	const actual = await vi.importActual<typeof import('$lib/live/continuationApi')>(
+		'$lib/live/continuationApi',
+	);
+	return { ...actual, getContinuation: continuation.getContinuation };
+});
 vi.mock('$lib/live/rematchApi', () => ({
 	getRematch: vi.fn().mockResolvedValue({
 		sourceGameId: 'game-1',
@@ -120,6 +132,13 @@ describe('live board — finished-game replay actions', () => {
 	beforeEach(() => {
 		state.current = storeState();
 		toastStore.error.mockReset();
+		goto.mockReset();
+		sessionStorage.clear();
+		continuation.getContinuation.mockReset().mockResolvedValue({
+			sourceGameId: 'game-1',
+			serverNow: '2026-09-07T12:00:00Z',
+			phase: 'waiting',
+		});
 	});
 	afterEach(() => {
 		cleanup();
@@ -475,5 +494,154 @@ describe('live board — ordinary HvH rematch flow (issue #105)', () => {
 
 		const { getAllByText } = render(LivePage);
 		expect(getAllByText(/awaiting opponent/i).length).toBeGreaterThan(0);
+	});
+});
+
+/*
+ * Spectator continuation (#106): a viewer with no seat is carried into the pair's rematch, and can
+ * refuse to be. The store's own rules are covered in `spectatorFollowStore.test.ts`; what only the
+ * page can answer is that the panel is wired to a SEATLESS viewer, that following navigates in
+ * explicit spectator mode, and that the connection itself is opened read-only.
+ */
+describe('live board — spectator rematch following', () => {
+	const spectating = (overrides: Record<string, unknown> = {}) =>
+		storeState({
+			gameStatus: 'over',
+			spectator: true,
+			outcome: null,
+			winner: 'White',
+			players: {
+				white: { kind: 'Human', name: 'Player 1' },
+				black: { kind: 'Human', name: 'Player 2' },
+			},
+			...overrides,
+		});
+
+	beforeEach(() => {
+		// Following is part of the live surface: without a configured play server there is nothing
+		// to read, exactly as `/live` itself is disabled.
+		vi.stubEnv('VITE_PLAY_API_URL', 'http://localhost:8080');
+		goto.mockReset();
+		sessionStorage.clear();
+		pageState.params = { id: 'game-1' };
+		pageState.url = new URL('http://x/live/game-1');
+		continuation.getContinuation.mockReset().mockResolvedValue({
+			sourceGameId: 'game-1',
+			serverNow: '2026-09-07T12:00:00Z',
+			phase: 'waiting',
+			deadlineAt: '2026-09-07T12:00:15Z',
+		});
+		state.current = spectating();
+	});
+
+	afterEach(() => {
+		cleanup();
+		sessionStorage.clear();
+		vi.unstubAllEnvs();
+	});
+
+	it('watches for a rematch on a finished game and offers to stay', async () => {
+		const { getAllByText, getAllByRole } = render(LivePage);
+
+		await waitFor(() => expect(continuation.getContinuation).toHaveBeenCalledWith('game-1'));
+		await waitFor(() => expect(getAllByText(/waiting for a rematch/i).length).toBeGreaterThan(0));
+		expect(getAllByRole('button', { name: /stay on this game/i }).length).toBeGreaterThan(0);
+	});
+
+	it('follows a committed successor in explicit spectator mode', async () => {
+		continuation.getContinuation.mockImplementation(async (id: string) =>
+			id === 'game-1'
+				? {
+						sourceGameId: 'game-1',
+						serverNow: '2026-09-07T12:00:00Z',
+						phase: 'matched',
+						nextGameId: 'game-2',
+					}
+				: { sourceGameId: id, serverNow: '2026-09-07T12:00:00Z', phase: 'waiting' },
+		);
+
+		render(LivePage);
+
+		await waitFor(() => expect(goto).toHaveBeenCalledOnce());
+		expect(goto).toHaveBeenCalledWith(`${location.origin}/live/game-2?spectate=1`);
+	});
+
+	it('"Stay on this game" keeps the viewer put and offers the successor explicitly', async () => {
+		const { getAllByRole, getAllByText } = render(LivePage);
+		await waitFor(() => expect(continuation.getContinuation).toHaveBeenCalled());
+
+		await fireEvent.click(getAllByRole('button', { name: /stay on this game/i })[0]);
+
+		continuation.getContinuation.mockImplementation(async (id: string) =>
+			id === 'game-1'
+				? {
+						sourceGameId: 'game-1',
+						serverNow: '2026-09-07T12:00:00Z',
+						phase: 'matched',
+						nextGameId: 'game-2',
+					}
+				: { sourceGameId: id, serverNow: '2026-09-07T12:00:00Z', phase: 'waiting' },
+		);
+
+		await waitFor(() =>
+			expect(getAllByText(/players started a rematch/i).length).toBeGreaterThan(0),
+		);
+		expect(goto).not.toHaveBeenCalled();
+		expect(getAllByRole('button', { name: /watch the current game/i }).length).toBeGreaterThan(0);
+	});
+
+	it('keeps the offer visible after a reload onto a finished game whose room is gone', async () => {
+		// An ended game's room is evicted with it, so a reloaded spectator's socket never connects and
+		// the page stays in 'connecting' — the end-of-game surfaces never appear. The choice to stay
+		// here and the successor it was traded for must survive that anyway.
+		sessionStorage.setItem('dicechess-play-follow-intent', JSON.stringify(['game-1']));
+		state.current = spectating({ gameStatus: 'connecting', termination: null });
+		continuation.getContinuation.mockImplementation(async (id: string) =>
+			id === 'game-1'
+				? {
+						sourceGameId: 'game-1',
+						serverNow: '2026-09-07T12:00:00Z',
+						phase: 'matched',
+						nextGameId: 'game-2',
+					}
+				: { sourceGameId: id, serverNow: '2026-09-07T12:00:00Z', phase: 'waiting' },
+		);
+
+		const { findAllByRole } = render(LivePage);
+
+		expect(
+			(await findAllByRole('button', { name: /watch the current game/i })).length,
+		).toBeGreaterThan(0);
+		expect(goto).not.toHaveBeenCalled();
+	});
+
+	it('never reads a continuation for a seated player', async () => {
+		state.current = storeState({ gameStatus: 'over', spectator: false });
+
+		render(LivePage);
+		await waitFor(() => expect(state.current.connect).toHaveBeenCalled());
+
+		expect(continuation.getContinuation).not.toHaveBeenCalled();
+	});
+
+	it('opens the socket read-only when the link says spectate, ignoring a seat token on it', async () => {
+		pageState.url = new URL('http://x/live/game-1?spectate=1&seat=tok-abc&as=black');
+
+		render(LivePage);
+
+		await waitFor(() =>
+			expect(state.current.connect).toHaveBeenCalledWith('game-1', null, null, true),
+		);
+	});
+
+	it('opens the socket as a seated player when the link carries a seat', async () => {
+		pageState.url = new URL('http://x/live/game-1?seat=tok-abc&as=black');
+		state.current = storeState({ gameStatus: 'over', spectator: false });
+
+		render(LivePage);
+
+		await waitFor(() =>
+			expect(state.current.connect).toHaveBeenCalledWith('game-1', 'tok-abc', 'black', false),
+		);
 	});
 });

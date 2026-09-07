@@ -12,18 +12,38 @@ export function buildJoinUrl(origin: string, gameId: string, token: string, seat
 	return url.toString();
 }
 
+/** The `?spectate=1` marker: an explicit, deliberate request to watch rather than play. */
+export const SPECTATE_PARAM = 'spectate';
+
+/**
+ * The link a follower opens on a rematch (ADR 007 / rematch-v1). It carries no credential — the
+ * marker is the whole point: a tokenless URL alone is NOT a spectator guarantee, because a
+ * signed-in participant who lost their `?seat=` link is deliberately restored to their seat from
+ * the session (play-api #235). Watching a chain must never do that, so the intent is stated.
+ */
+export function buildSpectateUrl(origin: string, gameId: string): string {
+	const url = new URL(`/live/${gameId}`, origin);
+	url.searchParams.set(SPECTATE_PARAM, '1');
+	return url.toString();
+}
+
 export interface ParsedSeat {
 	/** The join token, or null for a (tokenless) spectator. */
 	token: string | null;
 	/** The seat colour from the link, or null if absent/invalid. */
 	as: 'white' | 'black' | null;
+	/** True when the link explicitly asks to watch read-only, whatever else it carries. */
+	spectate: boolean;
 }
 
 export function parseSeat(url: URL): ParsedSeat {
-	const token = url.searchParams.get('seat');
+	const spectate = url.searchParams.get(SPECTATE_PARAM) === '1';
 	const asRaw = url.searchParams.get('as');
 	const as = asRaw === 'white' || asRaw === 'black' ? asRaw : null;
-	return { token, as };
+	// Explicit spectator mode outranks a seat token in the same URL, exactly as it outranks the
+	// account session server-side: one link cannot both watch and claim.
+	const token = spectate ? null : url.searchParams.get('seat');
+	return { token, as: spectate ? null : as, spectate };
 }
 
 /**

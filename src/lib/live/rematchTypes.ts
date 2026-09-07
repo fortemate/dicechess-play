@@ -46,3 +46,24 @@ export interface RematchErrorResponse {
 	};
 	state?: PrivateRematch;
 }
+
+/**
+ * The PUBLIC projection of a rematch opportunity (`GET /games/{id}/continuation`), which any
+ * viewer may read without a seat. It is deliberately poorer than `PrivateRematch`: no consent
+ * identities, no closure reason, no join data — see "Authorization and privacy" in the contract.
+ *
+ * `phase` collapses the private lifecycle into three public values. In particular an ordinary
+ * game that is still being played answers `waiting` with no `deadlineAt`, which is NOT a closed
+ * chain: a follower keeps waiting for that game to finish.
+ */
+export type PublicContinuationPhase = 'waiting' | 'matched' | 'closed';
+
+export interface PublicContinuation {
+	sourceGameId: string;
+	phase: PublicContinuationPhase;
+	serverNow: string;
+	/** The current opportunity/response deadline; absent for an active game or a recovering commit. */
+	deadlineAt?: string | null;
+	/** The committed successor, present only at `matched` and only once it is readable. */
+	nextGameId?: string | null;
+}

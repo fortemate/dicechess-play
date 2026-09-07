@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { buildJoinUrl, parseSeat, resolveSeats } from './seatLink';
+import { buildJoinUrl, buildSpectateUrl, parseSeat, resolveSeats } from './seatLink';
 import type { SeatToken } from './liveTypes';
 
 describe('seatLink', () => {
@@ -9,22 +9,50 @@ describe('seatLink', () => {
 		);
 	});
 
+	it('builds a credential-free spectate URL for a followed rematch', () => {
+		expect(buildSpectateUrl('https://play.example', 'g2')).toBe(
+			'https://play.example/live/g2?spectate=1',
+		);
+	});
+
 	it('parses token and colour from a URL', () => {
 		expect(parseSeat(new URL('https://x/live/g1?seat=tok&as=white'))).toEqual({
 			token: 'tok',
 			as: 'white',
+			spectate: false,
 		});
 	});
 
-	it('treats a tokenless URL as a spectator', () => {
-		expect(parseSeat(new URL('https://x/live/g1'))).toEqual({ token: null, as: null });
+	it('treats a tokenless URL as a spectator, without claiming it is an explicit one', () => {
+		// A tokenless link alone is NOT a spectator guarantee: play-api restores a signed-in
+		// participant to their seat from the session (#235). Only `spectate` says "watch, whatever
+		// this browser is carrying".
+		expect(parseSeat(new URL('https://x/live/g1'))).toEqual({
+			token: null,
+			as: null,
+			spectate: false,
+		});
 	});
 
 	it('ignores an invalid colour', () => {
 		expect(parseSeat(new URL('https://x/live/g1?seat=t&as=purple'))).toEqual({
 			token: 't',
 			as: null,
+			spectate: false,
 		});
+	});
+
+	it('lets explicit spectator mode outrank a seat token in the same link', () => {
+		expect(parseSeat(new URL('https://x/live/g1?seat=tok&as=black&spectate=1'))).toEqual({
+			token: null,
+			as: null,
+			spectate: true,
+		});
+	});
+
+	it('only accepts the exact spectate marker', () => {
+		expect(parseSeat(new URL('https://x/live/g1?spectate=yes')).spectate).toBe(false);
+		expect(parseSeat(new URL('https://x/live/g1?spectate=0')).spectate).toBe(false);
 	});
 
 	describe('resolveSeats', () => {

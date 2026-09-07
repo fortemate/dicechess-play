@@ -45,7 +45,7 @@ export async function getState(id: string): Promise<PublicGameState> {
 	return (await res.json()) as PublicGameState;
 }
 
-/** The WebSocket URL for a game; pass the seat token to play, or null to spectate.
+/** The WebSocket URL for a game; pass the seat token to play, `spectator` to watch read-only.
  *
  * `guest` is our anonymous identity, and it is what makes a friend-by-link game have two players
  * (play-api #285). Both seats of such a game start held by the SAME id — the creator's, because a
@@ -57,13 +57,25 @@ export async function getState(id: string): Promise<PublicGameState> {
  * Only sent alongside a token: a spectator claims nothing, and the server only looks at it on the
  * seated path. A signed-in visitor's session wins over it server-side, so it is harmless to send.
  */
-export function wsUrl(id: string, token: string | null, guest: string | null = null): string {
+export function wsUrl(
+	id: string,
+	token: string | null,
+	guest: string | null = null,
+	spectator = false,
+): string {
 	const base = apiBase().replace(/^http/, 'ws');
 	// Built by hand rather than with URLSearchParams on purpose: that encodes a space as `+`, and this
 	// is a live path whose escaping should not change as a side effect of adding a parameter.
 	const parts: string[] = [];
-	if (token) parts.push(`token=${encodeURIComponent(token)}`);
-	if (token && guest) parts.push(`guest=${encodeURIComponent(guest)}`);
+	// `mode=spectator` is the explicit read-only subscription (play-api ADR 007 / rematch-v1). It
+	// takes precedence over BOTH an account cookie and a seat token server-side, so nothing else is
+	// sent with it: a follower of a rematch chain must never restore or claim a seat, not even in
+	// the browser of someone who is playing the game they are watching.
+	if (spectator) parts.push('mode=spectator');
+	else {
+		if (token) parts.push(`token=${encodeURIComponent(token)}`);
+		if (token && guest) parts.push(`guest=${encodeURIComponent(guest)}`);
+	}
 	const query = parts.length > 0 ? `?${parts.join('&')}` : '';
 	return `${base}/games/${id}/ws${query}`;
 }

@@ -85,6 +85,21 @@ describe('liveApi', () => {
 		expect(wsUrl('g1', 'tok', null)).toBe('ws://localhost:8080/games/g1/ws?token=tok');
 	});
 
+	/** ADR 007 / rematch-v1: a spectator following a rematch chain states it. The mode goes on the
+	 * wire ALONE — a seat token or guest id sent with it would be an attempt to claim a seat, and
+	 * the server gives explicit spectator mode precedence over both that and the account session.
+	 */
+	it('wsUrl asks for explicit read-only mode and sends no credential with it', () => {
+		expect(wsUrl('g1', null, null, true)).toBe('ws://localhost:8080/games/g1/ws?mode=spectator');
+		expect(wsUrl('g1', 'tok', 'guest-uuid', true)).toBe(
+			'ws://localhost:8080/games/g1/ws?mode=spectator',
+		);
+		// Not passing the flag keeps every existing caller exactly as it was.
+		expect(wsUrl('g1', 'tok', 'guest-uuid')).toBe(
+			'ws://localhost:8080/games/g1/ws?token=tok&guest=guest-uuid',
+		);
+	});
+
 	/** Pins the escaping too: adding `guest` must not change how `token` was already encoded (a space
 	 * stays `%20`, which is what switching to URLSearchParams would have silently turned into `+`).
 	 */
