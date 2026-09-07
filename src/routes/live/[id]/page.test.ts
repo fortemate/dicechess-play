@@ -586,6 +586,27 @@ describe('live board — spectator rematch following', () => {
 		expect(getAllByRole('button', { name: /watch the current game/i }).length).toBeGreaterThan(0);
 	});
 
+	it('keeps the offer visible after a reload onto a finished game whose room is gone', async () => {
+		// An ended game's room is evicted with it, so a reloaded spectator's socket never connects and
+		// the page stays in 'connecting' — the end-of-game surfaces never appear. The choice to stay
+		// here and the successor it was traded for must survive that anyway.
+		sessionStorage.setItem('dicechess-play-follow-intent', JSON.stringify(['game-1']));
+		state.current = spectating({ gameStatus: 'connecting', termination: null });
+		continuation.getContinuation.mockResolvedValue({
+			sourceGameId: 'game-1',
+			serverNow: '2026-09-07T12:00:00Z',
+			phase: 'matched',
+			nextGameId: 'game-2',
+		});
+
+		const { findAllByRole } = render(LivePage);
+
+		expect(
+			(await findAllByRole('button', { name: /watch the current game/i })).length,
+		).toBeGreaterThan(0);
+		expect(goto).not.toHaveBeenCalled();
+	});
+
 	it('never reads a continuation for a seated player', async () => {
 		state.current = storeState({ gameStatus: 'over', spectator: false });
 

@@ -240,6 +240,15 @@
 	const followStore = new SpectatorFollowStore();
 	// Only a seatless viewer follows a chain, and only where live play is configured at all.
 	const spectatorFollows = $derived(live.spectator && isLiveEnabled());
+	// The follow panel normally lives on the end-of-game surfaces, which need the socket to have
+	// reported the ending. A spectator who reloads on a game that is already over never gets that:
+	// the room is evicted with the game, so the board sits in 'connecting' forever. Their choice to
+	// stay here — and the successor they were offered — must survive that, so the rail carries the
+	// panel too whenever the follower has something a finished game can say: a live offer window
+	// (`deadlineAt`, which an in-progress or ineligible game never has) or a committed successor.
+	const railFollowPanel = $derived(
+		spectatorFollows && (followStore.status === 'matched' || followStore.deadlineAt !== null),
+	);
 
 	$effect(() => {
 		const gameId = page.params.id;
@@ -890,6 +899,12 @@
 						class="order-3 mb-2 flex w-full flex-col items-center rounded-2xl border border-border bg-surface p-3 md:order-none"
 					>
 						<RematchControl store={rematchStore} compact={true} />
+					</div>
+				{:else if railFollowPanel}
+					<div
+						class="order-3 mb-2 flex w-full flex-col items-center rounded-2xl border border-border bg-surface p-3 md:order-none"
+					>
+						<SpectatorFollowPanel store={followStore} compact={true} />
 					</div>
 				{/if}
 				{#if turnLine}

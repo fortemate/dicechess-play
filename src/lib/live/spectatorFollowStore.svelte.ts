@@ -50,6 +50,12 @@ export class SpectatorFollowStore {
 	error = $state<string | null>(null);
 	/** Countdown on the public offer deadline, 0 when there is none (an active or closed game). */
 	secondsRemaining = $state<number>(0);
+	/**
+	 * The public offer deadline, or null when there is none. Its presence is also the one public
+	 * signal that the watched game has ENDED and an offer window is live: an ordinary game still
+	 * being played answers `waiting` without one, and so does a permanently ineligible source.
+	 */
+	deadlineAt = $state<string | null>(null);
 	/** True while a chain walk is in flight, so the UI can disable a second "watch it" click. */
 	resolving = $state<boolean>(false);
 
@@ -57,7 +63,6 @@ export class SpectatorFollowStore {
 	onFollow?: (gameId: string) => void;
 
 	private gameId: string | null = null;
-	private deadlineAt: string | null = null;
 	private serverClockOffsetMs = 0;
 	private pollTimer: ReturnType<typeof setTimeout> | null = null;
 	private tickTimer: ReturnType<typeof setInterval> | null = null;
