@@ -20,6 +20,9 @@ vi.mock('$app/paths', () => ({
 vi.mock('$app/state', () => ({
 	page: { params: { id: 'game-1' }, url: new URL('http://x/live/game-1') },
 }));
+vi.mock('$app/navigation', () => ({
+	goto: vi.fn(),
+}));
 
 // `vi.mock` factories are hoisted above every top-level binding, so the stub has to be reached
 // through `vi.hoisted` (or re-imported per factory) rather than a plain const.
@@ -37,6 +40,23 @@ vi.mock('../../../components/BotRematchButton.svelte', stub);
 vi.mock('$lib/sound', () => ({ preloadSounds: vi.fn(), playSound: vi.fn() }));
 vi.mock('$lib/catalog/lastBotGame', () => ({ recallBotGame: () => null }));
 vi.mock('$lib/leaderboard/leaderboardApi', () => ({ fetchPlayerProfile: vi.fn() }));
+vi.mock('$lib/live/rematchApi', () => ({
+	getRematch: vi.fn().mockResolvedValue({
+		sourceGameId: 'game-1',
+		phase: 'available',
+		serverNow: '2026-09-07T12:00:00Z',
+		myConsent: false,
+		allowedActions: ['propose'],
+		settings: {
+			timeControl: { Fischer: { initialSeconds: 300, incrementSeconds: 3 } },
+			rated: true,
+			mode: 'classic',
+		},
+		deadlineAt: '2026-09-07T12:00:15Z',
+	}),
+	postRematch: vi.fn(),
+	RematchApiError: class extends Error {},
+}));
 
 const toastStore = vi.hoisted(() => ({ error: vi.fn(), success: vi.fn(), info: vi.fn() }));
 vi.mock('$lib/toastStore.svelte', () => ({ toastStore }));
@@ -58,6 +78,8 @@ function storeState(overrides: Record<string, unknown> = {}) {
 	return {
 		gameStatus: 'over',
 		termination: 'Resign',
+		authoritativeOver: { result: { Win: { side: 'White' } }, termination: 'Resign' },
+		rematchStartup: null,
 		spectator: false,
 		outcome: 'won',
 		winner: 'White',
@@ -339,5 +361,119 @@ describe('live board — how a staked game ends (#75)', () => {
 		const { getAllByText } = render(LivePage);
 
 		expect(getAllByText('Game over').length).toBeGreaterThan(0);
+	});
+});
+
+describe('live board — ordinary HvH rematch flow (issue #105)', () => {
+	beforeEach(() => {
+		toastStore.error.mockReset();
+	});
+	afterEach(() => {
+		cleanup();
+	});
+
+	it('renders rematch control on completed ordinary human game', async () => {
+		state.current = storeState({
+			gameStatus: 'over',
+			authoritativeOver: { result: { Win: { side: 'White' } }, termination: 'Resign' },
+			spectator: false,
+			players: {
+				white: { kind: 'Human', name: 'Player 1' },
+				black: { kind: 'Human', name: 'Player 2' },
+			},
+		});
+
+		const { getAllByRole } = render(LivePage);
+		await waitFor(() => {
+			const rematchBtns = getAllByRole('button', { name: /rematch/i });
+			expect(rematchBtns.length).toBeGreaterThan(0);
+		});
+	});
+
+	it('excludes rematch when opponent is a bot', () => {
+		state.current = storeState({
+			gameStatus: 'over',
+			authoritativeOver: { result: { Win: { side: 'White' } }, termination: 'Resign' },
+			spectator: false,
+			players: {
+				white: { kind: 'Human', name: 'Player 1' },
+				black: { kind: 'Bot', name: 'Bot Alice' },
+			},
+		});
+
+		const { queryByRole } = render(LivePage);
+		// Ordinary rematch button is not rendered; fallback bot action or bot rematch button instead
+		expect(queryByRole('button', { name: /rematch \(\d+s\)/i })).toBeNull();
+	});
+
+	it('excludes rematch for spectators', () => {
+		state.current = storeState({
+			gameStatus: 'over',
+			authoritativeOver: { result: { Win: { side: 'White' } }, termination: 'Resign' },
+			spectator: true,
+			players: {
+				white: { kind: 'Human', name: 'Player 1' },
+				black: { kind: 'Human', name: 'Player 2' },
+			},
+		});
+
+		const { queryByRole } = render(LivePage);
+		expect(queryByRole('button', { name: /rematch/i })).toBeNull();
+	});
+
+	it('excludes rematch when game was aborted', () => {
+		state.current = storeState({
+			gameStatus: 'over',
+			termination: 'Aborted',
+			authoritativeOver: { result: { Draw: {} }, termination: 'Aborted' },
+			spectator: false,
+		});
+
+		const { queryByRole } = render(LivePage);
+		expect(queryByRole('button', { name: /rematch/i })).toBeNull();
+	});
+
+	it('excludes rematch when game was aborted authoritatively during play', () => {
+		state.current = storeState({
+			gameStatus: 'playing',
+			termination: null,
+			authoritativeOver: { result: { Draw: {} }, termination: 'Aborted' },
+			spectator: false,
+		});
+
+		const { queryByRole } = render(LivePage);
+		expect(queryByRole('button', { name: /rematch/i })).toBeNull();
+	});
+
+	it('shows prompt rematch control in rail when authoritativeOver is set before gameStatus is over', async () => {
+		state.current = storeState({
+			gameStatus: 'playing',
+			authoritativeOver: { result: { Win: { side: 'White' } }, termination: 'Resign' },
+			spectator: false,
+			players: {
+				white: { kind: 'Human', name: 'Player 1' },
+				black: { kind: 'Human', name: 'Player 2' },
+			},
+		});
+
+		const { getAllByRole } = render(LivePage);
+		await waitFor(() => {
+			const promptBtns = getAllByRole('button', { name: /rematch/i });
+			expect(promptBtns.length).toBeGreaterThan(0);
+		});
+	});
+
+	it('shows awaiting opponent state and countdown when rematchStartup is awaiting_joins', () => {
+		state.current = storeState({
+			gameStatus: 'waiting',
+			authoritativeOver: null,
+			rematchStartup: {
+				phase: 'awaiting_joins',
+				joinDeadlineAt: '2026-09-07T12:00:35Z',
+			},
+		});
+
+		const { getAllByText } = render(LivePage);
+		expect(getAllByText(/awaiting opponent/i).length).toBeGreaterThan(0);
 	});
 });

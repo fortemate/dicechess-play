@@ -124,6 +124,8 @@ src/
 │   │                          (click → wake → config → start)
 │   ├── BotRematchButton       one-click rematch of the bot game that just finished, on the live
 │   │                          board's end-of-game surfaces (same wake → start handshake, #215)
+│   ├── RematchControl         participant rematch flow on ordinary completed HvH result screens
+│   │                          with server countdown, consent lifecycle, and successor join (#105)
 │   └── RatingDeltaLine        a finished rated game's rating change on both end-of-game surfaces —
 │                              says "updating…" while play-api's batch has not applied it yet
 ├── lib/
@@ -137,9 +139,10 @@ src/
 │   ├── rules/                 seo.ts — shared origins for the prerendered rules page's absolute
 │   │                          canonical/OG URLs (#254); sitemap.xml/app.html hardcode the same
 │   ├── live/                  live-play client: liveGameStore, liveClient (WS + reconnect),
-│   │                          liveApi/lobbyApi/historyApi/ratingApi (REST), ratingDelta (a finished
-│   │                          game's own rating change: poll state, and rounding for display),
-│   │                          liveTypes (play-api wire mirror),
+│   │                          liveApi/lobbyApi/historyApi/ratingApi/rematchApi (REST),
+│   │                          rematchStore (countdown, polling, and consent lifecycle),
+│   │                          ratingDelta (a finished game's own rating change: poll state, and rounding for display),
+│   │                          liveTypes/rematchTypes (play-api wire mirrors),
 │   │                          turnReplay (engine-driven per-turn walk, shared by liveGameStore and
 │   │                          reconstructServerHistory, #163),
 │   │                          dfen/board/clock/seat/timeControl/playerLabel helpers;

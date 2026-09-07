@@ -111,6 +111,15 @@ export interface PublicGameState {
 	mayOfferDrawBy?: MayOfferDrawBy | null;
 	// Present (never null) on a staked game, absent or null on a classic one — treat both alike.
 	doubling?: Doubling | null;
+	// Rematch startup phase gate (play-api ADR 007 / #128): awaiting joins, active, or aborted.
+	rematchStartup?: PublicRematchStartup | null;
+}
+
+export type PublicRematchStartupPhase = 'awaiting_joins' | 'active' | 'aborted';
+
+export interface PublicRematchStartup {
+	phase: PublicRematchStartupPhase;
+	joinDeadlineAt?: string | null;
 }
 
 // One completed turn, replayed to a (re)joining client in a Snapshot so its move history starts at

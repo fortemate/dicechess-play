@@ -23,6 +23,7 @@ import type {
 	SnapshotTurn,
 	Doubling,
 	MayOfferDrawBy,
+	PublicRematchStartup,
 } from './liveTypes';
 import * as DiceChessEngine from '@fortemate/dicechess-engine';
 import { buildTurnBlocks } from '../playWithBot/turnBlocks';
@@ -92,6 +93,10 @@ export class LiveGameStore {
 	doubling = $state<Doubling | null>(null);
 	// The terminal `Over`, kept so the settlement line can be read from the server's result.
 	private over = $state<Over | null>(null);
+	/** Authoritative completion, set immediately upon GameEnded or ended snapshot without animation delays. */
+	authoritativeOver = $state<Over | null>(null);
+	/** Rematch startup phase gate (awaiting_joins, active, aborted) if this game is a rematch. */
+	rematchStartup = $state<PublicRematchStartup | null>(null);
 
 	// ── Draw offers (play-api #327, this repo #253) ─────────────────────────
 	drawOffer = $state<DrawOffer | null>(null);
@@ -364,6 +369,8 @@ export class LiveGameStore {
 		this.isAnimatingRoll = false;
 		this.passNoticeSeat = null;
 		this.pendingOver = null;
+		this.authoritativeOver = null;
+		this.rematchStartup = null;
 		this.pendingPromotion = null;
 		this.pendingMoves = [];
 		this.confirmedFen = START_FEN;
@@ -457,6 +464,9 @@ export class LiveGameStore {
 			this.version = ev.DiceRolled.v;
 			this.drawOffer = null;
 			this.drawOfferedBy = null;
+			if (this.rematchStartup?.phase === 'awaiting_joins') {
+				this.rematchStartup = { phase: 'active' };
+			}
 			const { fen6, dice } = splitDfen(ev.DiceRolled.dfen);
 			const color: 'w' | 'b' = ev.DiceRolled.seat === 'White' ? 'w' : 'b';
 			this.recordRoll(fen6, color, dice);
@@ -521,6 +531,7 @@ export class LiveGameStore {
 			// hold a short suspense beat before announcing the result.
 			this.settleClocks(ev.GameEnded.over.termination);
 			this.client?.close();
+			this.authoritativeOver = ev.GameEnded.over;
 			this.pendingOver = ev.GameEnded.over;
 			this.scheduleGameEnd(this.epoch);
 			return;
@@ -570,6 +581,7 @@ export class LiveGameStore {
 		this.players = state.players ?? null;
 		this.rated = state.rated;
 		this.doubling = state.doubling ?? null;
+		this.rematchStartup = state.rematchStartup ?? null;
 		this.drawOffer = state.drawOffer ?? null;
 		this.mayOfferDraw = state.mayOfferDraw ?? null;
 		this.mayOfferDrawBy = state.mayOfferDrawBy ?? null;
@@ -590,6 +602,7 @@ export class LiveGameStore {
 			this.liveFen = stripDfen(state.dfen);
 			// The server's final clocks are already settled in the snapshot; adopt them without re-zeroing.
 			this.setClocks(state.clocks, null);
+			this.authoritativeOver = state.status.Ended.over;
 			// Joining/refreshing into a finished game announces immediately — no suspense.
 			this.finalizeEnd(state.status.Ended.over);
 			return;
@@ -602,7 +615,9 @@ export class LiveGameStore {
 		if (history !== undefined || Object.keys(this.historyMap).length === 0) {
 			this.appendRollEntry(this.liveFen, this.liveActiveColor, this.liveDice);
 		}
-		const clockTicking = state.dicePending || Boolean(state.drawOffer?.pending);
+		const clockTicking =
+			(state.dicePending || Boolean(state.drawOffer?.pending)) &&
+			this.rematchStartup?.phase !== 'awaiting_joins';
 		this.setClocks(state.clocks, clockTicking ? state.activeSeat : null);
 		// The replayed backlog (plus the current roll) is already known — present it as caught up
 		// immediately; only events from here on animate.

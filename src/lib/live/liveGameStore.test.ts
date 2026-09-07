@@ -1406,4 +1406,56 @@ describe('LiveGameStore stake doubling (#75)', () => {
 		expect(live.termination).toBe('SomethingNew');
 		expect(live.outcome).toBe('won');
 	});
+
+	it('sets authoritativeOver immediately upon GameEnded before animation/suspense drains', () => {
+		deliver(snapshot());
+		expect(live.authoritativeOver).toBeNull();
+		expect(live.gameStatus).toBe('playing');
+
+		deliver({
+			GameEnded: { v: 1, over: { result: { Win: { side: 'White' } }, termination: 'Resign' } },
+		});
+
+		// Authoritatively over immediately
+		expect(live.authoritativeOver).toEqual({
+			result: { Win: { side: 'White' } },
+			termination: 'Resign',
+		});
+		// But presentation / gameStatus hasn't finished the suspense beat yet
+		expect(live.gameStatus).toBe('playing');
+	});
+
+	it('tracks rematchStartup and prevents clocks ticking during awaiting_joins', () => {
+		deliver(
+			snapshot({
+				rematchStartup: {
+					phase: 'awaiting_joins',
+					joinDeadlineAt: '2026-09-07T12:00:35Z',
+				},
+				clocks: { white: 300000, black: 300000 },
+				dicePending: true,
+			}),
+		);
+
+		expect(live.rematchStartup).toEqual({
+			phase: 'awaiting_joins',
+			joinDeadlineAt: '2026-09-07T12:00:35Z',
+		});
+		// In awaiting_joins, clocks must NOT be ticking down
+		expect(live.tickingClockSeat).toBeNull();
+
+		// When first roll arrives, it transitions to active
+		deliver({
+			DiceRolled: {
+				v: 2,
+				seat: 'White',
+				dice: [1, 2, 3],
+				dfen: `${START_FEN} 123`,
+				clocks: { white: 300000, black: 300000 },
+			},
+		});
+
+		expect(live.rematchStartup).toEqual({ phase: 'active' });
+		expect(live.tickingClockSeat).toBe('White');
+	});
 });
