@@ -171,13 +171,13 @@ export class RematchStore {
 		}
 	}
 
-	async propose(): Promise<void> {
+	private async mutate(action: RematchAction, resumePoll: boolean): Promise<void> {
 		if (!this.gameId || this.isSubmitting || this.destroyed) return;
 		this.isSubmitting = true;
 		this.error = null;
 		const reqId = uuidv4();
 		try {
-			const res = await postRematch(this.gameId, 'propose', reqId, this.seatToken);
+			const res = await postRematch(this.gameId, action, reqId, this.seatToken);
 			if (this.destroyed) return;
 			this.adoptState(res);
 		} catch (err) {
@@ -185,64 +185,27 @@ export class RematchStore {
 		} finally {
 			if (!this.destroyed) {
 				this.isSubmitting = false;
-				if (!this.isTerminal()) this.scheduleNextPoll();
+				if (resumePoll && !this.isTerminal()) {
+					this.scheduleNextPoll();
+				}
 			}
 		}
+	}
+
+	async propose(): Promise<void> {
+		await this.mutate('propose', true);
 	}
 
 	async accept(): Promise<void> {
-		if (!this.gameId || this.isSubmitting || this.destroyed) return;
-		this.isSubmitting = true;
-		this.error = null;
-		const reqId = uuidv4();
-		try {
-			const res = await postRematch(this.gameId, 'accept', reqId, this.seatToken);
-			if (this.destroyed) return;
-			this.adoptState(res);
-		} catch (err) {
-			this.handleMutationError(err);
-		} finally {
-			if (!this.destroyed) {
-				this.isSubmitting = false;
-				if (!this.isTerminal()) this.scheduleNextPoll();
-			}
-		}
+		await this.mutate('accept', true);
 	}
 
 	async decline(): Promise<void> {
-		if (!this.gameId || this.isSubmitting || this.destroyed) return;
-		this.isSubmitting = true;
-		this.error = null;
-		const reqId = uuidv4();
-		try {
-			const res = await postRematch(this.gameId, 'decline', reqId, this.seatToken);
-			if (this.destroyed) return;
-			this.adoptState(res);
-		} catch (err) {
-			this.handleMutationError(err);
-		} finally {
-			if (!this.destroyed) {
-				this.isSubmitting = false;
-			}
-		}
+		await this.mutate('decline', false);
 	}
 
 	async cancel(): Promise<void> {
-		if (!this.gameId || this.isSubmitting || this.destroyed) return;
-		this.isSubmitting = true;
-		this.error = null;
-		const reqId = uuidv4();
-		try {
-			const res = await postRematch(this.gameId, 'cancel', reqId, this.seatToken);
-			if (this.destroyed) return;
-			this.adoptState(res);
-		} catch (err) {
-			this.handleMutationError(err);
-		} finally {
-			if (!this.destroyed) {
-				this.isSubmitting = false;
-			}
-		}
+		await this.mutate('cancel', false);
 	}
 
 	retry(): void {
