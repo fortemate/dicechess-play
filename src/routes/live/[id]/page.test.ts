@@ -572,12 +572,16 @@ describe('live board — spectator rematch following', () => {
 
 		await fireEvent.click(getAllByRole('button', { name: /stay on this game/i })[0]);
 
-		continuation.getContinuation.mockResolvedValue({
-			sourceGameId: 'game-1',
-			serverNow: '2026-09-07T12:00:00Z',
-			phase: 'matched',
-			nextGameId: 'game-2',
-		});
+		continuation.getContinuation.mockImplementation(async (id: string) =>
+			id === 'game-1'
+				? {
+						sourceGameId: 'game-1',
+						serverNow: '2026-09-07T12:00:00Z',
+						phase: 'matched',
+						nextGameId: 'game-2',
+					}
+				: { sourceGameId: id, serverNow: '2026-09-07T12:00:00Z', phase: 'waiting' },
+		);
 
 		await waitFor(() =>
 			expect(getAllByText(/players started a rematch/i).length).toBeGreaterThan(0),
@@ -592,12 +596,16 @@ describe('live board — spectator rematch following', () => {
 		// here and the successor it was traded for must survive that anyway.
 		sessionStorage.setItem('dicechess-play-follow-intent', JSON.stringify(['game-1']));
 		state.current = spectating({ gameStatus: 'connecting', termination: null });
-		continuation.getContinuation.mockResolvedValue({
-			sourceGameId: 'game-1',
-			serverNow: '2026-09-07T12:00:00Z',
-			phase: 'matched',
-			nextGameId: 'game-2',
-		});
+		continuation.getContinuation.mockImplementation(async (id: string) =>
+			id === 'game-1'
+				? {
+						sourceGameId: 'game-1',
+						serverNow: '2026-09-07T12:00:00Z',
+						phase: 'matched',
+						nextGameId: 'game-2',
+					}
+				: { sourceGameId: id, serverNow: '2026-09-07T12:00:00Z', phase: 'waiting' },
+		);
 
 		const { findAllByRole } = render(LivePage);
 

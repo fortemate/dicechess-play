@@ -39,6 +39,8 @@ const POLL_INTERVAL_MS = 1000;
 const TICK_INTERVAL_MS = 250;
 /** Transient-failure backoff (ms); the last entry repeats. The last readable state stays on screen. */
 const ERROR_BACKOFF_MS = [2000, 4000, 8000, 15000];
+/** How many times a transient failure is retried on its own before the viewer has to ask. */
+const MAX_ERROR_RETRIES = 6;
 
 export class SpectatorFollowStore {
 	status = $state<FollowStatus>('idle');
@@ -58,6 +60,12 @@ export class SpectatorFollowStore {
 	deadlineAt = $state<string | null>(null);
 	/** True while a chain walk is in flight, so the UI can disable a second "watch it" click. */
 	resolving = $state<boolean>(false);
+	/**
+	 * A successor exists but automatic following refused to take it: the walk came back to a game it
+	 * had already visited. Each follow re-enters with a fresh cycle guard, so a looping chain would
+	 * bounce the viewer between two boards forever — it is offered as a deliberate action instead.
+	 */
+	followBlocked = $state<boolean>(false);
 
 	/** Called with the game to open when following is on and the chain has moved on. */
 	onFollow?: (gameId: string) => void;
@@ -90,6 +98,7 @@ export class SpectatorFollowStore {
 		this.followedTo = null;
 		this.status = 'idle';
 		this.nextGameId = null;
+		this.followBlocked = false;
 		this.error = null;
 		this.deadlineAt = null;
 		this.secondsRemaining = 0;
@@ -121,12 +130,22 @@ export class SpectatorFollowStore {
 		this.following = false;
 	}
 
-	/** The explicit way back: resume following and open the current head of the chain. */
+	/**
+	 * The explicit way back: resume following and open the game the chain has reached. On the
+	 * viewer's say-so a known head is taken straight away — including one automatic following
+	 * refused, since a single deliberate navigation cannot bounce.
+	 */
 	resumeFollowing(): void {
 		if (!this.gameId) return;
 		this.intent.unpin(this.gameId);
 		this.following = true;
 		this.error = null;
+		const head = this.nextGameId;
+		if (head) {
+			this.followedTo = head;
+			this.onFollow?.(head);
+			return;
+		}
 		void this.resolve();
 	}
 
@@ -197,10 +216,13 @@ export class SpectatorFollowStore {
 				this.error = null;
 				this.status = 'matched';
 				this.nextGameId = head;
+				this.followBlocked = resolution.stop === 'cycle';
 				this.deadlineAt = null;
 				this.secondsRemaining = 0;
 				this.stopPoll();
-				if (this.following && this.followedTo !== head) {
+				// A hop limit is followed: it is a real step through a chain longer than one batch, and
+				// the next entry walks on with a fresh budget. A cycle is not, for the reason above.
+				if (this.following && !this.followBlocked && this.followedTo !== head) {
 					this.followedTo = head;
 					this.onFollow?.(head);
 				}
@@ -228,6 +250,7 @@ export class SpectatorFollowStore {
 	private adoptReadable(state: PublicContinuation): void {
 		this.status = state.phase === 'matched' ? 'matched' : state.phase;
 		this.nextGameId = state.phase === 'matched' ? (state.nextGameId ?? null) : null;
+		this.followBlocked = false;
 	}
 
 	private adoptHead(state: PublicContinuation | null): void {
@@ -258,14 +281,20 @@ export class SpectatorFollowStore {
 			return;
 		}
 		this.error = 'Could not check for a rematch.';
-		const delay = ERROR_BACKOFF_MS[Math.min(this.consecutiveErrors, ERROR_BACKOFF_MS.length - 1)];
+		const attempt = this.consecutiveErrors;
 		this.consecutiveErrors += 1;
-		this.schedulePoll(delay);
+		// Retried even before the poll loop is armed: the entry read is the ONLY read a spectator who
+		// reloaded onto an already-finished game gets, since that game's room is evicted and the page
+		// never reports it over. Bounded, so a server that is down does not get polled forever — the
+		// panel's Retry stays as the way to ask again.
+		if (attempt < MAX_ERROR_RETRIES) {
+			this.schedulePoll(ERROR_BACKOFF_MS[Math.min(attempt, ERROR_BACKOFF_MS.length - 1)], true);
+		}
 	}
 
-	private schedulePoll(delayMs: number): void {
+	private schedulePoll(delayMs: number, force = false): void {
 		this.stopPoll();
-		if (!this.polling || typeof document === 'undefined' || document.hidden) return;
+		if ((!this.polling && !force) || typeof document === 'undefined' || document.hidden) return;
 		this.pollTimer = setTimeout(() => {
 			void this.resolve();
 		}, delayMs);

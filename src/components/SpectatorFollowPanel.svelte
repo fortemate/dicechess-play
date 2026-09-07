@@ -20,6 +20,17 @@
 			? `Waiting for a rematch… (${store.secondsRemaining}s)`
 			: 'Waiting for a rematch…',
 	);
+
+	// The viewer is offered the chain rather than carried along it in two cases: they asked to stay
+	// here, or the chain loops back on itself and following it automatically would bounce them
+	// between boards. Both end in the same one deliberate click.
+	const offered = $derived(!store.following || store.followBlocked);
+	const offerText = $derived.by(() => {
+		if (store.status !== 'matched') return 'Staying on this game — following is off.';
+		return store.followBlocked
+			? 'A newer game exists, but its link chain loops back.'
+			: 'The players started a rematch.';
+	});
 </script>
 
 <div class="flex w-full flex-col items-center gap-2 {compact ? 'py-1' : 'py-2'}">
@@ -36,7 +47,7 @@
 		</div>
 	{/if}
 
-	{#if store.following}
+	{#if !offered}
 		{#if store.status === 'matched'}
 			<p class="text-center text-sm font-bold text-primary" role="status">
 				Rematch started — following…
@@ -57,9 +68,7 @@
 		{/if}
 	{:else}
 		<p class="text-center text-sm text-content-muted" role="status">
-			{store.status === 'matched'
-				? 'The players started a rematch.'
-				: 'Staying on this game — following is off.'}
+			{offerText}
 		</p>
 		<button
 			type="button"

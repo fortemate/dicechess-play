@@ -235,6 +235,93 @@ describe('SpectatorFollowStore', () => {
 		store.dispose();
 	});
 
+	it('retries a transient failure on entry, before any poll loop is armed', async () => {
+		// The entry read is the ONLY read a spectator who reloaded onto an already-finished game gets:
+		// that game's room is evicted, so the page never reports it over and nothing arms polling.
+		const chain: Record<string, PublicContinuation> = {
+			a: matched('a', 'b'),
+			b: stillPlaying('b'),
+		};
+		let fail = true;
+		const read = vi.fn(async (id: string) => {
+			if (fail) throw new ContinuationError(503);
+			return chain[id];
+		});
+		const store = new SpectatorFollowStore(memoryFollowIntentStore(), read);
+		const onFollow = vi.fn();
+		store.onFollow = onFollow;
+
+		store.init('a');
+		await vi.advanceTimersByTimeAsync(0);
+		expect(store.error).not.toBeNull();
+		expect(onFollow).not.toHaveBeenCalled();
+
+		fail = false;
+		await vi.advanceTimersByTimeAsync(2000);
+
+		expect(store.error).toBeNull();
+		expect(onFollow).toHaveBeenCalledExactlyOnceWith('b');
+		store.dispose();
+	});
+
+	it('gives up automatically after a bounded run of failures, leaving the explicit retry', async () => {
+		const read = vi.fn(async () => {
+			throw new ContinuationError(503);
+		});
+		const store = new SpectatorFollowStore(memoryFollowIntentStore(), read);
+
+		store.init('a');
+		store.sourceEnded();
+		await vi.advanceTimersByTimeAsync(120_000);
+
+		const calls = read.mock.calls.length;
+		expect(calls).toBeLessThanOrEqual(8);
+		expect(store.error).not.toBeNull();
+
+		store.retry();
+		await vi.advanceTimersByTimeAsync(0);
+		expect(read.mock.calls.length).toBe(calls + 1);
+		store.dispose();
+	});
+
+	it('offers a looping chain instead of bouncing the viewer around it', async () => {
+		// A → B → A can only come from a broken chain, but each follow re-enters with a fresh cycle
+		// guard, so taking it automatically would navigate for ever.
+		const read = reader({ a: matched('a', 'b'), b: matched('b', 'a') });
+		const store = new SpectatorFollowStore(memoryFollowIntentStore(), read);
+		const onFollow = vi.fn();
+		store.onFollow = onFollow;
+
+		store.init('a');
+		await vi.advanceTimersByTimeAsync(0);
+
+		expect(onFollow).not.toHaveBeenCalled();
+		expect(store.status).toBe('matched');
+		expect(store.nextGameId).toBe('b');
+		expect(store.followBlocked).toBe(true);
+
+		// The viewer asking for it once cannot bounce, so the explicit action still works.
+		store.resumeFollowing();
+		expect(onFollow).toHaveBeenCalledExactlyOnceWith('b');
+		store.dispose();
+	});
+
+	it('follows a hop-limited walk: a long chain is crossed in bounded batches', async () => {
+		const chain: Record<string, PublicContinuation> = {};
+		for (let i = 0; i < 12; i += 1) chain[`g${i}`] = matched(`g${i}`, `g${i + 1}`);
+		chain.g12 = stillPlaying('g12');
+		const store = new SpectatorFollowStore(memoryFollowIntentStore(), reader(chain));
+		const onFollow = vi.fn();
+		store.onFollow = onFollow;
+
+		store.init('g0');
+		await vi.advanceTimersByTimeAsync(0);
+
+		expect(onFollow).toHaveBeenCalledExactlyOnceWith('g8'); // MAX_FOLLOW_HOPS, not the whole chain
+		expect(store.followBlocked).toBe(false);
+		store.dispose();
+	});
+
 	it('treats an unknown source as a closed chain instead of retrying forever', async () => {
 		const read = reader({});
 		const store = new SpectatorFollowStore(memoryFollowIntentStore(), read);
