@@ -1,7 +1,9 @@
 <script lang="ts">
 	/* eslint-disable local/no-untranslated-text -- i18n debt: not yet migrated (#8) */
+	import { untrack } from 'svelte';
 	import { page } from '$app/state';
 	import { resolve } from '$app/paths';
+	import { goto } from '$app/navigation';
 	import Board from '../../../components/Board.svelte';
 	import PawnPromotionSelector from '../../../components/PawnPromotionSelector.svelte';
 	import PlayerStrip from '../../../components/PlayerStrip.svelte';
@@ -10,12 +12,14 @@
 	import MoveHistory from '../../../components/MoveHistory.svelte';
 	import GameEndModal from '../../../components/GameEndModal.svelte';
 	import BotRematchButton from '../../../components/BotRematchButton.svelte';
+	import RematchControl from '../../../components/RematchControl.svelte';
 	import { recallBotGame } from '$lib/catalog/lastBotGame';
 	import RatedBadge from '../../../components/RatedBadge.svelte';
 	import RatingDeltaLine from '../../../components/RatingDeltaLine.svelte';
 	import { chromeStore } from '$lib/stores/chromeStore.svelte';
 	import { LiveGameStore } from '$lib/live/liveGameStore.svelte';
-	import { parseSeat } from '$lib/live/seatLink';
+	import { RematchStore } from '$lib/live/rematchStore.svelte';
+	import { buildJoinUrl, parseSeat } from '$lib/live/seatLink';
 	import { buildReplayUrl, hasReplay } from '$lib/live/replayLink';
 	import { publicPlayer, seatDisplayName, seatDisplaySub, seatRating } from '$lib/live/playerLabel';
 	import { preferencesStore } from '$lib/preferencesStore.svelte';
@@ -118,6 +122,9 @@
 	);
 	const turnLine = $derived.by(() => {
 		if (live.gameStatus === 'over' || live.gameStatus === 'connecting') return null;
+		if (live.rematchStartup?.phase === 'awaiting_joins') {
+			return awaitingOpponentText;
+		}
 		if (live.spectator) return live.activeColor === 'w' ? 'White to move' : 'Black to move';
 		return myMove ? 'Your move' : 'Waiting for opponent…';
 	});
@@ -221,6 +228,56 @@
 		return id ? recallBotGame(id) : null;
 	});
 
+	// Ordinary completed human-versus-human rematch flow (issue #105, play-api ADR 007).
+	// Exclude spectators, bot games, staked/doubling games, and technical aborts.
+	const rematchEligible = $derived(
+		!live.spectator && !opponentIsBot && !live.doubling && live.termination !== 'Aborted',
+	);
+
+	const rematchStore = new RematchStore();
+
+	$effect(() => {
+		const gameId = page.params.id;
+		const eligible = rematchEligible;
+		const authoritativeOver = live.authoritativeOver;
+		if (!gameId || !eligible || !authoritativeOver) {
+			untrack(() => rematchStore.dispose());
+			return;
+		}
+		const { token } = parseSeat(page.url);
+		untrack(() => {
+			rematchStore.onMatched = (nextGameId, join) => {
+				const nextUrl = buildJoinUrl(location.origin, nextGameId, join.token, join.seat);
+				// eslint-disable-next-line svelte/no-navigation-without-resolve
+				void goto(nextUrl);
+			};
+			rematchStore.init(gameId, token);
+		});
+		return () => {
+			untrack(() => rematchStore.dispose());
+		};
+	});
+
+	let joinCountdown = $state<number>(0);
+	$effect(() => {
+		const deadlineStr = live.rematchStartup?.joinDeadlineAt;
+		if (!deadlineStr || live.rematchStartup?.phase !== 'awaiting_joins') {
+			joinCountdown = 0;
+			return;
+		}
+		const update = () => {
+			const diff = new Date(deadlineStr).getTime() - Date.now();
+			joinCountdown = Math.max(0, Math.ceil(diff / 1000));
+		};
+		update();
+		const interval = setInterval(update, 250);
+		return () => clearInterval(interval);
+	});
+
+	const awaitingOpponentText = $derived(
+		joinCountdown > 0 ? `Awaiting opponent… (${joinCountdown}s)` : 'Awaiting opponent…',
+	);
+
 	// The finished game's public replay (#216). Available to spectators too — the replay wire is
 	// anonymized, and someone who watched the game has as much reason to keep the link as a player.
 	const replayId = $derived.by(() => {
@@ -271,6 +328,9 @@
 			live.gameStatus !== 'over'
 		)
 			return 'Reconnecting…';
+		if (live.rematchStartup?.phase === 'awaiting_joins') {
+			return awaitingOpponentText;
+		}
 		switch (live.gameStatus) {
 			case 'connecting':
 				return 'Connecting…';
@@ -293,6 +353,9 @@
 	// and the badge would be redundant before there's anything else on screen.
 	const connectionBadge = $derived.by(() => {
 		if (live.gameStatus === 'over') return null;
+		if (live.rematchStartup?.phase === 'awaiting_joins') {
+			return 'Awaiting opponent';
+		}
 		if (live.connection === 'closed') return 'Disconnected';
 		if (live.connection === 'connecting' && live.gameStatus !== 'connecting')
 			return 'Reconnecting…';
@@ -458,6 +521,8 @@
 		>
 			Play another bot →
 		</a>
+	{:else if rematchEligible}
+		<RematchControl store={rematchStore} />
 	{:else}
 		<a
 			href={resolve(opponentIsBot ? '/bots' : '/lobby')}
@@ -782,6 +847,13 @@
 					{@render endActions()}
 				</div>
 			{:else}
+				{#if rematchEligible && live.authoritativeOver && rematchStore.phase !== 'idle' && rematchStore.phase !== 'closed'}
+					<div
+						class="order-3 mb-2 flex w-full flex-col items-center rounded-2xl border border-border bg-surface p-3 md:order-none"
+					>
+						<RematchControl store={rematchStore} compact={true} />
+					</div>
+				{/if}
 				{#if turnLine}
 					<p
 						class="order-3 text-center text-sm font-semibold md:order-none {myMove
