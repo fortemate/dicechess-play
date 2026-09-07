@@ -33,7 +33,7 @@ export class RematchStore {
 	private tickTimer: ReturnType<typeof setInterval> | null = null;
 	private destroyed = false;
 	private matchedNotified = false;
-	private pendingRequestIds = new Map<RematchAction, string>();
+	private readonly pendingRequestIds = new Map<RematchAction, string>();
 
 	onMatched?: (nextGameId: string, join: RematchJoin, joinDeadlineAt?: string | null) => void;
 
@@ -57,7 +57,7 @@ export class RematchStore {
 		void this.pollOnce();
 	}
 
-	private handleVisibilityChange = (): void => {
+	private readonly handleVisibilityChange = (): void => {
 		if (document.hidden) {
 			this.stopPoll();
 		} else {
@@ -65,7 +65,7 @@ export class RematchStore {
 		}
 	};
 
-	private handleFocus = (): void => {
+	private readonly handleFocus = (): void => {
 		if (!document.hidden && !this.isTerminal()) {
 			void this.pollOnce();
 		}
@@ -161,31 +161,37 @@ export class RematchStore {
 			this.error = null;
 			this.adoptState(res);
 		} catch (err) {
-			if (this.destroyed) return;
-			if (err instanceof RematchApiError) {
-				if (err.state) {
-					this.adoptState(err.state);
-					return;
-				} else if (err.status === 410 || err.code === 'rematch_closed') {
-					this.phase = 'closed';
-					this.closedReason = 'expired';
-					this.stopPoll();
-					return;
-				} else if (err.status === 401 || err.status === 403) {
-					this.phase = 'closed';
-					this.stopPoll();
-					return;
-				}
-			}
-			if (this.phase === 'idle') {
-				this.error = 'Unable to load rematch status.';
-			}
-			// Transient network failures don't clobber active state; keep polling
+			this.handlePollError(err);
 		} finally {
 			if (!this.destroyed && !this.isTerminal() && !document.hidden) {
 				this.scheduleNextPoll();
 			}
 		}
+	}
+
+	private handlePollError(err: unknown): void {
+		if (this.destroyed) return;
+		if (err instanceof RematchApiError) {
+			if (err.state) {
+				this.adoptState(err.state);
+				return;
+			}
+			if (err.status === 410 || err.code === 'rematch_closed') {
+				this.phase = 'closed';
+				this.closedReason = 'expired';
+				this.stopPoll();
+				return;
+			}
+			if (err.status === 401 || err.status === 403) {
+				this.phase = 'closed';
+				this.stopPoll();
+				return;
+			}
+		}
+		if (this.phase === 'idle') {
+			this.error = 'Unable to load rematch status.';
+		}
+		// Transient network failures don't clobber active state; keep polling
 	}
 
 	private async mutate(action: RematchAction): Promise<void> {
