@@ -149,16 +149,19 @@ export class SpectatorFollowStore {
 		}
 	}
 
+	// Coming back to the tab reads straight away rather than waiting out a poll interval — except on
+	// a closed chain, which the contract says stops here: only a reload or an explicit user action
+	// resumes readback on a game that will never continue.
 	private readonly handleVisibilityChange = (): void => {
 		if (document.hidden) {
 			this.stopPoll();
-		} else {
+		} else if (this.status !== 'closed') {
 			void this.resolve();
 		}
 	};
 
 	private readonly handleFocus = (): void => {
-		if (!document.hidden) void this.resolve();
+		if (!document.hidden && this.status !== 'closed') void this.resolve();
 	};
 
 	/**

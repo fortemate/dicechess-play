@@ -250,6 +250,28 @@ describe('SpectatorFollowStore', () => {
 		store.dispose();
 	});
 
+	it('does not re-read a closed chain when the tab comes back to the foreground', async () => {
+		const read = reader({ a: closed('a') });
+		const store = new SpectatorFollowStore(memoryFollowIntentStore(), read);
+
+		store.init('a');
+		store.sourceEnded();
+		await vi.advanceTimersByTimeAsync(0);
+		expect(store.status).toBe('closed');
+
+		const calls = read.mock.calls.length;
+		window.dispatchEvent(new Event('focus'));
+		document.dispatchEvent(new Event('visibilitychange'));
+		await vi.advanceTimersByTimeAsync(0);
+
+		expect(read.mock.calls.length).toBe(calls);
+		// The explicit way back still works: a viewer asking is not a background poll.
+		store.retry();
+		await vi.advanceTimersByTimeAsync(0);
+		expect(read.mock.calls.length).toBe(calls + 1);
+		store.dispose();
+	});
+
 	it('stops the loop on navigation and never follows after dispose', async () => {
 		const releases: Array<() => void> = [];
 		const read = vi.fn(
