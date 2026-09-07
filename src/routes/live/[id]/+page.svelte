@@ -13,13 +13,16 @@
 	import GameEndModal from '../../../components/GameEndModal.svelte';
 	import BotRematchButton from '../../../components/BotRematchButton.svelte';
 	import RematchControl from '../../../components/RematchControl.svelte';
+	import SpectatorFollowPanel from '../../../components/SpectatorFollowPanel.svelte';
 	import { recallBotGame } from '$lib/catalog/lastBotGame';
 	import RatedBadge from '../../../components/RatedBadge.svelte';
 	import RatingDeltaLine from '../../../components/RatingDeltaLine.svelte';
 	import { chromeStore } from '$lib/stores/chromeStore.svelte';
 	import { LiveGameStore } from '$lib/live/liveGameStore.svelte';
 	import { RematchStore } from '$lib/live/rematchStore.svelte';
-	import { buildJoinUrl, parseSeat } from '$lib/live/seatLink';
+	import { SpectatorFollowStore } from '$lib/live/spectatorFollowStore.svelte';
+	import { isLiveEnabled } from '$lib/live/liveApi';
+	import { buildJoinUrl, buildSpectateUrl, parseSeat } from '$lib/live/seatLink';
 	import { buildReplayUrl, hasReplay } from '$lib/live/replayLink';
 	import { publicPlayer, seatDisplayName, seatDisplaySub, seatRating } from '$lib/live/playerLabel';
 	import { preferencesStore } from '$lib/preferencesStore.svelte';
@@ -234,6 +237,9 @@
 	);
 
 	const rematchStore = new RematchStore();
+	const followStore = new SpectatorFollowStore();
+	// Only a seatless viewer follows a chain, and only where live play is configured at all.
+	const spectatorFollows = $derived(live.spectator && isLiveEnabled());
 
 	$effect(() => {
 		const gameId = page.params.id;
@@ -311,10 +317,41 @@
 	$effect(() => {
 		const id = page.params.id;
 		if (!id) return;
-		const { token, as } = parseSeat(page.url);
+		const { token, as, spectate } = parseSeat(page.url);
 		preloadSounds(); // fetch + arm the gesture unlock before the first roll arrives
-		live.connect(id, token, as);
+		live.connect(id, token, as, spectate);
 		return () => live.dispose();
+	});
+
+	// Spectator continuation (#106). A watched game's room — and with it the socket — is gone the
+	// moment the game ends, so following the same two people into their rematch is a public read of
+	// its own, never a seat: `SpectatorFollowStore` polls the continuation and opens each successor
+	// in explicit spectator mode. Players never follow this way; their own rematch control carries
+	// them into the successor holding a seat.
+	$effect(() => {
+		const id = page.params.id;
+		if (!id || !spectatorFollows) {
+			untrack(() => followStore.dispose());
+			return;
+		}
+		untrack(() => {
+			followStore.onFollow = (nextGameId) => {
+				// eslint-disable-next-line svelte/no-navigation-without-resolve
+				void goto(buildSpectateUrl(location.origin, nextGameId));
+			};
+			followStore.init(id);
+		});
+		return () => {
+			untrack(() => followStore.dispose());
+		};
+	});
+
+	// The watched game reaching its end is what opens the offer window; from here the follower
+	// reads on its own, independently of the socket that is about to close.
+	$effect(() => {
+		if (live.gameStatus === 'over' && spectatorFollows) {
+			untrack(() => followStore.sourceEnded());
+		}
 	});
 
 	const statusText = $derived.by(() => {
@@ -522,6 +559,8 @@
 		</a>
 	{:else if rematchEligible}
 		<RematchControl store={rematchStore} />
+	{:else if spectatorFollows}
+		<SpectatorFollowPanel store={followStore} />
 	{:else}
 		<a
 			href={resolve(opponentIsBot ? '/bots' : '/lobby')}

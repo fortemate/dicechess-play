@@ -4,6 +4,9 @@
 	import { resolve } from '$app/paths';
 	import { isLiveEnabled } from '$lib/live/liveApi';
 	import { fetchGameHistory, type GameHistory } from '$lib/live/historyApi';
+	import { getContinuation } from '$lib/live/continuationApi';
+	import { resolveChainHead } from '$lib/live/continuationChain';
+	import { SPECTATE_PARAM } from '$lib/live/seatLink';
 	import { reconstructServerHistory } from '$lib/history/reconstructServerHistory';
 	import { buildTurnBlocks } from '$lib/playWithBot/turnBlocks';
 	import BotBadge from '../../../components/BotBadge.svelte';
@@ -67,6 +70,31 @@
 			active = false;
 		};
 	});
+
+	// Archive entry is exact-game mode by contract (rematch-v1 / #106): this URL always shows THIS
+	// game and never redirects to a rematch, however far the pair has played on since. What it does
+	// offer is the explicit way forward — one bounded public chain walk on load, and a link the
+	// visitor chooses to take. Failures stay silent: the replay is the point of the page.
+	let continuationId = $state<string | null>(null);
+	$effect(() => {
+		const id = page.params.id;
+		continuationId = null;
+		if (!id || !isLiveEnabled()) return;
+
+		let active = true;
+		void resolveChainHead(id, getContinuation).then((resolution) => {
+			if (active && resolution.gameId !== id) continuationId = resolution.gameId;
+		});
+		return () => {
+			active = false;
+		};
+	});
+
+	// Explicit spectator mode, like every other entry into a chain: watching a game whose players
+	// you are not must never restore a seat, not even from an account cookie.
+	const continuationHref = $derived(
+		continuationId ? `${resolve('/live/[id]', { id: continuationId })}?${SPECTATE_PARAM}=1` : null,
+	);
 
 	const reconstructed = $derived(
 		history ? reconstructServerHistory(history.initialDfen, history.turns) : null,
@@ -222,6 +250,24 @@
 				{resultLabel}
 			</span>
 		</div>
+
+		{#if continuationHref}
+			<div
+				class="flex flex-wrap items-center justify-between gap-2 rounded-xl border border-primary/30 bg-primary/5 p-3"
+			>
+				<p class="text-sm text-content">These players played on after this game.</p>
+				<!-- The path IS resolve()d (see continuationHref); the rule cannot trace it through the
+				     query string that carries the explicit spectator marker. -->
+				<!-- eslint-disable svelte/no-navigation-without-resolve -->
+				<a
+					href={continuationHref}
+					class="rounded-lg border border-primary bg-primary/10 px-3 py-1.5 text-xs font-bold text-primary transition-colors hover:bg-primary/20"
+				>
+					Watch the current game →
+				</a>
+				<!-- eslint-enable svelte/no-navigation-without-resolve -->
+			</div>
+		{/if}
 
 		{#if !hasReplay}
 			<div

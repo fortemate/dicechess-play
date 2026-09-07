@@ -126,6 +126,8 @@ src/
 │   │                          board's end-of-game surfaces (same wake → start handshake, #215)
 │   ├── RematchControl         participant rematch flow on ordinary completed HvH result screens
 │   │                          with server countdown, consent lifecycle, and successor join (#105)
+│   ├── SpectatorFollowPanel   what a seatless viewer sees while the pair decides on a rematch:
+│   │                          follow state, "stay on this game", and the way back (#106)
 │   └── RatingDeltaLine        a finished rated game's rating change on both end-of-game surfaces —
 │                              says "updating…" while play-api's batch has not applied it yet
 ├── lib/
@@ -141,6 +143,10 @@ src/
 │   ├── live/                  live-play client: liveGameStore, liveClient (WS + reconnect),
 │   │                          liveApi/lobbyApi/historyApi/ratingApi/rematchApi (REST),
 │   │                          rematchStore (countdown, polling, and consent lifecycle),
+│   │                          continuationApi (public, credential-free rematch readback) +
+│   │                          continuationChain (bounded, cycle-guarded A→B→C walk) +
+│   │                          followIntent (per-tab "stay on this game") +
+│   │                          spectatorFollowStore (spectators follow a rematch chain, #106),
 │   │                          ratingDelta (a finished game's own rating change: poll state, and rounding for display),
 │   │                          liveTypes/rematchTypes (play-api wire mirrors),
 │   │                          turnReplay (engine-driven per-turn walk, shared by liveGameStore and

@@ -330,16 +330,21 @@ export class LiveGameStore {
 	});
 
 	// ── lifecycle ─────────────────────────────────────────────────────────────
-	connect(id: string, token: string | null, as: 'white' | 'black' | null): void {
+	connect(id: string, token: string | null, as: 'white' | 'black' | null, spectator = false): void {
 		this.dispose(); // close any prior socket so a re-connect can't leak it
 		this.reset(); // clear stale state when the instance is reused for a different game/seat
-		this.playerColor = as === 'black' ? 'b' : 'w';
-		this.mySeat = as === 'white' ? 'White' : as === 'black' ? 'Black' : null;
+		// Explicit spectator mode (ADR 007 / rematch-v1) is read-only on both sides of the socket:
+		// the server refuses seat restoration for it, and here it drops any seat this link claimed,
+		// so a follower of a rematch chain cannot end up holding a board it is able to play.
+		this.playerColor = !spectator && as === 'black' ? 'b' : 'w';
+		this.mySeat = spectator ? null : as === 'white' ? 'White' : as === 'black' ? 'Black' : null;
 		// Our guest id rides along on a seated connection so the server can bind the seat to us
 		// (play-api #285) — without it, a friend-by-link game stays recorded as the creator playing
 		// themselves and neither side finds it in their history. A signed-in visitor's session wins
 		// over it server-side; spectators send nothing to claim.
-		const client = new LiveClient(wsUrl(id, token, token ? getGuestUuid() : null));
+		const client = new LiveClient(
+			wsUrl(id, spectator ? null : token, !spectator && token ? getGuestUuid() : null, spectator),
+		);
 		this.client = client;
 		client.onStatus((s) => {
 			this.connection = s;
