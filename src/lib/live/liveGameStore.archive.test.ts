@@ -125,7 +125,7 @@ describe('LiveGameStore evicted-room fallback', () => {
 
 		// Well past LiveClient's whole backoff schedule: a game known to be over must not be retried.
 		await vi.advanceTimersByTimeAsync(60_000);
-		expect(DeadWebSocket.opened.length).toBe(socketsAtEnd);
+		expect(DeadWebSocket.opened).toHaveLength(socketsAtEnd);
 	});
 
 	it('tells a spectator who won without claiming an outcome for them', async () => {
