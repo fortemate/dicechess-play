@@ -177,8 +177,12 @@ export class RematchStore {
 				return;
 			}
 			if (err.status === 410 || err.code === 'rematch_closed') {
+				// The session is over, but a bare 410 does not say why: it also answers for a game that
+				// was never eligible at all — a rematch whose successor aborted on the first-join gate
+				// answers this way. Leave the reason unset so the control says the neutral "no longer
+				// available" instead of inventing an expiry that may not have happened (#109).
 				this.phase = 'closed';
-				this.closedReason = 'expired';
+				this.closedReason = null;
 				this.stopPoll();
 				return;
 			}
@@ -250,9 +254,10 @@ export class RematchStore {
 				return;
 			}
 			if (err.status === 410 || err.code === 'rematch_closed') {
+				// Same as the poll path: a bare 410 is "closed", not necessarily "expired" (#109).
 				this.pendingRequestIds.delete(action);
 				this.phase = 'closed';
-				this.closedReason = 'expired';
+				this.closedReason = null;
 				this.stopPoll();
 				return;
 			}

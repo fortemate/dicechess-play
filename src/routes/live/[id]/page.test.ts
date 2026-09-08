@@ -112,6 +112,7 @@ function storeState(overrides: Record<string, unknown> = {}) {
 		canResign: false,
 		isPreRollResponder: false,
 		isPreRollGateActive: false,
+		finishedFromArchive: false,
 		respondDraw: vi.fn(),
 		drawOfferControlState: 'hidden',
 		drawArmRefusal: null,
@@ -127,6 +128,58 @@ function storeState(overrides: Record<string, unknown> = {}) {
 		...overrides,
 	};
 }
+
+describe('live board — a result read back from the archive (#109)', () => {
+	afterEach(cleanup);
+
+	it('names the outcome in the panel without throwing a modal over the board', () => {
+		state.current = storeState({
+			gameStatus: 'over',
+			termination: 'Timeout',
+			outcome: 'lost',
+			winner: 'Black',
+			finishedFromArchive: true,
+			connection: 'connecting', // the socket is still failing against the evicted room
+		});
+
+		const { getAllByText, queryByRole } = render(LivePage);
+
+		expect(getAllByText('You lost.').length).toBeGreaterThan(0);
+		// The viewer did not watch this end — a dialog would be a jump scare, the panel is enough.
+		expect(queryByRole('dialog')).toBeNull();
+	});
+
+	it('tells the seat that joined it won, even though the startup gate is still on record', () => {
+		// The successor aborted because the opponent never joined: the room is evicted with
+		// `rematchStartup` still reading `awaiting_joins`, which used to hijack the headline.
+		state.current = storeState({
+			gameStatus: 'over',
+			termination: 'Timeout',
+			outcome: 'won',
+			winner: 'Black',
+			rematchStartup: { phase: 'awaiting_joins', joinDeadlineAt: '2026-09-08T20:17:19Z' },
+		});
+
+		const { getAllByText, queryAllByText } = render(LivePage);
+
+		expect(getAllByText('You won! 🎉').length).toBeGreaterThan(0);
+		expect(queryAllByText(/Awaiting opponent/)).toHaveLength(0);
+	});
+
+	it('still opens the modal for a game that ended in front of the viewer', () => {
+		state.current = storeState({
+			gameStatus: 'over',
+			termination: 'Resign',
+			outcome: 'won',
+			winner: 'White',
+			finishedFromArchive: false,
+		});
+
+		const { queryByRole } = render(LivePage);
+
+		expect(queryByRole('dialog')).not.toBeNull();
+	});
+});
 
 describe('live board — finished-game replay actions', () => {
 	beforeEach(() => {

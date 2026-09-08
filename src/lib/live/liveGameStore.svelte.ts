@@ -22,7 +22,9 @@ import type {
 	ServerEvent,
 	SnapshotTurn,
 	Doubling,
+	GameResultWire,
 	MayOfferDrawBy,
+	Termination,
 	PublicRematchStartup,
 } from './liveTypes';
 import * as DiceChessEngine from '@fortemate/dicechess-engine';
@@ -35,6 +37,8 @@ import { lastMoveKeys } from '../lastMove';
 import { toastStore } from '../toastStore.svelte';
 import { preferencesStore } from '../preferencesStore.svelte';
 import { settlementLine } from './stakeSettlement';
+import { fetchGameHistory } from './historyApi';
+import { finishedFromHistory } from './finishedFromHistory';
 import { DEFAULT_DRAW_RULES, mayOffer, type DrawOfferState } from '../draw/drawRules';
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -78,6 +82,16 @@ export class LiveGameStore {
 		dieIndex: number;
 	} | null>(null);
 	connection = $state<ConnStatus>('connecting');
+	// ── Evicted-room fallback (this repo's #109) ─────────────────────────────
+	// play-api evicts an ended room with its socket, so a client that arrives after the end — a
+	// spectator reloading, a rematch seat that joined after the first-join deadline — never gets
+	// `GameEnded` and would retry forever against a board that looks playable. When the socket fails
+	// to hold, the archive is asked whether this game is simply over.
+	private gameId = '';
+	private connectAttempts = 0;
+	private archiveProbeInFlight = false;
+	/** True when the terminal state was read from the archive rather than seen live. */
+	finishedFromArchive = $state<boolean>(false);
 	outcome = $state<LiveOutcome | null>(null); // from this player's POV (null for spectators)
 	winner = $state<Seat | null>(null); // the winning side, for spectator display
 	termination = $state<string | null>(null);
@@ -336,6 +350,7 @@ export class LiveGameStore {
 		// Explicit spectator mode (ADR 007 / rematch-v1) is read-only on both sides of the socket:
 		// the server refuses seat restoration for it, and here it drops any seat this link claimed,
 		// so a follower of a rematch chain cannot end up holding a board it is able to play.
+		this.gameId = id;
 		this.playerColor = !spectator && as === 'black' ? 'b' : 'w';
 		this.mySeat = spectator ? null : as === 'white' ? 'White' : as === 'black' ? 'Black' : null;
 		// Our guest id rides along on a seated connection so the server can bind the seat to us
@@ -348,6 +363,14 @@ export class LiveGameStore {
 		this.client = client;
 		client.onStatus((s) => {
 			this.connection = s;
+			// A second 'connecting' means the first attempt failed: ask the archive once per drop
+			// whether the room is gone because the game is over. A live game answers 404 and the
+			// socket keeps retrying, so the probe costs one GET per reconnect at most.
+			if (s === 'open') this.connectAttempts = 0;
+			else if (s === 'connecting') {
+				this.connectAttempts += 1;
+				if (this.connectAttempts >= 2) void this.probeArchive(this.epoch);
+			} else if (s === 'closed') void this.probeArchive(this.epoch);
 			// The standing flag is transient server state, dropped when the room's writer forgets this
 			// socket, so a reconnect re-states this seat's intent. The server answers with its own view
 			// either way, so the two cannot silently disagree.
@@ -394,6 +417,8 @@ export class LiveGameStore {
 		this.isDrawOfferArmed = false;
 		this.drawArmRefusal = null;
 		this.gameStatus = 'connecting';
+		this.connectAttempts = 0;
+		this.finishedFromArchive = false;
 		// The connection status must restart too: the store is reused across /live/[id] navigations, and the previous
 		// game's 'open' would otherwise show through until the new socket actually connects.
 		this.connection = 'connecting';
@@ -666,10 +691,26 @@ export class LiveGameStore {
 	}
 
 	private finalizeEnd(over: Over): void {
+		this.applyTerminal(over.result, over.termination);
+		this.onEnd?.(over);
+	}
+
+	/**
+	 * Put the store into its terminal state. Shared by the live path, which then notifies `onEnd`,
+	 * and the archive fallback, which does not: `onEnd` drives the end-of-game rating poll and the
+	 * reveal that belongs to a game the viewer watched finish.
+	 */
+	private applyTerminal(result: GameResultWire, termination: string): void {
 		this.pendingOver = null;
 		this.gameStatus = 'over';
+		// `termination` is the wire's own member on the live path; on the archive path it is whatever
+		// the archive said, already translated where a live member exists (see `finishedFromHistory`).
+		const over: Over = { result, termination: termination as Termination };
 		this.over = over;
-		this.termination = over.termination;
+		// The completion is authoritative however it reached us — the end-of-game surfaces that wait
+		// for this, the rematch panel among them, must open for a result read back from the archive too.
+		this.authoritativeOver = over;
+		this.termination = termination;
 		this.liveDice = [];
 		this.drawOffer = null;
 		this.drawOfferedBy = null;
@@ -684,18 +725,50 @@ export class LiveGameStore {
 		this.viewedIndex = null;
 		this.presentedIndex = this.maxMoveIndex;
 		this.epoch += 1;
-		this.settleClocks(over.termination);
+		this.settleClocks(termination);
 		// The game is terminal and the room is about to be evicted: stop reconnecting (a no-op otherwise
 		// retries against a gone game). The outcome shows via gameStatus, not the connection status.
 		this.client?.close();
-		if ('Draw' in over.result) {
+		if ('Draw' in result) {
 			this.outcome = 'draw';
 			this.winner = null;
 		} else {
-			this.winner = over.result.Win.side;
+			this.winner = result.Win.side;
 			this.outcome = this.mySeat === null ? null : this.winner === this.mySeat ? 'won' : 'lost';
 		}
-		this.onEnd?.(over);
+	}
+
+	/** Read through a method so a guard before an `await` cannot narrow the one after it. */
+	private isOver(): boolean {
+		return this.gameStatus === 'over';
+	}
+
+	/**
+	 * Ask the archive whether this game is already over, and if so present it as finished instead of
+	 * a board nobody can play. Silent on a 404 (no archive row yet — an ordinary live game, or one
+	 * predating the archive) and on a transport failure, both of which leave the socket retrying.
+	 */
+	private async probeArchive(epoch: number): Promise<void> {
+		if (this.isOver() || this.archiveProbeInFlight || this.gameId === '') return;
+		this.archiveProbeInFlight = true;
+		try {
+			const history = await fetchGameHistory(this.gameId);
+			// Re-check after the await: the live path may have ended the game while this was in flight.
+			if (history === null || epoch !== this.epoch || this.isOver()) return;
+			const finished = finishedFromHistory(history);
+			this.players = history.players;
+			this.rated = history.rated;
+			// No snapshot ever arrived on this path, so the board is still at the starting position:
+			// put the final one under it before the end screen names a winner.
+			this.liveFen = finished.finalFen;
+			this.confirmedFen = finished.finalFen;
+			this.finishedFromArchive = true;
+			this.applyTerminal(finished.result, finished.termination);
+		} catch {
+			// Network or 5xx: say nothing and let the socket's own backoff carry on.
+		} finally {
+			this.archiveProbeInFlight = false;
+		}
 	}
 
 	private rollback(): void {

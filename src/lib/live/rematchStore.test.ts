@@ -237,7 +237,7 @@ describe('RematchStore', () => {
 		store.dispose();
 	});
 
-	it('adopts closed state on 410 rematch_closed', async () => {
+	it('closes without a reason on a bare 410: the server has not said why (#109)', async () => {
 		vi.spyOn(rematchApi, 'getRematch').mockResolvedValue(AVAILABLE_STATE);
 		vi.spyOn(rematchApi, 'postRematch').mockRejectedValueOnce(
 			new rematchApi.RematchApiError(410, 'rematch_closed'),
@@ -250,7 +250,9 @@ describe('RematchStore', () => {
 		await store.propose();
 
 		expect(store.phase).toBe('closed');
-		expect(store.closedReason).toBe('expired');
+		// Not 'expired': a 410 also answers for a session that was never eligible — the control says
+		// the neutral "no longer available" rather than naming an expiry that may not have happened.
+		expect(store.closedReason).toBeNull();
 
 		store.dispose();
 	});
