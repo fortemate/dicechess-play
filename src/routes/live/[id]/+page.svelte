@@ -137,7 +137,12 @@
 	$effect(() => {
 		if (live.gameStatus !== 'over') endModalDismissed = false;
 	});
-	const showEndModal = $derived(live.gameStatus === 'over' && !endModalDismissed);
+	// The modal belongs to a game the viewer watched finish. A result read back from the archive
+	// (#109) is news about the past — a spectator opening an old link, or a player returning to a
+	// rematch that timed out while they were away — so it lands in the panel, not over the board.
+	const showEndModal = $derived(
+		live.gameStatus === 'over' && !endModalDismissed && !live.finishedFromArchive,
+	);
 	const endTone = $derived(
 		live.outcome === 'won'
 			? ('win' as const)
@@ -373,7 +378,10 @@
 			live.gameStatus !== 'over'
 		)
 			return 'Reconnecting…';
-		if (live.rematchStartup?.phase === 'awaiting_joins') {
+		// Only while the game is still open: a rematch that aborts on the first-join gate is evicted
+		// with this phase still on record, and the seat that DID join must be told it won rather than
+		// left waiting for an opponent who can no longer come (#109).
+		if (live.gameStatus !== 'over' && live.rematchStartup?.phase === 'awaiting_joins') {
 			return awaitingOpponentText;
 		}
 		switch (live.gameStatus) {
