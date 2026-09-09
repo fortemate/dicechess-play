@@ -1,8 +1,17 @@
-// Pure query, search, filtering, and sorting logic for `/me/admin/bots` (#47).
+// Pure query, search, filtering, and sorting logic for `/me/admin/bots` (#47, #49).
 //
 // This module deliberately stays pure and rune-free so its filtering, search, and sorting behavior
 // can be tested, reviewed, and reasoned about independently of Svelte rendering. URL search params
 // are the source of truth for sharable, back-button friendly administrative views.
+//
+// Unicode contract (added in #49):
+//   - All string comparisons (search and identity sort) apply NFC normalization before comparison so
+//     that canonically equivalent composed/decomposed Unicode values (e.g. U+00E9 vs U+0065 U+0301)
+//     produce the same result.
+//   - The identity comparator is pinned to the 'en' locale with sensitivity:'variant' so that
+//     ordering is deterministic across JS engines and environments.
+//   - Capability deduplication collapses entries that differ only by case or Unicode canonical form
+//     while preserving unknown legacy values for display.
 
 import type { AdminBot } from './adminApi';
 
@@ -50,6 +59,22 @@ const PROVISIONAL_VALUES: readonly ProvisionalFilter[] = ['all', 'provisional', 
 const CAPACITY_VALUES: readonly CapacityFilter[] = ['all', 'reached', 'available'];
 const SORT_KEYS: readonly AdminBotSortKey[] = ['identity', 'rating', 'utilization'];
 const SORT_DIRS: readonly SortDirection[] = ['asc', 'desc'];
+
+/**
+ * Locale-pinned collator for deterministic identity ordering and tie-breaking.
+ * Pinned to 'en' so the sort order is identical across all JS engines and environments.
+ * sensitivity:'variant' means case and accents are distinguished (stable, no silent folding).
+ */
+const IDENTITY_COLLATOR = new Intl.Collator('en', { sensitivity: 'variant' });
+
+/**
+ * Normalizes a string for case-insensitive, Unicode-canonical search comparison.
+ * Applies NFC normalization first so that canonically equivalent composed/decomposed
+ * Unicode values (e.g. U+00E9 "é" vs U+0065 U+0301 "é") are treated identically.
+ */
+export function normalizeForSearch(s: string): string {
+	return s.normalize('NFC').toLowerCase();
+}
 
 export function parseAdminBotsQuery(input: URLSearchParams | URL | string): AdminBotsQuery {
 	const params =
@@ -116,18 +141,33 @@ export function countActiveFilters(query: AdminBotsQuery): number {
 	return count;
 }
 
-/** Extracts all unique capability names present across the given bots list, sorted alphabetically. */
+/**
+ * Extracts all unique capability names present across the given bots list, sorted with the
+ * locale-pinned IDENTITY_COLLATOR.
+ *
+ * Deduplication is case- and Unicode-canonical-form-insensitive: values that differ only by
+ * case or NFC/NFD form (e.g. "DRAWS", "draws", "Draws") collapse to a single entry. The first
+ * occurrence (in bot-list order) is kept as the display value so that unknown legacy values are
+ * preserved rather than silently dropped.
+ */
 export function extractAvailableCapabilities(bots: AdminBot[]): string[] {
-	const set = new Set<string>();
+	// Map from canonical key → first-seen display value
+	const seen = new Map<string, string>();
 	for (const bot of bots) {
 		if (bot.webhook?.capabilities) {
 			for (const cap of bot.webhook.capabilities) {
 				const trimmed = cap.trim();
-				if (trimmed) set.add(trimmed);
+				if (!trimmed) continue;
+				const key = normalizeForSearch(trimmed);
+				if (!seen.has(key)) {
+					seen.set(key, trimmed);
+				}
 			}
 		}
 	}
-	return Array.from(set).sort((a, b) => a.localeCompare(b));
+	return Array.from(seen.values()).sort((a, b) =>
+		IDENTITY_COLLATOR.compare(a.normalize('NFC'), b.normalize('NFC')),
+	);
 }
 
 /** Determines if a bot's capacity is fully reached. */
@@ -141,18 +181,38 @@ export function computeUtilization(bot: AdminBot): number {
 	return bot.activeGames / bot.maxConcurrentGames;
 }
 
+/**
+ * Resolves a numeric bot field to a finite number for sorting purposes.
+ * NaN, Infinity, -Infinity, and any non-finite value all map to 0 so that
+ * absent/invalid entries sort stably alongside bots with a zero value.
+ */
+function toFiniteOrZero(n: number): number {
+	return Number.isFinite(n) ? n : 0;
+}
+
+/**
+ * Deterministic identity comparator using the locale-pinned IDENTITY_COLLATOR.
+ * Applies NFC normalization before comparing so composed/decomposed Unicode forms
+ * are treated identically.
+ */
+function compareIdentity(a: AdminBot, b: AdminBot): number {
+	const teamCmp = IDENTITY_COLLATOR.compare(a.team.normalize('NFC'), b.team.normalize('NFC'));
+	if (teamCmp !== 0) return teamCmp;
+	return IDENTITY_COLLATOR.compare(a.name.normalize('NFC'), b.name.normalize('NFC'));
+}
+
 /** Applies search, filters, and deterministic sorting to a fleet of AdminBots. */
 export function applyAdminBotsQuery(bots: AdminBot[], query: AdminBotsQuery): AdminBot[] {
-	const searchLower = query.search.trim().toLowerCase();
+	const searchNorm = normalizeForSearch(query.search.trim());
 
 	const filtered = bots.filter((bot) => {
-		// Search matches team, bot name, and webhook URL case-insensitively
-		if (searchLower) {
-			const matchesTeam = bot.team.toLowerCase().includes(searchLower);
-			const matchesName = bot.name.toLowerCase().includes(searchLower);
-			const matchesCombined = `${bot.team}/${bot.name}`.toLowerCase().includes(searchLower);
+		// Search: normalize both sides for case- and Unicode-canonical-form-insensitive matching.
+		if (searchNorm) {
+			const matchesTeam = normalizeForSearch(bot.team).includes(searchNorm);
+			const matchesName = normalizeForSearch(bot.name).includes(searchNorm);
+			const matchesCombined = normalizeForSearch(`${bot.team}/${bot.name}`).includes(searchNorm);
 			const matchesWebhook =
-				bot.webhook?.url !== undefined && bot.webhook.url.toLowerCase().includes(searchLower);
+				bot.webhook?.url !== undefined && normalizeForSearch(bot.webhook.url).includes(searchNorm);
 
 			if (!matchesTeam && !matchesName && !matchesCombined && !matchesWebhook) {
 				return false;
@@ -171,7 +231,7 @@ export function applyAdminBotsQuery(bots: AdminBot[], query: AdminBotsQuery): Ad
 		if (query.ownership === 'owned' && !bot.owned) return false;
 		if (query.ownership === 'unowned' && bot.owned) return false;
 
-		// Webhook filter
+		// Webhook filter — 'configured' requires an active verified webhook registration
 		if (query.webhook === 'configured' && !bot.webhook) return false;
 		if (query.webhook === 'none' && bot.webhook !== null) return false;
 
@@ -183,40 +243,34 @@ export function applyAdminBotsQuery(bots: AdminBot[], query: AdminBotsQuery): Ad
 		if (query.capacity === 'reached' && !isCapacityReached(bot)) return false;
 		if (query.capacity === 'available' && isCapacityReached(bot)) return false;
 
-		// Capability filter
+		// Capability filter — case- and Unicode-canonical-form-insensitive matching
 		if (query.capability !== 'all' && query.capability.trim() !== '') {
-			const targetCap = query.capability.trim().toLowerCase();
+			const targetCap = normalizeForSearch(query.capability.trim());
 			const hasCap =
-				bot.webhook?.capabilities.some((c) => c.trim().toLowerCase() === targetCap) ?? false;
+				bot.webhook?.capabilities.some((c) => normalizeForSearch(c.trim()) === targetCap) ?? false;
 			if (!hasCap) return false;
 		}
 
 		return true;
 	});
 
-	// Deterministic sort with tie-breaking by identity (team, then name)
+	// Deterministic sort with locale-pinned identity tie-breaking
 	const sign = query.dir === 'desc' ? -1 : 1;
 
 	return filtered.slice().sort((a, b) => {
 		if (query.sort === 'rating') {
-			const rA = Number.isFinite(a.rating) ? a.rating : 0;
-			const rB = Number.isFinite(b.rating) ? b.rating : 0;
-			const diff = rA - rB;
+			const diff = toFiniteOrZero(a.rating) - toFiniteOrZero(b.rating);
 			if (diff !== 0) return diff * sign;
 		} else if (query.sort === 'utilization') {
-			const uA = computeUtilization(a);
-			const uB = computeUtilization(b);
-			const diff = uA - uB;
+			const diff = computeUtilization(a) - computeUtilization(b);
 			if (diff !== 0) return diff * sign;
 		} else {
-			const teamComp = a.team.localeCompare(b.team);
-			if (teamComp !== 0) return teamComp * sign;
-			return a.name.localeCompare(b.name) * sign;
+			// Primary identity sort (also the default)
+			const cmp = compareIdentity(a, b);
+			if (cmp !== 0) return cmp * sign;
 		}
 
-		// Always break ties deterministically by team then name (ascending for stability)
-		const teamComp = a.team.localeCompare(b.team);
-		if (teamComp !== 0) return teamComp;
-		return a.name.localeCompare(b.name);
+		// Tie-break: always ascending identity for stability, independent of sort direction
+		return compareIdentity(a, b);
 	});
 }
