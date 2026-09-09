@@ -570,6 +570,34 @@ describe('adminBotsFilter', () => {
 			expect(res).toHaveLength(1);
 			expect(res[0].name).toBe('echo');
 		});
+
+		it('non-finite utilization (NaN maxConcurrentGames) does not break sort — identity tie-break still runs', () => {
+			// If computeUtilization returns NaN (because maxConcurrentGames is NaN),
+			// the raw diff is also NaN. Array.prototype.sort treats NaN as equality,
+			// which would prevent the identity tie-break from running and leave order
+			// non-deterministic. toFiniteOrZero must map NaN → 0 before subtraction.
+			const nanCapBot: AdminBot = {
+				...testBots[0],
+				team: 'zzz',
+				name: 'nan-util',
+				maxConcurrentGames: NaN,
+				activeGames: 2,
+			};
+			const normalCapBot: AdminBot = {
+				...testBots[0],
+				team: 'aaa',
+				name: 'normal-util',
+				maxConcurrentGames: NaN,
+				activeGames: 2,
+			};
+			// Both map to utilization 0 (NaN → 0). Tie-break by identity: 'aaa' < 'zzz'.
+			const result = applyAdminBotsQuery([nanCapBot, normalCapBot], {
+				...DEFAULT_ADMIN_BOTS_QUERY,
+				sort: 'utilization',
+				dir: 'asc',
+			});
+			expect(result.map((b) => b.team)).toEqual(['aaa', 'zzz']);
+		});
 	});
 
 	describe('extended fixture coverage', () => {

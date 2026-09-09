@@ -262,7 +262,7 @@ export function applyAdminBotsQuery(bots: AdminBot[], query: AdminBotsQuery): Ad
 			const diff = toFiniteOrZero(a.rating) - toFiniteOrZero(b.rating);
 			if (diff !== 0) return diff * sign;
 		} else if (query.sort === 'utilization') {
-			const diff = computeUtilization(a) - computeUtilization(b);
+			const diff = toFiniteOrZero(computeUtilization(a)) - toFiniteOrZero(computeUtilization(b));
 			if (diff !== 0) return diff * sign;
 		} else {
 			// Primary identity sort (also the default)
