@@ -53,15 +53,12 @@ jobs:
       # fully green pipeline — which is exactly how #185 happened.
       - name: Install Playwright browser
         run: |
-          # Remove the Google Chrome apt source before Playwright's --with-deps runs its own
-          # apt-get update. Google's CDN currently serves mismatched InRelease/Packages.gz
-          # hashes, causing apt to fail. Playwright installs its own Chromium binary and does
-          # not use Chrome from this repo, so removing it is safe.
-          sudo rm -f /etc/apt/sources.list.d/google-chrome.list \
-                     /etc/apt/sources.list.d/google-chrome.list.save \
-                     /etc/apt/sources.list.d/google.list \
-                     /usr/share/keyrings/google-chrome.gpg \
-                     /etc/apt/keyrings/google-chrome.gpg
+          # Remove Google Chrome apt repository before Playwright installs dependencies.
+          # Google's CDN currently serves mismatched InRelease/Packages.gz hashes on noble.
+          # Ubuntu 24.04 noble uses deb822 (.sources) files in /etc/apt/sources.list.d/.
+          # Playwright installs its own Chromium binary, so disabling the Chrome repo is safe.
+          sudo rm -f /etc/apt/sources.list.d/*google* /etc/apt/sources.list.d/*chrome*
+          sudo sed -i '/dl\.google\.com/d' /etc/apt/sources.list 2>/dev/null || true
           sudo apt-get clean
           sudo rm -rf /var/lib/apt/lists/*
           npx playwright install --with-deps chromium
