@@ -52,7 +52,12 @@ jobs:
       # Scala.js engine, so without this a bundler that miscompiles it reaches production with a
       # fully green pipeline — which is exactly how #185 happened.
       - name: Install Playwright browser
-        run: npx playwright install --with-deps chromium
+        run: |
+          # Bust stale apt cache to avoid Google Chrome repo hash-sum mismatches
+          # (CDN propagation lag between InRelease and Packages.gz — transient upstream issue)
+          sudo apt-get clean
+          sudo rm -rf /var/lib/apt/lists/*
+          npx playwright install --with-deps chromium
 
       - name: Smoke test the built bundle
         run: npm run test:e2e
