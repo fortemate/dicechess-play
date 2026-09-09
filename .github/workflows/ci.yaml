@@ -52,7 +52,16 @@ jobs:
       # Scala.js engine, so without this a bundler that miscompiles it reaches production with a
       # fully green pipeline — which is exactly how #185 happened.
       - name: Install Playwright browser
-        run: npx playwright install --with-deps chromium
+        run: |
+          # Remove Google Chrome apt repository before Playwright installs dependencies.
+          # Google's CDN currently serves mismatched InRelease/Packages.gz hashes on noble.
+          # Ubuntu 24.04 noble uses deb822 (.sources) files in /etc/apt/sources.list.d/.
+          # Playwright installs its own Chromium binary, so disabling the Chrome repo is safe.
+          sudo rm -f /etc/apt/sources.list.d/*google* /etc/apt/sources.list.d/*chrome*
+          sudo sed -i '/dl\.google\.com/d' /etc/apt/sources.list 2>/dev/null || true
+          sudo apt-get clean
+          sudo rm -rf /var/lib/apt/lists/*
+          npx playwright install --with-deps chromium
 
       - name: Smoke test the built bundle
         run: npm run test:e2e
