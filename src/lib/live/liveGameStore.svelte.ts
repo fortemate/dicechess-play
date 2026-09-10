@@ -208,7 +208,8 @@ export class LiveGameStore {
 	private tick = $state(0); // bumped by a timer so the ticking clock re-renders between server events
 	private clockBaseMs = $state<Clocks | null>(null); // remaining per side as of `clockSince`; null = unlimited
 	private clockSince = 0; // Date.now() when clockBaseMs was captured
-	private tickingSeat = $state<Seat | null>(null); // the side running down now (none between turns / when over)
+	private targetTickingSeat: Seat | null = null; // side that should tick when presentation catches up
+	private tickingSeat = $state<Seat | null>(null); // the side running down now (none between turns / when over / presenting)
 	private clockTimer: ReturnType<typeof setInterval> | null = null;
 
 	/** True while a player (not a spectator) is in a live game. */
@@ -304,7 +305,16 @@ export class LiveGameStore {
 		return this.mySeat === null;
 	}
 
-	/** The side whose clock is currently running down, or null when paused (between turns / over / unlimited). */
+	/** True while opponent moves or roll spin animation are being presented to the user. */
+	private get isPresenting(): boolean {
+		return (
+			this.presentedIndex < this.maxMoveIndex ||
+			this.isAnimatingRoll ||
+			this.passNoticeSeat !== null
+		);
+	}
+
+	/** The side whose clock is currently running down, or null when paused (between turns / over / unlimited / presenting). */
 	get tickingClockSeat(): Seat | null {
 		return this.tickingSeat;
 	}
@@ -424,6 +434,7 @@ export class LiveGameStore {
 		this.connection = 'connecting';
 		this.clockBaseMs = null;
 		this.clockSince = 0;
+		this.targetTickingSeat = null;
 		this.tickingSeat = null;
 		this.historyMap = {};
 		this.viewedIndex = null;
@@ -645,13 +656,14 @@ export class LiveGameStore {
 		if (history !== undefined || Object.keys(this.historyMap).length === 0) {
 			this.appendRollEntry(this.liveFen, this.liveActiveColor, this.liveDice);
 		}
+		// The replayed backlog (plus the current roll) is already known — present it as caught up
+		// immediately; only events from here on animate.
+		this.presentedIndex = this.maxMoveIndex;
+
 		const clockTicking =
 			(state.dicePending || Boolean(state.drawOffer?.pending)) &&
 			this.rematchStartup?.phase !== 'awaiting_joins';
 		this.setClocks(state.clocks, clockTicking ? state.activeSeat : null);
-		// The replayed backlog (plus the current roll) is already known — present it as caught up
-		// immediately; only events from here on animate.
-		this.presentedIndex = this.maxMoveIndex;
 	}
 
 	/** Rebuilds historyMap from scratch using a Snapshot's authoritative `history` — every completed
@@ -779,14 +791,11 @@ export class LiveGameStore {
 	}
 
 	// ── clocks ──────────────────────────────────────────────────────────────────
-	/** Adopt authoritative per-side clocks from an event and tick `ticking` down (or no side). */
+	/** Adopt authoritative per-side clocks from an event and set target ticking seat. */
 	private setClocks(clocks: Clocks | null, ticking: Seat | null): void {
 		this.clockBaseMs = clocks;
-		this.clockSince = Date.now();
-		this.tickingSeat = clocks ? ticking : null;
-		// Only run the timer while a side is actually counting down; idle/frozen needs no ticks.
-		if (this.tickingSeat && this.gameStatus !== 'over') this.startClockTimer();
-		else this.stopClockTimer();
+		this.targetTickingSeat = clocks ? ticking : null;
+		this.updateClockTicking();
 	}
 
 	/** Pin both clocks to their current live values and stop ticking — between a completed turn and the next roll. */
@@ -794,6 +803,7 @@ export class LiveGameStore {
 		if (!this.clockBaseMs) return;
 		this.clockBaseMs = { white: this.whiteClockMs, black: this.blackClockMs };
 		this.clockSince = Date.now();
+		this.targetTickingSeat = null;
 		this.tickingSeat = null;
 		this.stopClockTimer();
 	}
@@ -801,15 +811,40 @@ export class LiveGameStore {
 	/** Settle clocks at game end: on a flag-fall zero the side that ran out, otherwise pin the live values. */
 	private settleClocks(termination: string): void {
 		this.stopClockTimer();
-		if (!this.clockBaseMs || !this.tickingSeat) return;
-		const key = this.tickingSeat === 'White' ? 'white' : 'black';
-		const settled = { ...this.clockBaseMs };
-		settled[key] =
-			termination === 'Timeout'
-				? 0
-				: Math.max(0, this.clockBaseMs[key] - (Date.now() - this.clockSince));
-		this.clockBaseMs = settled;
+		if (!this.clockBaseMs) return;
+		if (this.tickingSeat) {
+			const key = this.tickingSeat === 'White' ? 'white' : 'black';
+			const settled = { ...this.clockBaseMs };
+			settled[key] =
+				termination === 'Timeout'
+					? 0
+					: Math.max(0, this.clockBaseMs[key] - (Date.now() - this.clockSince));
+			this.clockBaseMs = settled;
+		}
+		this.targetTickingSeat = null;
 		this.tickingSeat = null;
+	}
+
+	/**
+	 * Synchronizes local clock ticking state with presentation status.
+	 * Clocks remain paused while presentation animation is active or game is over.
+	 * When presentation finishes, the clock for targetTickingSeat resumes from Date.now().
+	 */
+	private updateClockTicking(): void {
+		if (this.isPresenting || this.gameStatus === 'over') {
+			this.tickingSeat = null;
+			this.stopClockTimer();
+		} else if (this.targetTickingSeat !== null) {
+			const wasTicking = this.tickingSeat === this.targetTickingSeat;
+			this.tickingSeat = this.targetTickingSeat;
+			if (!wasTicking) {
+				this.clockSince = Date.now();
+			}
+			this.startClockTimer();
+		} else {
+			this.tickingSeat = null;
+			this.stopClockTimer();
+		}
 	}
 
 	private startClockTimer(): void {
@@ -1058,6 +1093,7 @@ export class LiveGameStore {
 	}
 
 	private schedulePresentation(): void {
+		this.updateClockTicking();
 		if (this.pumpingEpoch === this.epoch) return; // a loop for the current epoch is already draining
 		this.pumpingEpoch = this.epoch;
 		void this.presentLoop(this.epoch);
@@ -1101,22 +1137,28 @@ export class LiveGameStore {
 				if (isRoll) {
 					this.presentedIndex = nextIndex; // dice values visible immediately, spin plays on top
 					this.isAnimatingRoll = true;
+					this.updateClockTicking();
 					playDiceSound();
 					await this.sleep(ROLL_ANIMATION_MS);
 					if (epoch !== this.epoch) return;
 					this.isAnimatingRoll = false;
+					this.updateClockTicking();
 				} else if (isPass) {
 					// The passed roll's entry is still on display, dice visible — hold it with the
 					// notice up, then move on.
 					this.passNoticeSeat = entry.active_color === 'w' ? 'White' : 'Black';
+					this.updateClockTicking();
 					await this.sleep(PASS_DWELL_MS);
 					if (epoch !== this.epoch) return; // reset()/endGame already cleared the notice
 					this.passNoticeSeat = null;
 					this.presentedIndex = nextIndex;
+					this.updateClockTicking();
 				} else {
+					this.updateClockTicking();
 					await this.sleep(MOVE_STEP_MS); // pause on the OLD position, then reveal
 					if (epoch !== this.epoch) return;
 					this.presentedIndex = nextIndex;
+					this.updateClockTicking();
 				}
 			}
 			// Fully caught up: if the game already ended on the wire, the final move has now
@@ -1127,6 +1169,7 @@ export class LiveGameStore {
 			// chained by the caller), so a new schedulePresentation() call can never observe a stale
 			// pumpingEpoch from a loop that has already finished but not yet "reported back".
 			if (this.pumpingEpoch === epoch) this.pumpingEpoch = null;
+			if (epoch === this.epoch) this.updateClockTicking();
 		}
 	}
 }
