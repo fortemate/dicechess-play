@@ -228,7 +228,17 @@
 <svelte:window onkeydown={onKeydown} />
 
 {#snippet iconBtn(
-	kind: 'back' | 'list' | 'flag' | 'first' | 'prev' | 'next' | 'last' | 'sound-on' | 'sound-off',
+	kind:
+		| 'back'
+		| 'list'
+		| 'flag'
+		| 'first'
+		| 'prev'
+		| 'next'
+		| 'last'
+		| 'sound-on'
+		| 'sound-off'
+		| 'handshake',
 )}
 	<svg
 		viewBox="0 0 24 24"
@@ -262,6 +272,13 @@
 			/>
 		{:else if kind === 'sound-off'}
 			<path d="M11 5.5 6.5 9H3.5v6h3l4.5 3.5z" /><path d="m15.5 9.5 5 5M20.5 9.5l-5 5" />
+		{:else if kind === 'handshake'}
+			<path
+				d="m11 17 2 2a1 1 0 0 0 1.4 0l4.3-4.3a1 1 0 0 0 0-1.4l-2.4-2.4a1 1 0 0 0-1.4 0L13.5 12"
+			/>
+			<path d="m13 7-2-2a1 1 0 0 0-1.4 0L5.3 9.3a1 1 0 0 0 0 1.4l2.4 2.4a1 1 0 0 0 1.4 0L10.5 12" />
+			<path d="m16 8 2-2a2.83 2.83 0 0 1 4 0 2.83 2.83 0 0 1 0 4l-2 2" />
+			<path d="m8 16-2 2a2.83 2.83 0 0 1-4 0 2.83 2.83 0 0 1 0-4l2-2" />
 		{:else}
 			{#if kind === 'first'}
 				<path d="M11 6l-6 6 6 6M18 6l-6 6 6 6" />
@@ -582,18 +599,18 @@
 							disabled={drawControl === 'forbidden' || drawControl === 'pending'}
 							aria-label={drawLabel}
 							title={drawLabel}
-							class="relative flex h-8 items-center justify-center gap-1 rounded-lg border px-2 text-xs font-bold transition-colors after:absolute after:-inset-1.5 after:content-[''] disabled:cursor-not-allowed disabled:opacity-40 {drawControl ===
+							class="relative flex h-8 items-center justify-center gap-1.5 rounded-lg border transition-colors after:absolute after:-inset-1.5 after:content-[''] disabled:cursor-not-allowed disabled:opacity-40 {drawControl ===
 							'armed'
-								? 'border-primary bg-primary/20 text-primary shadow-sm'
-								: 'border-border bg-surface text-content-muted hover:border-border-strong hover:text-content'}"
+								? 'border-primary bg-primary/20 text-primary shadow-sm px-2.5 text-xs font-bold'
+								: drawControl === 'pending'
+									? 'border-primary/50 bg-primary/10 text-primary px-2.5 text-xs font-bold'
+									: 'w-8 border-border bg-surface text-content-muted hover:border-border-strong hover:text-content'}"
 						>
-							<span class="font-mono text-xs font-extrabold">½–½</span>
+							{@render iconBtn('handshake')}
 							{#if drawControl === 'armed'}
-								<span class="text-[11px]">Armed</span>
+								Armed
 							{:else if drawControl === 'pending'}
-								<span class="text-[11px]">Sent</span>
-							{:else}
-								<span class="text-[11px] hidden sm:inline">Draw</span>
+								Sent
 							{/if}
 						</button>
 					{/if}
