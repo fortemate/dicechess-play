@@ -32,7 +32,7 @@
 		"test:acceptance": "node --experimental-strip-types scripts/showcase-acceptance/runAll.ts"
 	},
 	"dependencies": {
-		"@fortemate/dicechess-engine": "^0.8.0",
+		"@fortemate/dicechess-engine": "^0.9.1",
 		"@lichess-org/chessground": "^10.1.1",
 		"@sentry/sveltekit": "^10.73.0",
 		"idb": "^8.0.3",

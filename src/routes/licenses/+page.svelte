@@ -182,7 +182,7 @@
 				</span>
 			</div>
 			<p class="text-xs text-content-muted">
-				Package: <code class="font-mono">@fortemate/dicechess-engine 0.8.0</code>
+				Package: <code class="font-mono">@fortemate/dicechess-engine 0.9.1</code>
 			</p>
 		</div>
 
