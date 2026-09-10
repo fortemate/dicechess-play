@@ -95,6 +95,7 @@ describe('/practice draw offer controls', () => {
 			name: /offer a draw/i,
 		}) as HTMLButtonElement;
 		expect(drawBtn.disabled).toBe(false);
+		expect(drawBtn.textContent?.trim()).toBe('');
 
 		await fireEvent.click(drawBtn);
 		expect(store.toggleArmDrawOffer).toHaveBeenCalledOnce();
@@ -104,7 +105,7 @@ describe('/practice draw offer controls', () => {
 		renderPage({ drawOfferControlState: 'armed' });
 		const armed = screen.getByRole('button', { name: /draw offer armed/i }) as HTMLButtonElement;
 		expect(armed.disabled).toBe(false);
-		expect(armed.textContent).toContain('Armed');
+		expect(armed.textContent?.trim()).toBe('Armed');
 
 		cleanup();
 		renderPage({ drawOfferControlState: 'pending', activeDrawOffer: 'player' });
@@ -112,6 +113,7 @@ describe('/practice draw offer controls', () => {
 			name: /waiting for the bot/i,
 		}) as HTMLButtonElement;
 		expect(sent.disabled).toBe(true);
+		expect(sent.textContent?.trim()).toBe('Sent');
 	});
 
 	it('says whose turn it is to offer once the right has passed to the bot', () => {
