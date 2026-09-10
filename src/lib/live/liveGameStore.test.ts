@@ -443,7 +443,7 @@ describe('LiveGameStore pacing', () => {
 		expect(live.isViewingHistory).toBe(false);
 	});
 
-	it('keeps clocks ticking in real time while a roll is being presented', async () => {
+	it('pauses clocks while a roll or opponent moves are being presented', async () => {
 		deliver(snapshot());
 		deliver({
 			DiceRolled: {
@@ -455,12 +455,60 @@ describe('LiveGameStore pacing', () => {
 			},
 		});
 		expect(live.isAnimatingRoll).toBe(true);
-		expect(live.tickingClockSeat).toBe('Black'); // the server already started Black's clock underneath the spin
+		expect(live.tickingClockSeat).toBeNull(); // clock paused during roll spin animation
 
-		await vi.advanceTimersByTimeAsync(300); // less than the 600ms spin — still mid-animation
+		await vi.advanceTimersByTimeAsync(300); // mid-animation
 		expect(live.isAnimatingRoll).toBe(true);
-		expect(live.blackClockMs).toBeLessThanOrEqual(59_700);
-		expect(live.blackClockMs).toBeGreaterThan(59_000); // ticked down in real time regardless of pacing
+		expect(live.blackClockMs).toBe(60_000); // clock pinned/frozen during spin
+
+		await vi.advanceTimersByTimeAsync(300); // spin completes (600ms total)
+		expect(live.isAnimatingRoll).toBe(false);
+		expect(live.tickingClockSeat).toBe('Black'); // clock starts ticking after presentation completes
+
+		await vi.advanceTimersByTimeAsync(1000);
+		expect(live.blackClockMs).toBeLessThanOrEqual(59_000);
+	});
+
+	it('keeps human player clock paused during opponent multi-move turn reveal and roll spin', async () => {
+		deliver(snapshot({ dfen: `${START_FEN_BLACK} nn`, activeSeat: 'Black' }));
+		deliver({
+			TurnPlayed: { v: 1, seat: 'Black', moves: ['b8c6', 'g8f6'], fenAfter: AFTER_BLACK_KNIGHTS },
+		});
+		deliver({
+			DiceRolled: {
+				v: 2,
+				seat: 'White',
+				dice: [2],
+				dfen: `${AFTER_BLACK_KNIGHTS} N`,
+				clocks: { white: 60_000, black: 60_000 },
+			},
+		});
+
+		// 2 moves + 1 roll = ~2600ms of presentation animation
+		expect(live.isViewingHistory).toBe(true);
+		expect(live.tickingClockSeat).toBeNull();
+		expect(live.whiteClockMs).toBe(60_000);
+
+		// First knight move reveals (1000ms)
+		await vi.advanceTimersByTimeAsync(1000);
+		expect(live.tickingClockSeat).toBeNull();
+		expect(live.whiteClockMs).toBe(60_000);
+
+		// Second knight move reveals (1000ms)
+		await vi.advanceTimersByTimeAsync(1000);
+		expect(live.isAnimatingRoll).toBe(true);
+		expect(live.tickingClockSeat).toBeNull();
+		expect(live.whiteClockMs).toBe(60_000);
+
+		// Roll spin completes (600ms)
+		await vi.advanceTimersByTimeAsync(600);
+		expect(live.isAnimatingRoll).toBe(false);
+		expect(live.isViewingHistory).toBe(false);
+		expect(live.tickingClockSeat).toBe('White');
+
+		// Now White's clock ticks down
+		await vi.advanceTimersByTimeAsync(1000);
+		expect(live.whiteClockMs).toBeLessThanOrEqual(59_000);
 	});
 
 	it('keeps isManuallyBrowsing false during ordinary catch-up, true only after a deliberate scrub', async () => {
@@ -1425,7 +1473,7 @@ describe('LiveGameStore stake doubling (#75)', () => {
 		expect(live.gameStatus).toBe('playing');
 	});
 
-	it('tracks rematchStartup and prevents clocks ticking during awaiting_joins', () => {
+	it('tracks rematchStartup and prevents clocks ticking during awaiting_joins', async () => {
 		deliver(
 			snapshot({
 				rematchStartup: {
@@ -1456,6 +1504,9 @@ describe('LiveGameStore stake doubling (#75)', () => {
 		});
 
 		expect(live.rematchStartup).toEqual({ phase: 'active' });
+		expect(live.tickingClockSeat).toBeNull(); // roll spin active
+
+		await vi.advanceTimersByTimeAsync(600); // spin finishes
 		expect(live.tickingClockSeat).toBe('White');
 	});
 });

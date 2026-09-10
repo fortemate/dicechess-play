@@ -69,9 +69,9 @@ describe('LiveGameStore clocks', () => {
 		expect(live.blackClockMs).toBe(60_000);
 	});
 
-	it('moves the running clock to the other side on the next roll', () => {
+	it('moves the running clock to the other side on the next roll', async () => {
 		deliver(activeSnapshot({ white: 60_000, black: 60_000 }));
-		vi.advanceTimersByTime(1_000);
+		await vi.advanceTimersByTimeAsync(1_000);
 		// Server's authoritative roll for Black with fresh banks.
 		deliver({
 			DiceRolled: {
@@ -83,7 +83,16 @@ describe('LiveGameStore clocks', () => {
 			},
 		});
 
-		vi.advanceTimersByTime(2_000);
+		// Clock remains paused during roll spin animation
+		expect(live.tickingClockSeat).toBeNull();
+		expect(live.blackClockMs).toBe(60_000);
+
+		// Complete 600ms roll spin
+		await vi.advanceTimersByTimeAsync(600);
+		expect(live.tickingClockSeat).toBe('Black');
+
+		// 2000ms ticking
+		await vi.advanceTimersByTimeAsync(2_000);
 		expect(live.whiteClockMs).toBe(59_000); // frozen — no longer the side to move
 		expect(live.blackClockMs).toBeLessThanOrEqual(58_000);
 		expect(live.blackClockMs).toBeGreaterThan(57_000);
