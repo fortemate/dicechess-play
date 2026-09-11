@@ -22,7 +22,10 @@
 	const closedMessage = $derived.by(() => {
 		switch (store.closedReason) {
 			case 'declined':
-				return 'Rematch declined by opponent.';
+				// myConsent records whether this client agreed; when the session closed as
+				// 'declined', myConsent===false means THIS client was the one who declined
+				// the opponent's offer — show their own action, not the opponent's.
+				return store.myConsent ? 'Rematch declined by opponent.' : 'You declined the rematch.';
 			case 'cancelled':
 				return 'Rematch cancelled.';
 			case 'expired':
