@@ -94,14 +94,29 @@ describe('RematchControl', () => {
 		expect(store.decline).toHaveBeenCalled();
 	});
 
-	it('renders closed explanation and lobby link when declined', () => {
+	it('renders "declined by opponent" when the proposer sees their offer rejected', () => {
+		// myConsent===true: this client proposed and the opponent declined.
 		const store = mockStore({
 			phase: 'closed',
 			closedReason: 'declined',
+			myConsent: true,
 		});
 		const { getByText, getByRole } = render(RematchControl, { store });
 
 		expect(getByText('Rematch declined by opponent.')).toBeDefined();
+		expect(getByRole('link', { name: /find another game →/i })).toBeDefined();
+	});
+
+	it('renders "you declined" when the decliner sees their own action', () => {
+		// myConsent===false: this client received the offer and declined it.
+		const store = mockStore({
+			phase: 'closed',
+			closedReason: 'declined',
+			myConsent: false,
+		});
+		const { getByText, getByRole } = render(RematchControl, { store });
+
+		expect(getByText('You declined the rematch.')).toBeDefined();
 		expect(getByRole('link', { name: /find another game →/i })).toBeDefined();
 	});
 
