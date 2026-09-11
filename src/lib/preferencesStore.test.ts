@@ -1,5 +1,5 @@
 import { describe, it, expect, beforeEach, vi } from 'vitest';
-import { preferencesStore } from './preferencesStore.svelte';
+import { migrateBotTimeControlId, preferencesStore } from './preferencesStore.svelte';
 
 describe('PreferencesStore', () => {
 	const localStorageMock = (() => {
@@ -112,22 +112,40 @@ describe('PreferencesStore', () => {
 
 	// DoD (issue #20): a stored localStorage value from before this change (a display label like
 	// '3 + 3') must still resolve to the same preset — covered by migrateBotTimeControlId.
-	it('migrates an old label value from localStorage to the corresponding preset id', () => {
-		// The singleton constructor only runs once, so we can't re-instantiate the store to test
-		// the localStorage branch directly. Instead we verify the public contract of the migration:
-		// setBotChallengeTimeControl accepts an id and the store returns the same id unchanged.
-		preferencesStore.setBotChallengeTimeControl('fischer-180-3');
+	it('migrates an old label value to the corresponding preset id', () => {
+		preferencesStore.setBotChallengeTimeControl('3 + 3');
 		expect(preferencesStore.botChallengeTimeControl).toBe('fischer-180-3');
+		expect(localStorage.getItem('botChallengeTimeControl')).toBe('fischer-180-3');
 	});
 
 	// DoD (issue #20): an unrecognised stored value must fall back to the default, never throw.
-	it('falls back to the default preset id when the stored value is unrecognised', () => {
-		// The migration function is tested indirectly: set something id-shaped but unknown.
-		// An unknown id won't match any preset in BotChallengePanel's storedTimeControlIndex,
-		// which falls back to defaultBotTimeControlIndex there — that path is tested in
-		// BotChallengePanel.test.ts. Here we verify only that the store accepts and returns it
-		// without throwing (the store itself does not validate ids — it's a pure string store).
+	it('falls back to the default preset id when an unrecognised value is set', () => {
 		expect(() => preferencesStore.setBotChallengeTimeControl('unknown-id')).not.toThrow();
-		expect(preferencesStore.botChallengeTimeControl).toBe('unknown-id');
+		expect(preferencesStore.botChallengeTimeControl).toBe('fischer-300-5');
+		expect(localStorage.getItem('botChallengeTimeControl')).toBe('fischer-300-5');
+	});
+});
+
+describe('migrateBotTimeControlId', () => {
+	it('preserves an existing preset id unchanged', () => {
+		expect(migrateBotTimeControlId('fischer-180-3')).toBe('fischer-180-3');
+		expect(migrateBotTimeControlId('fischer-300-5')).toBe('fischer-300-5');
+		expect(migrateBotTimeControlId('sd-300')).toBe('sd-300');
+	});
+
+	it('translates legacy display labels to their corresponding stable ids', () => {
+		expect(migrateBotTimeControlId('1 + 1')).toBe('fischer-60-1');
+		expect(migrateBotTimeControlId('3 + 3')).toBe('fischer-180-3');
+		expect(migrateBotTimeControlId('5 min')).toBe('sd-300');
+		expect(migrateBotTimeControlId('5 + 5')).toBe('fischer-300-5');
+		expect(migrateBotTimeControlId('10 min')).toBe('sd-600');
+		expect(migrateBotTimeControlId('10 + 10')).toBe('fischer-600-10');
+	});
+
+	it('falls back to the default preset id (fischer-300-5) for unrecognised values without throwing', () => {
+		expect(migrateBotTimeControlId('unknown-id')).toBe('fischer-300-5');
+		expect(migrateBotTimeControlId('5 + 99')).toBe('fischer-300-5');
+		expect(migrateBotTimeControlId('garbage')).toBe('fischer-300-5');
+		expect(migrateBotTimeControlId('')).toBe('fischer-300-5');
 	});
 });

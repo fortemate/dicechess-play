@@ -127,14 +127,20 @@ export const botTimeControlPresets: readonly BotTimeControlPreset[] = [
 	},
 ];
 
-/** Index of the default preset (5 + 5) — looked up by id, so a reorder or label rename can't
- * silently point the default at the wrong entry (fails fast at module load instead). */
-export const defaultBotTimeControlIndex: number = (() => {
-	const index = botTimeControlPresets.findIndex((p) => p.id === 'fischer-300-5');
+/** Finds the default bot time control preset index by stable ID ('fischer-300-5').
+ * Throws if the default preset is missing. */
+export function findDefaultBotTimeControlIndex(
+	presets: readonly BotTimeControlPreset[] = botTimeControlPresets,
+): number {
+	const index = presets.findIndex((p) => p.id === 'fischer-300-5');
 	if (index === -1)
 		throw new Error('botTimeControlPresets: no "fischer-300-5" preset — the default is broken');
 	return index;
-})();
+}
+
+/** Index of the default preset (5 + 5) — looked up by id, so a reorder or label rename can't
+ * silently point the default at the wrong entry (fails fast at module load instead). */
+export const defaultBotTimeControlIndex: number = findDefaultBotTimeControlIndex();
 
 /** A short human label for any time control (e.g. to show a seek's control in the lobby list). Tolerates a
  * missing control (treated as Unlimited) so a malformed response can never throw. */

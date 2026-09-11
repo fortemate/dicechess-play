@@ -21,18 +21,12 @@ import { botTimeControlPresets, defaultBotTimeControlIndex } from '$lib/live/tim
 
 /** Translate a stored botChallengeTimeControl value to a stable preset id.
  * Before issue #20 the label string (e.g. '5 + 5') was persisted directly. Now we persist the
- * preset id (e.g. 'fischer-300-5'). This migration runs once on the stored value: if it looks like
- * an id already (no spaces) we use it as-is; otherwise we look it up by label among the current
- * presets and translate it. An unrecognised value falls back to the default id — never throws. */
-function migrateBotTimeControlId(stored: string): string {
-	// If it doesn't contain a space it is already an id-shaped value — accept it directly.
-	// Unknown ids will simply fail to match any preset and resolve to the default at lookup time.
-	if (!stored.includes(' ')) return stored;
-	// Old label format — try to find the matching preset by its display label.
-	const match = botTimeControlPresets.find((p) => p.label === stored);
-	if (match) return match.id;
-	// Unrecognised label: fall back to the default preset id without throwing.
-	return botTimeControlPresets[defaultBotTimeControlIndex].id;
+ * preset id (e.g. 'fischer-300-5'). This migration runs once on the stored value: if it matches
+ * an existing preset id or a legacy label, its stable id is returned. An unrecognised value falls
+ * back to the default preset id without throwing (#20). */
+export function migrateBotTimeControlId(stored: string): string {
+	const match = botTimeControlPresets.find((p) => p.id === stored || p.label === stored);
+	return match ? match.id : botTimeControlPresets[defaultBotTimeControlIndex].id;
 }
 
 // Class-based store for reactive preferences
@@ -238,8 +232,9 @@ class PreferencesStore {
 	}
 
 	setBotChallengeTimeControl(id: string) {
-		this.botChallengeTimeControl = id;
-		setStoredValue('botChallengeTimeControl', id);
+		const validatedId = migrateBotTimeControlId(id);
+		this.botChallengeTimeControl = validatedId;
+		setStoredValue('botChallengeTimeControl', validatedId);
 	}
 
 	setBotChallengeColor(color: 'random' | 'White' | 'Black') {

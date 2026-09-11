@@ -3,6 +3,7 @@ import { RATING_CATEGORY_LABELS, ratingCategoryOf } from './ratingCategory';
 import {
 	botTimeControlPresets,
 	defaultBotTimeControlIndex,
+	findDefaultBotTimeControlIndex,
 	parseGameResultsTimeControl,
 	timeControlGroups,
 	timeControlLabel,
@@ -52,11 +53,27 @@ describe('botTimeControlPresets', () => {
 	});
 
 	// DoD: renaming any label is a pure copy change — the id and defaultBotTimeControlIndex must
-	// not change. This test makes that property explicit without actually mutating the module.
+	// not change. This test verifies that selection uses id, not label.
 	it('defaultBotTimeControlIndex is determined by id, not by label', () => {
 		const defaultPreset = botTimeControlPresets[defaultBotTimeControlIndex];
 		// The default preset carries the well-known id regardless of what its label says.
 		expect(defaultPreset.id).toBe('fischer-300-5');
+
+		// Renaming the default preset's label must still resolve to the same preset by ID
+		const renamedPresets = botTimeControlPresets.map((p) =>
+			p.id === 'fischer-300-5' ? { ...p, label: 'Custom 5m+5s' } : p,
+		);
+		expect(findDefaultBotTimeControlIndex(renamedPresets)).toBe(defaultBotTimeControlIndex);
+
+		// If another preset is given the label '5 + 5', selection must still follow ID ('fischer-300-5')
+		const hijackedLabelPresets = botTimeControlPresets.map((p) => {
+			if (p.id === 'fischer-300-5') return { ...p, label: 'Custom 5m+5s' };
+			if (p.id === 'fischer-60-1') return { ...p, label: '5 + 5' };
+			return p;
+		});
+		const selectedIndex = findDefaultBotTimeControlIndex(hijackedLabelPresets);
+		expect(hijackedLabelPresets[selectedIndex].id).toBe('fischer-300-5');
+		expect(hijackedLabelPresets[selectedIndex].label).toBe('Custom 5m+5s');
 	});
 });
 
