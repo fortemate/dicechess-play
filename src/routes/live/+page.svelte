@@ -5,14 +5,15 @@
 	import { buildJoinUrl, resolveSeats } from '$lib/live/seatLink';
 	import { getGuestUuid } from '$lib/ingest/guestIdentity';
 	import { timeControlPresets } from '$lib/live/timeControls';
+	import { SEAT_LABELS } from '$lib/live/playerLabel';
 	import TimeControlPicker from '../../components/TimeControlPicker.svelte';
 	import type { Seat } from '$lib/live/liveTypes';
 
 	type ColorChoice = Seat | 'random';
 	const colorOptions: readonly { value: ColorChoice; label: string }[] = [
 		{ value: 'random', label: 'Random' },
-		{ value: 'White', label: 'White' },
-		{ value: 'Black', label: 'Black' },
+		{ value: 'White', label: SEAT_LABELS.White },
+		{ value: 'Black', label: SEAT_LABELS.Black },
 	];
 
 	let creating = $state(false);
@@ -112,11 +113,11 @@
 	{:else}
 		<p class="text-sm text-content-muted">
 			Time control: <span class="text-content font-bold">{chosenLabel}</span> · You play
-			<span class="text-content font-bold">{yourSeat}</span>
+			<span class="text-content font-bold">{SEAT_LABELS[yourSeat]}</span>
 		</p>
 		<div class="flex flex-col gap-2">
 			<span class="text-sm font-bold text-content-muted"
-				>Send this link to your opponent ({opponentSeat}):</span
+				>Send this link to your opponent ({SEAT_LABELS[opponentSeat]}):</span
 			>
 			<div class="flex gap-2">
 				<input

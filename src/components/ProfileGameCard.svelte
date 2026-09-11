@@ -1,6 +1,7 @@
 <script lang="ts">
 	/* eslint-disable local/no-untranslated-text -- i18n debt: not yet migrated (#8) */
 	import type { ProfileRecentGame } from '$lib/leaderboard/leaderboardApi';
+	import { SEAT_LABELS } from '$lib/live/playerLabel';
 	import { formatDate } from '../utils/formatters';
 	import BotBadge from './BotBadge.svelte';
 
@@ -21,7 +22,7 @@
 	let { game }: Props = $props();
 
 	const opponentName = $derived(game.opponent.name ?? 'Anonymous opponent');
-	const playedColor = $derived(game.seat === 'White' ? 'White' : 'Black');
+	const playedColor = $derived(SEAT_LABELS[game.seat]);
 	// play-api's termination is a snake_case wire enum ('king_captured', 'draw_agreement', ...) — a
 	// generic humaniser rather than an exhaustive label table, matching LiveGameHistoryCard's stance.
 	const termination = $derived(
