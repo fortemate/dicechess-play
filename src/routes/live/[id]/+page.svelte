@@ -24,7 +24,13 @@
 	import { isLiveEnabled } from '$lib/live/liveApi';
 	import { buildJoinUrl, buildSpectateUrl, parseSeat } from '$lib/live/seatLink';
 	import { buildReplayUrl, hasReplay } from '$lib/live/replayLink';
-	import { publicPlayer, seatDisplayName, seatDisplaySub, seatRating } from '$lib/live/playerLabel';
+	import {
+		SEAT_LABELS,
+		publicPlayer,
+		seatDisplayName,
+		seatDisplaySub,
+		seatRating,
+	} from '$lib/live/playerLabel';
 	import { preferencesStore } from '$lib/preferencesStore.svelte';
 	import { preloadSounds } from '$lib/sound';
 	import { endReasonLabel } from '$lib/gameOutcome';
@@ -445,7 +451,7 @@
 		const seat = live.passNoticeSeat;
 		if (seat === null) return;
 		if (live.spectator) {
-			toastStore.info(`${seat} has no legal moves — turn passed.`);
+			toastStore.info(`${SEAT_LABELS[seat]} has no legal moves — turn passed.`);
 			return;
 		}
 		const mine = (seat === 'White') === (live.playerColor === 'w');

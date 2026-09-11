@@ -1,8 +1,12 @@
 import { describe, expect, it } from 'vitest';
 import {
+	SEAT_LABELS,
+	SEAT_LOWER_LABELS,
 	publicPlayer,
 	seatDisplayName,
 	seatDisplaySub,
+	seatLabel,
+	seatLowerLabel,
 	seatProfileHref,
 	seatRating,
 	seekOffer,
@@ -160,5 +164,21 @@ describe('seatProfileHref', () => {
 		expect(seatProfileHref(players, 'White')).toBeUndefined();
 		expect(seatProfileHref(players, 'Black')).toBeUndefined();
 		expect(seatProfileHref(null, 'White')).toBeUndefined();
+	});
+});
+
+describe('SEAT_LABELS and SEAT_LOWER_LABELS', () => {
+	it('maps seat wire values to English presentation labels', () => {
+		expect(SEAT_LABELS.White).toBe('White');
+		expect(SEAT_LABELS.Black).toBe('Black');
+		expect(seatLabel('White')).toBe('White');
+		expect(seatLabel('Black')).toBe('Black');
+	});
+
+	it('provides static lowercase labels without runtime case transformation', () => {
+		expect(SEAT_LOWER_LABELS.White).toBe('white');
+		expect(SEAT_LOWER_LABELS.Black).toBe('black');
+		expect(seatLowerLabel('White')).toBe('white');
+		expect(seatLowerLabel('Black')).toBe('black');
 	});
 });

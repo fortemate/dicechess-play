@@ -8,6 +8,34 @@ import type { Players, PublicPlayer, Seat, Seek } from './liveTypes';
 // not missing data, so every helper here treats `null` as "do not name this person" rather than as a
 // value to go looking for.
 
+/**
+ * Title-case display label for a seat wire value.
+ * Keeps wire values ('White' | 'Black') decoupled from presentation.
+ */
+export const SEAT_LABELS: Record<Seat, string> = {
+	White: 'White',
+	Black: 'Black',
+};
+
+/**
+ * Lowercase display label for a seat.
+ * Statically defined because runtime case transforms are locale-dependent and do not survive translation (#21).
+ */
+export const SEAT_LOWER_LABELS: Record<Seat, string> = {
+	White: 'white',
+	Black: 'black',
+};
+
+/** Returns the display label for a given seat. */
+export function seatLabel(seat: Seat): string {
+	return SEAT_LABELS[seat];
+}
+
+/** Returns the lowercase display label for a given seat. */
+export function seatLowerLabel(seat: Seat): string {
+	return SEAT_LOWER_LABELS[seat];
+}
+
 /** The seat's public face from the game state, when the server sent one. */
 export function publicPlayer(players: Players | null | undefined, seat: Seat): PublicPlayer | null {
 	if (!players) return null;
@@ -26,7 +54,7 @@ export function seatDisplayName(
 ): string {
 	const name = publicPlayer(players, seat)?.name;
 	if (name) return name;
-	if (spectator) return seat;
+	if (spectator) return SEAT_LABELS[seat];
 	return seat === bottomSeat ? 'You' : 'Opponent';
 }
 
@@ -46,7 +74,7 @@ export function seatDisplaySub(
 	// A named human is a registered player, not a guest — calling them "guest" would be plainly wrong now
 	// that accounts exist. Only an unnamed human is one.
 	const who = face?.kind === 'Bot' ? 'bot' : face?.name ? 'player' : spectator ? 'live' : 'guest';
-	return `${who} · ${seat.toLowerCase()}`;
+	return `${who} · ${SEAT_LOWER_LABELS[seat]}`;
 }
 
 /** Lobby-row label for who is offering a seek. */
@@ -62,7 +90,7 @@ export function seekOffer(seek: Seek): { name: string; bot: boolean } {
 export function showcaseBottomPlayerName(players: Players | null | undefined, seat: Seat): string {
 	const name = publicPlayer(players, seat)?.name;
 	if (name) return name;
-	return `You (${seat})`;
+	return `You (${SEAT_LABELS[seat]})`;
 }
 
 /**

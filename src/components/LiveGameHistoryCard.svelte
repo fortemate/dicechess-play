@@ -3,6 +3,7 @@
 	import { resolve } from '$app/paths';
 	import type { PlayerGame } from '$lib/games/gamesApi';
 	import { parseGameResultsTimeControl } from '$lib/live/timeControls';
+	import { SEAT_LABELS } from '$lib/live/playerLabel';
 	import { formatDate } from '../utils/formatters';
 	import BotBadge from './BotBadge.svelte';
 
@@ -21,7 +22,7 @@
 			? resolve('/players/[nickname]', { nickname: game.opponent.name })
 			: null,
 	);
-	const playedColor = $derived(game.seat === 'White' ? 'White' : 'Black');
+	const playedColor = $derived(SEAT_LABELS[game.seat]);
 	const timeControl = $derived(parseGameResultsTimeControl(game.timeControl));
 	// play-api's termination is a snake_case wire enum ('king_captured', 'draw_agreement', ...) — a
 	// generic humaniser rather than an exhaustive label table, so a future termination value the
