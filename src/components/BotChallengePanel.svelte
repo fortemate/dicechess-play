@@ -26,12 +26,12 @@
 	let phase = $state<Phase>('idle');
 
 	// Reflect the persisted setup (#212) so the panel comes up the way it was last left, on any
-	// bot's page. Looked up by label rather than trusting a stored index, same reasoning as
-	// `defaultBotTimeControlIndex` above it — a preset list reorder must not silently point at the
-	// wrong entry, it should just fall back to the default.
+	// bot's page. Looked up by id rather than trusting a stored index (#20): a preset list reorder
+	// or label rename must not silently point at the wrong entry, it should just fall back to the
+	// default.
 	const storedTimeControlIndex = () => {
 		const i = botTimeControlPresets.findIndex(
-			(p) => p.label === preferencesStore.botChallengeTimeControl,
+			(p) => p.id === preferencesStore.botChallengeTimeControl,
 		);
 		return i >= 0 ? i : defaultBotTimeControlIndex;
 	};
@@ -96,7 +96,7 @@
 		if (authStore.status === 'signed-in') {
 			preferencesStore.setBotChallengeRated(rated);
 		}
-		preferencesStore.setBotChallengeTimeControl(botTimeControlPresets[selectedTimeControl].label);
+		preferencesStore.setBotChallengeTimeControl(botTimeControlPresets[selectedTimeControl].id);
 		preferencesStore.setBotChallengeColor(preferredColor);
 		const timeControl = botTimeControlPresets[selectedTimeControl].value;
 		try {

@@ -38,6 +38,26 @@ describe('botTimeControlPresets', () => {
 	it('defaults to the 5 + 5 preset', () => {
 		expect(botTimeControlPresets[defaultBotTimeControlIndex].label).toBe('5 + 5');
 	});
+
+	it('assigns a stable id to every preset that contains no spaces (machine-readable)', () => {
+		for (const p of botTimeControlPresets) {
+			expect(p.id).toBeTruthy();
+			expect(p.id).not.toContain(' ');
+		}
+	});
+
+	it('has unique ids across all presets', () => {
+		const ids = botTimeControlPresets.map((p) => p.id);
+		expect(new Set(ids).size).toBe(ids.length);
+	});
+
+	// DoD: renaming any label is a pure copy change — the id and defaultBotTimeControlIndex must
+	// not change. This test makes that property explicit without actually mutating the module.
+	it('defaultBotTimeControlIndex is determined by id, not by label', () => {
+		const defaultPreset = botTimeControlPresets[defaultBotTimeControlIndex];
+		// The default preset carries the well-known id regardless of what its label says.
+		expect(defaultPreset.id).toBe('fischer-300-5');
+	});
 });
 
 describe('parseGameResultsTimeControl', () => {

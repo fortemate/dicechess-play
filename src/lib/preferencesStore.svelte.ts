@@ -17,6 +17,24 @@ function setStoredValue(key: string, value: string): void {
 	}
 }
 
+import { botTimeControlPresets, defaultBotTimeControlIndex } from '$lib/live/timeControls';
+
+/** Translate a stored botChallengeTimeControl value to a stable preset id.
+ * Before issue #20 the label string (e.g. '5 + 5') was persisted directly. Now we persist the
+ * preset id (e.g. 'fischer-300-5'). This migration runs once on the stored value: if it looks like
+ * an id already (no spaces) we use it as-is; otherwise we look it up by label among the current
+ * presets and translate it. An unrecognised value falls back to the default id — never throws. */
+function migrateBotTimeControlId(stored: string): string {
+	// If it doesn't contain a space it is already an id-shaped value — accept it directly.
+	// Unknown ids will simply fail to match any preset and resolve to the default at lookup time.
+	if (!stored.includes(' ')) return stored;
+	// Old label format — try to find the matching preset by its display label.
+	const match = botTimeControlPresets.find((p) => p.label === stored);
+	if (match) return match.id;
+	// Unrecognised label: fall back to the default preset id without throwing.
+	return botTimeControlPresets[defaultBotTimeControlIndex].id;
+}
+
 // Class-based store for reactive preferences
 class PreferencesStore {
 	preferredMode: 'view' | 'train' | 'bookmarks' | 'positions' = $state('view');
@@ -38,8 +56,9 @@ class PreferencesStore {
 	drawOfferPolicy: 'ask' | 'autoDecline' = $state('ask');
 	// The rated-bot challenge panel's own setup (#212) — distinct keys from /practice's above because
 	// the two surfaces offer different time-control presets and /practice has no rated concept.
+	// Stores the preset's stable `id` (e.g. 'fischer-300-5'), not its display label (#20).
 	botChallengeRated: boolean = $state(false);
-	botChallengeTimeControl: string = $state('5 + 5');
+	botChallengeTimeControl: string = $state(botTimeControlPresets[defaultBotTimeControlIndex].id);
 	botChallengeColor: 'random' | 'White' | 'Black' = $state('random');
 
 	constructor() {
@@ -131,7 +150,8 @@ class PreferencesStore {
 
 		const storedBotChallengeTimeControl = getStoredValue('botChallengeTimeControl');
 		if (storedBotChallengeTimeControl) {
-			this.botChallengeTimeControl = storedBotChallengeTimeControl;
+			// Migrate old label values (e.g. '5 + 5') to stable ids (e.g. 'fischer-300-5') (#20).
+			this.botChallengeTimeControl = migrateBotTimeControlId(storedBotChallengeTimeControl);
 		}
 
 		const storedBotChallengeColor = getStoredValue('botChallengeColor');
@@ -217,9 +237,9 @@ class PreferencesStore {
 		setStoredValue('botChallengeRated', String(value));
 	}
 
-	setBotChallengeTimeControl(label: string) {
-		this.botChallengeTimeControl = label;
-		setStoredValue('botChallengeTimeControl', label);
+	setBotChallengeTimeControl(id: string) {
+		this.botChallengeTimeControl = id;
+		setStoredValue('botChallengeTimeControl', id);
 	}
 
 	setBotChallengeColor(color: 'random' | 'White' | 'Black') {

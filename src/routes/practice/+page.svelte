@@ -22,7 +22,14 @@
 	/** Bot-game time controls map onto the store's minutes-limit + seconds-bonus model.
 	 * Unlimited first: a casual bot game shouldn't surprise anyone with a flag fall.
 	 * "Unlimited" (not "No clock") to match the term used across the live/lobby surface
-	 * and the server's TimeControl ADT variant. */
+	 * and the server's TimeControl ADT variant.
+	 *
+	 * This list deliberately stays separate from `botTimeControlPresets` in timeControls.ts (#20):
+	 * the two surfaces are structurally different. /practice drives an offline Stockfish bot through
+	 * `timeLimit` (minutes) + `timeBonus` (seconds), while the catalog panel drives a live server
+	 * game with the structured `TimeControl` ADT. Merging them would force one to bend to the other's
+	 * wire format. The two lists also differ in content (this one includes Unlimited and '5 + 3', the
+	 * catalog one includes '1 + 1' and '3 + 3'). Keep them in sync manually if presets are added. */
 	const TIME_PRESETS: {
 		label: string;
 		group: string;

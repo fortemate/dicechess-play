@@ -8,6 +8,9 @@ import {
 } from './ratingCategory';
 
 export interface TimeControlPreset {
+	/** Stable machine identity — never shown in UI, never translated. Safe to persist and compare
+	 * across code changes as long as the underlying time control is the same. */
+	id: string;
 	label: string;
 	// `null` omits the field on create, which now yields the server's default (Fischer 600+10), NOT
 	// Unlimited — see liveTypes.ts. No preset is null today; the type keeps the option open.
@@ -17,14 +20,38 @@ export interface TimeControlPreset {
 /** The time-control choices offered when creating a game or a seek. The first preset is the
  * default (both pickers start at index 0). */
 export const timeControlPresets: readonly TimeControlPreset[] = [
-	{ label: '5 + 3', value: { Fischer: { initialSeconds: 300, incrementSeconds: 3 } } },
-	{ label: '3 + 2', value: { Fischer: { initialSeconds: 180, incrementSeconds: 2 } } },
-	{ label: '5 min', value: { SuddenDeath: { initialSeconds: 300 } } },
-	{ label: '5 + 5', value: { Fischer: { initialSeconds: 300, incrementSeconds: 5 } } },
-	{ label: '10 min', value: { SuddenDeath: { initialSeconds: 600 } } },
-	{ label: '10 + 5', value: { Fischer: { initialSeconds: 600, incrementSeconds: 5 } } },
-	{ label: '10 + 10', value: { Fischer: { initialSeconds: 600, incrementSeconds: 10 } } },
-	{ label: '15 + 10', value: { Fischer: { initialSeconds: 900, incrementSeconds: 10 } } },
+	{
+		id: 'fischer-300-3',
+		label: '5 + 3',
+		value: { Fischer: { initialSeconds: 300, incrementSeconds: 3 } },
+	},
+	{
+		id: 'fischer-180-2',
+		label: '3 + 2',
+		value: { Fischer: { initialSeconds: 180, incrementSeconds: 2 } },
+	},
+	{ id: 'sd-300', label: '5 min', value: { SuddenDeath: { initialSeconds: 300 } } },
+	{
+		id: 'fischer-300-5',
+		label: '5 + 5',
+		value: { Fischer: { initialSeconds: 300, incrementSeconds: 5 } },
+	},
+	{ id: 'sd-600', label: '10 min', value: { SuddenDeath: { initialSeconds: 600 } } },
+	{
+		id: 'fischer-600-5',
+		label: '10 + 5',
+		value: { Fischer: { initialSeconds: 600, incrementSeconds: 5 } },
+	},
+	{
+		id: 'fischer-600-10',
+		label: '10 + 10',
+		value: { Fischer: { initialSeconds: 600, incrementSeconds: 10 } },
+	},
+	{
+		id: 'fischer-900-10',
+		label: '15 + 10',
+		value: { Fischer: { initialSeconds: 900, incrementSeconds: 10 } },
+	},
 ];
 
 export interface TimeControlGroup {
@@ -66,6 +93,9 @@ export const timeControlGroups: readonly TimeControlGroup[] = (() => {
 })();
 
 export interface BotTimeControlPreset {
+	/** Stable machine identity — never shown in UI, never translated. Safe to persist and compare
+	 * across code changes as long as the underlying time control is the same. */
+	id: string;
 	label: string;
 	value: TimeControl; // never null: a catalog game is never unlimited (ADR-0014)
 }
@@ -73,20 +103,36 @@ export interface BotTimeControlPreset {
 /** The 6 presets offered when starting a game against a catalog bot (ADR-0014) — a curated subset,
  * not a 1:1 mirror of `timeControlPresets` (no unlimited; fewer, rounder options). */
 export const botTimeControlPresets: readonly BotTimeControlPreset[] = [
-	{ label: '1 + 1', value: { Fischer: { initialSeconds: 60, incrementSeconds: 1 } } },
-	{ label: '3 + 3', value: { Fischer: { initialSeconds: 180, incrementSeconds: 3 } } },
-	{ label: '5 min', value: { SuddenDeath: { initialSeconds: 300 } } },
-	{ label: '5 + 5', value: { Fischer: { initialSeconds: 300, incrementSeconds: 5 } } },
-	{ label: '10 min', value: { SuddenDeath: { initialSeconds: 600 } } },
-	{ label: '10 + 10', value: { Fischer: { initialSeconds: 600, incrementSeconds: 10 } } },
+	{
+		id: 'fischer-60-1',
+		label: '1 + 1',
+		value: { Fischer: { initialSeconds: 60, incrementSeconds: 1 } },
+	},
+	{
+		id: 'fischer-180-3',
+		label: '3 + 3',
+		value: { Fischer: { initialSeconds: 180, incrementSeconds: 3 } },
+	},
+	{ id: 'sd-300', label: '5 min', value: { SuddenDeath: { initialSeconds: 300 } } },
+	{
+		id: 'fischer-300-5',
+		label: '5 + 5',
+		value: { Fischer: { initialSeconds: 300, incrementSeconds: 5 } },
+	},
+	{ id: 'sd-600', label: '10 min', value: { SuddenDeath: { initialSeconds: 600 } } },
+	{
+		id: 'fischer-600-10',
+		label: '10 + 10',
+		value: { Fischer: { initialSeconds: 600, incrementSeconds: 10 } },
+	},
 ];
 
-/** Index of the default preset (5 + 5) — looked up by label, so a reorder can't silently point the
- * default at the wrong entry (fails fast at module load instead). */
+/** Index of the default preset (5 + 5) — looked up by id, so a reorder or label rename can't
+ * silently point the default at the wrong entry (fails fast at module load instead). */
 export const defaultBotTimeControlIndex: number = (() => {
-	const index = botTimeControlPresets.findIndex((p) => p.label === '5 + 5');
+	const index = botTimeControlPresets.findIndex((p) => p.id === 'fischer-300-5');
 	if (index === -1)
-		throw new Error('botTimeControlPresets: no "5 + 5" preset — the default is broken');
+		throw new Error('botTimeControlPresets: no "fischer-300-5" preset — the default is broken');
 	return index;
 })();
 
