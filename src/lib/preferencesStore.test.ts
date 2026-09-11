@@ -1,5 +1,5 @@
 import { describe, it, expect, beforeEach, vi } from 'vitest';
-import { preferencesStore } from './preferencesStore.svelte';
+import { migrateBotTimeControlId, preferencesStore } from './preferencesStore.svelte';
 
 describe('PreferencesStore', () => {
 	const localStorageMock = (() => {
@@ -91,21 +91,61 @@ describe('PreferencesStore', () => {
 
 	// #212: the rated-bot challenge panel's own setup, kept separate from /play's timeLimit/
 	// timeBonus/playerColorPreference above since the two surfaces offer different presets.
+	// #20: botChallengeTimeControl now stores a stable preset id, not a display label.
 	it('should persist the bot-challenge setup', () => {
 		expect(preferencesStore.botChallengeRated).toBe(false);
-		expect(preferencesStore.botChallengeTimeControl).toBe('5 + 5');
+		expect(preferencesStore.botChallengeTimeControl).toBe('fischer-300-5');
 		expect(preferencesStore.botChallengeColor).toBe('random');
 
 		preferencesStore.setBotChallengeRated(true);
 		expect(preferencesStore.botChallengeRated).toBe(true);
 		expect(localStorage.getItem('botChallengeRated')).toBe('true');
 
-		preferencesStore.setBotChallengeTimeControl('3 + 3');
-		expect(preferencesStore.botChallengeTimeControl).toBe('3 + 3');
-		expect(localStorage.getItem('botChallengeTimeControl')).toBe('3 + 3');
+		preferencesStore.setBotChallengeTimeControl('fischer-180-3');
+		expect(preferencesStore.botChallengeTimeControl).toBe('fischer-180-3');
+		expect(localStorage.getItem('botChallengeTimeControl')).toBe('fischer-180-3');
 
 		preferencesStore.setBotChallengeColor('White');
 		expect(preferencesStore.botChallengeColor).toBe('White');
 		expect(localStorage.getItem('botChallengeColor')).toBe('White');
+	});
+
+	// DoD (issue #20): a stored localStorage value from before this change (a display label like
+	// '3 + 3') must still resolve to the same preset — covered by migrateBotTimeControlId.
+	it('migrates an old label value to the corresponding preset id', () => {
+		preferencesStore.setBotChallengeTimeControl('3 + 3');
+		expect(preferencesStore.botChallengeTimeControl).toBe('fischer-180-3');
+		expect(localStorage.getItem('botChallengeTimeControl')).toBe('fischer-180-3');
+	});
+
+	// DoD (issue #20): an unrecognised stored value must fall back to the default, never throw.
+	it('falls back to the default preset id when an unrecognised value is set', () => {
+		expect(() => preferencesStore.setBotChallengeTimeControl('unknown-id')).not.toThrow();
+		expect(preferencesStore.botChallengeTimeControl).toBe('fischer-300-5');
+		expect(localStorage.getItem('botChallengeTimeControl')).toBe('fischer-300-5');
+	});
+});
+
+describe('migrateBotTimeControlId', () => {
+	it('preserves an existing preset id unchanged', () => {
+		expect(migrateBotTimeControlId('fischer-180-3')).toBe('fischer-180-3');
+		expect(migrateBotTimeControlId('fischer-300-5')).toBe('fischer-300-5');
+		expect(migrateBotTimeControlId('sd-300')).toBe('sd-300');
+	});
+
+	it('translates legacy display labels to their corresponding stable ids', () => {
+		expect(migrateBotTimeControlId('1 + 1')).toBe('fischer-60-1');
+		expect(migrateBotTimeControlId('3 + 3')).toBe('fischer-180-3');
+		expect(migrateBotTimeControlId('5 min')).toBe('sd-300');
+		expect(migrateBotTimeControlId('5 + 5')).toBe('fischer-300-5');
+		expect(migrateBotTimeControlId('10 min')).toBe('sd-600');
+		expect(migrateBotTimeControlId('10 + 10')).toBe('fischer-600-10');
+	});
+
+	it('falls back to the default preset id (fischer-300-5) for unrecognised values without throwing', () => {
+		expect(migrateBotTimeControlId('unknown-id')).toBe('fischer-300-5');
+		expect(migrateBotTimeControlId('5 + 99')).toBe('fischer-300-5');
+		expect(migrateBotTimeControlId('garbage')).toBe('fischer-300-5');
+		expect(migrateBotTimeControlId('')).toBe('fischer-300-5');
 	});
 });

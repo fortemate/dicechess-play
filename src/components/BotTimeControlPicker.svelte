@@ -10,13 +10,17 @@
 		presets,
 		name,
 		selected = $bindable(0),
-	}: { presets: readonly { label: string }[]; name: string; selected?: number } = $props();
+	}: {
+		presets: readonly { id: string; label: string }[];
+		name: string;
+		selected?: number;
+	} = $props();
 </script>
 
 <fieldset class="flex flex-col gap-1.5">
 	<legend class="sr-only">Time control</legend>
 	<div class="flex flex-wrap gap-2">
-		{#each presets as preset, index (preset.label)}
+		{#each presets as preset, index (preset.id)}
 			<label
 				class="cursor-pointer rounded-lg border px-3 py-1.5 text-sm font-bold tabular-nums transition-colors focus-within:ring-2 focus-within:ring-primary/50
 					{selected === index

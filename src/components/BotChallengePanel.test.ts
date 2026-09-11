@@ -278,7 +278,7 @@ describe('BotChallengePanel', () => {
 		it('seeds the panel from a stored preference', async () => {
 			auth.authStore.status = 'signed-in';
 			preferencesStore.setBotChallengeColor('Black');
-			preferencesStore.setBotChallengeTimeControl('3 + 3');
+			preferencesStore.setBotChallengeTimeControl('fischer-180-3');
 			preferencesStore.setBotChallengeRated(true);
 			wakeBotMock.mockResolvedValue({ alive: true, busy: false });
 
@@ -305,7 +305,7 @@ describe('BotChallengePanel', () => {
 			await fireEvent.click(getByRole('button', { name: 'Start game' }));
 
 			expect(preferencesStore.botChallengeColor).toBe('Black');
-			expect(preferencesStore.botChallengeTimeControl).toBe('3 + 3');
+			expect(preferencesStore.botChallengeTimeControl).toBe('fischer-180-3');
 			expect(preferencesStore.botChallengeRated).toBe(true);
 		});
 

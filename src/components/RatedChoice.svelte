@@ -48,7 +48,7 @@
 			Rating
 		</legend>
 		<div class="flex flex-wrap gap-2">
-			{#each options as opt (opt.label)}
+			{#each options as opt (opt.value)}
 				<label
 					class="cursor-pointer rounded-lg border px-3 py-1.5 text-sm font-bold transition-colors focus-within:ring-2 focus-within:ring-primary/50
 						{rated === opt.value

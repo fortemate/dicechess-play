@@ -8,13 +8,13 @@
 
 <fieldset class="flex flex-col gap-3">
 	<legend class="sr-only">Time control</legend>
-	{#each timeControlGroups as g (g.label)}
+	{#each timeControlGroups as g (g.category)}
 		<div class="flex flex-col gap-1.5">
 			<span class="text-[10px] font-bold tracking-widest text-content-muted/80 uppercase">
 				{g.label}
 			</span>
 			<div class="flex flex-wrap gap-2">
-				{#each g.presets as e (e.preset.label)}
+				{#each g.presets as e (e.preset.id)}
 					<label
 						class="cursor-pointer rounded-lg border px-3 py-1.5 text-sm font-bold tabular-nums transition-colors focus-within:ring-2 focus-within:ring-primary/50
 							{selected === e.index
