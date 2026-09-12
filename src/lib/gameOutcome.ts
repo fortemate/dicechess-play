@@ -93,7 +93,7 @@ export const UNKNOWN_TERMINATION_LABEL = 'Game ended';
  */
 export function terminationLabel(termination: string | null | undefined): string {
 	if (!termination) return '';
-	return Object.prototype.hasOwnProperty.call(TERMINATION_LABELS, termination)
+	return Object.hasOwn(TERMINATION_LABELS, termination)
 		? TERMINATION_LABELS[termination]
 		: UNKNOWN_TERMINATION_LABEL;
 }
