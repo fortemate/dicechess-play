@@ -15,6 +15,7 @@
 	// game that browser ever played.
 	import { authStore } from '$lib/authStore.svelte';
 	import { toastStore } from '$lib/toastStore.svelte';
+	import { m } from '$lib/paraglide/messages.js';
 	import { getGuestUuid } from '$lib/ingest/guestIdentity';
 	import { myOpponentsStore } from '$lib/stores/playerOpponentsStore.svelte';
 
@@ -39,7 +40,7 @@
 		confirming = false;
 		switch (result.outcome) {
 			case 'linked':
-				toastStore.success('This browser’s games are now part of your history.');
+				toastStore.success(m.profile_toast_browser_games_linked());
 				// The account union just grew (#226) — this panel lives on /me, where the Online
 				// section renders that union, so refetch or the toast's claim stays invisible.
 				myOpponentsStore.reset();
@@ -53,10 +54,10 @@
 				terminalError = result.reason;
 				break;
 			case 'signed-out':
-				toastStore.error('You are no longer signed in.');
+				toastStore.error(m.profile_toast_signed_out());
 				break;
 			case 'unavailable':
-				toastStore.error('Could not reach the server. Try again.');
+				toastStore.error(m.profile_toast_server_unreachable());
 				break;
 		}
 	}

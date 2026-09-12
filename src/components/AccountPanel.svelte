@@ -12,6 +12,7 @@
 	import { authStore } from '$lib/authStore.svelte';
 	import { RATING_CATEGORY_LABELS } from '$lib/live/ratingCategory';
 	import { toastStore } from '$lib/toastStore.svelte';
+	import { m } from '$lib/paraglide/messages.js';
 
 	// The speeds OTHER than the headline (blitz) the account has actually played — absent wire
 	// entries are unplayed speeds and stay invisible here (the compact block earns no dash rows;
@@ -56,7 +57,7 @@
 		switch (result.outcome) {
 			case 'updated':
 				editing = false;
-				toastStore.success('Nickname updated.');
+				toastStore.success(m.profile_toast_nickname_updated());
 				break;
 			case 'taken':
 				error = 'That nickname is already taken.';
@@ -66,7 +67,7 @@
 				error = result.reason;
 				break;
 			case 'signed-out':
-				toastStore.error('You are no longer signed in.');
+				toastStore.error(m.profile_toast_signed_out());
 				break;
 			case 'unavailable':
 				error = 'Could not reach the server. Try again.';

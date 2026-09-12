@@ -18,6 +18,7 @@
 		type OwnerBotFailure,
 	} from '$lib/bots/ownerApi';
 	import { toastStore } from '$lib/toastStore.svelte';
+	import { m } from '$lib/paraglide/messages.js';
 	import { formatWholeNumber } from '../utils/formatters';
 	import BotWebhookPanel from './BotWebhookPanel.svelte';
 
@@ -96,7 +97,7 @@
 		const result = await setLadder(bot.team, bot.name, !bot.onLadder);
 		pending = null;
 		if (result.outcome === 'ok')
-			await changed(bot.onLadder ? 'Left the ladder.' : 'Joined the ladder.');
+			await changed(bot.onLadder ? m.bots_toast_left_ladder() : m.bots_toast_joined_ladder());
 		else error = errorFor(result);
 	}
 
@@ -107,7 +108,9 @@
 		pending = null;
 		if (result.outcome === 'ok') {
 			description = '';
-			await changed(bot.openToHumans ? 'Catalog description updated.' : 'Bot opened to humans.');
+			await changed(
+				bot.openToHumans ? m.bots_toast_description_updated() : m.bots_toast_opened_to_humans(),
+			);
 		} else {
 			error = errorFor(result);
 		}
@@ -118,7 +121,7 @@
 		pending = 'catalog';
 		const result = await closeToHumans(bot.team, bot.name);
 		pending = null;
-		if (result.outcome === 'ok') await changed('Bot closed to human games.');
+		if (result.outcome === 'ok') await changed(m.bots_toast_closed_to_humans());
 		else error = errorFor(result);
 	}
 
@@ -135,7 +138,7 @@
 		if (result.outcome === 'ok') {
 			capacity = result.capacity;
 			capacityInput = String(result.capacity.maxConcurrentGames);
-			await changed('Capacity updated.');
+			await changed(m.bots_toast_owner_capacity_updated());
 		} else {
 			error = errorFor(result);
 		}
@@ -187,7 +190,7 @@
 		if (result.outcome === 'released') {
 			releaseOpen = false;
 			confirmInput = '';
-			await changed('Bot released.');
+			await changed(m.bots_toast_bot_released());
 		} else {
 			error = errorFor(result);
 		}

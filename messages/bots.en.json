@@ -1,3 +1,15 @@
 {
-	"$schema": "https://inlang.com/schema/inlang-message-format"
+	"$schema": "https://inlang.com/schema/inlang-message-format",
+	"bots_toast_claimed": "Bot claimed. You can manage it here now.",
+	"bots_toast_removed_from_ladder": "Bot removed from the ladder.",
+	"bots_toast_added_to_ladder": "Bot added to the ladder.",
+	"bots_toast_left_ladder": "Left the ladder.",
+	"bots_toast_joined_ladder": "Joined the ladder.",
+	"bots_toast_description_updated": "Catalog description updated.",
+	"bots_toast_opened_to_humans": "Bot opened to humans.",
+	"bots_toast_closed_to_humans": "Bot closed to human games.",
+	"bots_toast_capacity_updated": "Bot capacity updated.",
+	"bots_toast_owner_capacity_updated": "Capacity updated.",
+	"bots_toast_token_rotated": "Rotated bot token.",
+	"bots_toast_bot_released": "Bot released."
 }

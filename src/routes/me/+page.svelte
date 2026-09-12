@@ -7,6 +7,7 @@
 	import { getGuestId, setGuestId, resetGuestId } from '$lib/ingest/guestIdentity';
 	import { isLiveEnabled } from '$lib/live/liveApi';
 	import { toastStore } from '$lib/toastStore.svelte';
+	import { m } from '$lib/paraglide/messages.js';
 	import { buildPlayerRecord, totalGames, winRate } from '$lib/stats/playerRecord';
 	import { aggregateOpponents, opponentLabel, opponentVsQuery } from '$lib/stats/lobbyRecord';
 	import { vsParamValue } from '$lib/games/gamesFilters';
@@ -69,7 +70,7 @@
 			copied = true;
 			setTimeout(() => (copied = false), 1500);
 		} catch {
-			toastStore.error('Could not copy — select the code and copy it manually.');
+			toastStore.error(m.profile_toast_copy_failed());
 		}
 	}
 
@@ -77,18 +78,18 @@
 		if (setGuestId(restoreInput)) {
 			guestId = getGuestId();
 			restoreInput = '';
-			toastStore.success('Player code restored.');
+			toastStore.success(m.profile_toast_code_restored());
 			playerOpponentsStore.reset();
 			void playerOpponentsStore.load();
 		} else {
-			toastStore.error('That does not look like a valid player code.');
+			toastStore.error(m.profile_toast_invalid_code());
 		}
 	}
 
 	function reset() {
 		guestId = resetGuestId();
 		confirmingReset = false;
-		toastStore.info('Started a new identity.');
+		toastStore.info(m.profile_toast_new_identity());
 		playerOpponentsStore.reset();
 		void playerOpponentsStore.load();
 	}

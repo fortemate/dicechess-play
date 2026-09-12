@@ -7,6 +7,7 @@ import { getPieceFromFen } from '../../utils/fenUtils';
 import { playDiceSound, playDrawOfferSound } from '../sound';
 import { toastStore } from '../toastStore.svelte';
 import { preferencesStore } from '../preferencesStore.svelte';
+import { m } from '$lib/paraglide/messages.js';
 
 // The store triggers real audio through the shared sound service; stub it so tests can
 // assert WHEN a roll sounds (aligned with its presented spin) without touching Audio.
@@ -855,9 +856,7 @@ describe('LiveGameStore connection feedback (issue #76)', () => {
 
 		live.handleBoardMove('b1', 'c3'); // a legal knight move, were the connection open
 
-		expect(vi.mocked(toastStore.error)).toHaveBeenCalledWith(
-			'Reconnecting… your move will go through once back online.',
-		);
+		expect(vi.mocked(toastStore.error)).toHaveBeenCalledWith(m.game_toast_reconnecting_move());
 		expect(live.currentBoardFen).toBe(fenBefore); // no optimistic move applied
 	});
 
@@ -883,9 +882,7 @@ describe('LiveGameStore connection feedback (issue #76)', () => {
 
 		// Distinct from the still-retrying 'connecting' message: nothing will bring this move
 		// through without a manual reload (see issue #76 review — Gemini caught the ambiguity).
-		expect(vi.mocked(toastStore.error)).toHaveBeenCalledWith(
-			'Disconnected — reload the page to reconnect.',
-		);
+		expect(vi.mocked(toastStore.error)).toHaveBeenCalledWith(m.game_toast_disconnected_reload());
 	});
 });
 

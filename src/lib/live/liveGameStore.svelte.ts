@@ -36,6 +36,7 @@ import { ROLL_ANIMATION_MS, MOVE_STEP_MS, PASS_DWELL_MS, GAME_END_SUSPENSE_MS } 
 import { lastMoveKeys } from '../lastMove';
 import { toastStore } from '../toastStore.svelte';
 import { preferencesStore } from '../preferencesStore.svelte';
+import { m } from '$lib/paraglide/messages.js';
 import { settlementLine } from './stakeSettlement';
 import { fetchGameHistory } from './historyApi';
 import { finishedFromHistory } from './finishedFromHistory';
@@ -487,7 +488,7 @@ export class LiveGameStore {
 		if (preferencesStore.drawOfferPolicy !== 'autoDecline') return;
 		if (!this.isPreRollResponder) return;
 		this.client?.send({ RespondDraw: { accept: false } });
-		toastStore.info('Draw offer declined automatically.');
+		toastStore.info(m.game_toast_draw_declined_auto());
 	}
 
 	// ── server events ──────────────────────────────────────────────────────────
@@ -582,7 +583,7 @@ export class LiveGameStore {
 			this.version = ev.Rejected.v;
 			if (ev.Rejected.seat === this.mySeat) {
 				this.rollback();
-				toastStore.error("Move rejected — reverted to the board's last confirmed position.");
+				toastStore.error(m.game_toast_move_rejected());
 			}
 			return;
 		}
@@ -876,8 +877,8 @@ export class LiveGameStore {
 			// will bring the move through without a manual reload, unlike a still-retrying 'connecting'.
 			toastStore.error(
 				this.connection === 'closed'
-					? 'Disconnected — reload the page to reconnect.'
-					: 'Reconnecting… your move will go through once back online.',
+					? m.game_toast_disconnected_reload()
+					: m.game_toast_reconnecting_move(),
 			);
 			return;
 		}

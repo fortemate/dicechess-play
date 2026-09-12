@@ -10,6 +10,7 @@
 	import { myBotsStore } from '$lib/bots/myBotsStore.svelte';
 	import { authStore } from '$lib/authStore.svelte';
 	import { toastStore } from '$lib/toastStore.svelte';
+	import { m } from '$lib/paraglide/messages.js';
 
 	let claimOpen = $state(false);
 	let tokenInput = $state('');
@@ -66,7 +67,7 @@
 			case 'claimed':
 				myBotsStore.replace(ownerId, result.bots);
 				claimOpen = false;
-				toastStore.success('Bot claimed. You can manage it here now.');
+				toastStore.success(m.bots_toast_claimed());
 				break;
 			case 'taken':
 				claimError = 'That bot already belongs to another account.';
