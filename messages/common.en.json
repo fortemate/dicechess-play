@@ -1,5 +1,20 @@
 {
 	"$schema": "https://inlang.com/schema/inlang-message-format",
 	"common_win_rate": "win rate",
-	"common_total_games": "{total} games"
+	"common_total_games": "{total} games",
+	"common_seat_white": "White",
+	"common_seat_black": "Black",
+	"common_seat_white_lower": "white",
+	"common_seat_black_lower": "black",
+	"common_player_you": "You",
+	"common_player_opponent": "Opponent",
+	"common_player_anonymous": "Anonymous player",
+	"common_rating_category_bullet": "Bullet",
+	"common_rating_category_blitz": "Blitz",
+	"common_rating_category_rapid": "Rapid",
+	"common_rating_category_classical": "Classical",
+	"common_time_control_unlimited": "Unlimited",
+	"common_time_control_min": "{minutes} min",
+	"common_time_control_fischer": "{initial} + {increment}",
+	"common_time_control_per_move": "{seconds}s / move"
 }

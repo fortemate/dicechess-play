@@ -1,5 +1,21 @@
 {
 	"$schema": "https://inlang.com/schema/inlang-message-format",
 	"game_dice_region": "Dice",
-	"game_dice_roll": "Roll"
+	"game_dice_roll": "Roll",
+	"game_result_won": "Won",
+	"game_result_lost": "Lost",
+	"game_result_draw": "Draw",
+	"game_result_unknown": "Unknown",
+	"game_end_reason_mate": "King captured",
+	"game_end_reason_timeout": "On time",
+	"game_end_reason_resign": "Resigned",
+	"game_end_reason_agreement": "Draw agreed",
+	"game_end_reason_double_declined": "Double declined",
+	"game_termination_king_captured": "King captured",
+	"game_termination_timeout": "Timeout",
+	"game_termination_resign": "Resign",
+	"game_termination_draw_agreement": "Draw agreement",
+	"game_termination_aborted": "Aborted",
+	"game_termination_double_declined": "Double declined",
+	"game_termination_unknown": "Game ended"
 }
