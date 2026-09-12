@@ -11,7 +11,7 @@
 		{ id: 'engine', title: 'Dice Chess Engine' },
 		{ id: 'pieces', title: 'Chess Piece Graphics' },
 		{ id: 'dependencies', title: 'Third-Party Libraries' },
-		{ id: 'source-notice', title: 'Source Code & AGPL-3.0 Notice' },
+		{ id: 'source-notice', title: 'Source Code & AGPL-3.0-only Notice' },
 	] as const;
 </script>
 
@@ -70,7 +70,7 @@
 				<span
 					class="rounded-md border border-primary/40 bg-primary/10 px-2.5 py-0.5 font-mono text-xs font-semibold text-primary"
 				>
-					AGPL-3.0
+					AGPL-3.0-only
 				</span>
 			</div>
 			<p class="text-xs text-content-muted">
@@ -96,7 +96,7 @@
 					target="_blank"
 					rel="noopener noreferrer"
 				>
-					GNU Affero General Public License v3.0 (AGPL-3.0)
+					GNU Affero General Public License v3.0 (AGPL-3.0-only)
 				</a>
 			</div>
 			<div>
@@ -178,7 +178,7 @@
 				<span
 					class="rounded-md border border-primary/40 bg-primary/10 px-2.5 py-0.5 font-mono text-xs font-semibold text-primary"
 				>
-					AGPL-3.0
+					AGPL-3.0-only
 				</span>
 			</div>
 			<p class="text-xs text-content-muted">
@@ -204,7 +204,7 @@
 					target="_blank"
 					rel="noopener noreferrer"
 				>
-					GNU Affero General Public License v3.0 (AGPL-3.0)
+					GNU Affero General Public License v3.0 (AGPL-3.0-only)
 				</a>
 			</div>
 			<div>
@@ -340,7 +340,7 @@
 		id="source-notice"
 		class="flex flex-col gap-4 rounded-2xl border border-border bg-surface/40 p-6"
 	>
-		<h2 class="text-xl font-bold text-content">Source Code & AGPL-3.0 Section 13 Notice</h2>
+		<h2 class="text-xl font-bold text-content">Source Code & AGPL-3.0-only Section 13 Notice</h2>
 		<p class="leading-relaxed text-content-muted">
 			In accordance with Section 13 of the GNU Affero General Public License (AGPLv3), users
 			interacting with this application remotely through a computer network are entitled to receive

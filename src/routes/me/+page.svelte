@@ -358,7 +358,7 @@
 		</h3>
 		<div class="rounded-2xl border border-border bg-surface/60 p-5 flex flex-col gap-4">
 			<p class="text-sm text-content-muted">
-				Dice Chess Play is free and open-source software licensed under AGPL-3.0.
+				Dice Chess Play is free and open-source software licensed under AGPL-3.0-only.
 			</p>
 			<div class="flex flex-wrap items-center gap-3 text-sm font-semibold">
 				<a

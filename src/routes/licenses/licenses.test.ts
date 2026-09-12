@@ -64,10 +64,10 @@ describe('licenses page', () => {
 			),
 		).not.toBeNull();
 
-		// Play client (AGPL-3.0)
+		// Play client (AGPL-3.0-only)
 		const client = container.querySelector('#play-client');
 		expect(client?.textContent).toContain('dicechess-play');
-		expect(client?.textContent).toContain('AGPL-3.0');
+		expect(client?.textContent).toContain('AGPL-3.0-only');
 		expect(client?.textContent).toContain('Fortemate');
 		expect(
 			client?.querySelector('a[href="https://github.com/fortemate/dicechess-play"]'),
@@ -78,10 +78,10 @@ describe('licenses page', () => {
 			),
 		).not.toBeNull();
 
-		// Dice Chess engine (AGPL-3.0)
+		// Dice Chess engine (AGPL-3.0-only)
 		const engine = container.querySelector('#engine');
 		expect(engine?.textContent).toContain('@fortemate/dicechess-engine 0.9.1');
-		expect(engine?.textContent).toContain('AGPL-3.0');
+		expect(engine?.textContent).toContain('AGPL-3.0-only');
 		expect(
 			engine?.querySelector('a[href="https://github.com/fortemate/dicechess-engine"]'),
 		).not.toBeNull();
