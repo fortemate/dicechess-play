@@ -16,7 +16,7 @@ page), a bot catalog (`/bots`), the live rating ladder (`/leaderboard`) and its 
 bot-strength report (`/strength`), local + server game history with replays (`/games`,
 `/replay/[id]`), and a profile (`/me`) — guest by default, with an optional account for a rating.
 
-> Public repo, AGPL-3.0 — external contributors sign the CLA (`CLA.md`). Decisions and roadmap
+> Public repo, AGPL-3.0-only — external contributors sign the CLA (`CLA.md`). Decisions and roadmap
 > live in the private `dicechess-docs` wiki under **Play Site**; ADRs are referenced by number
 > (ADR-0002 client authority, ADR-0007 server authority, ADR-0014 bot catalog).
 
@@ -282,12 +282,12 @@ a git tag; `package.json` stays at `0.0.0`.
 
 ## License
 
-AGPL-3.0 (inherited from the Dice Chess engine; the public site distributes the engine
+AGPL-3.0-only (inherited from the Dice Chess engine; the public site distributes the engine
 bundle). See `LICENSE`.
 
 The Fortemate name and mark (`static/favicon*.{svg,png}`, `static/apple-touch-icon-180.png`,
 `static/pwa-*.png`, `static/social-preview-1200x630.png`, `static/fortemate-mark.svg`, and the
 inline mark in `src/components/showcase/ShowcaseMark.svelte`) are brand assets, not software: the
-AGPL-3.0 license does not cover them, and they identify only Fortemate and its projects. They are
+AGPL-3.0-only license does not cover them, and they identify only Fortemate and its projects. They are
 verbatim exports from the private `fortemate/brand` repository (`dist/identity/web`); regenerate
 them there rather than editing the copies here.
