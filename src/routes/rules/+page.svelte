@@ -51,7 +51,10 @@
 				{/snippet}
 			</ParaglideMessage>
 		</p>
-		<nav aria-label={m.rules_toc_label()} class="rounded-2xl border border-border bg-surface/40 p-4">
+		<nav
+			aria-label={m.rules_toc_label()}
+			class="rounded-2xl border border-border bg-surface/40 p-4"
+		>
 			<ul class="flex flex-col gap-1.5 text-sm sm:grid sm:grid-cols-2">
 				{#each sections as s (s.id)}
 					<li>
