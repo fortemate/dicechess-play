@@ -5,7 +5,7 @@ dicechess-play is the public Dice Chess play site: a fully client-side SvelteKit
 ## Project context
 
 - Static SPA: SvelteKit 2 + Svelte 5 runes, Vite, Tailwind 4, adapter-static (`ssr=false`, output `dist/`), PWA (autoUpdate service worker). No backend code lives here.
-- Public repo, AGPL-3.0. External contributors must sign the CLA (`CLA.md`, enforced by the `CI: CLA` workflow; repo owner exempt).
+- Public repo, AGPL-3.0-only. External contributors must sign the CLA (`CLA.md`, enforced by the `CI: CLA` workflow; repo owner exempt).
 - Two game surfaces: `/play` (client-authoritative vs bot, engine in a Web Worker) and `/lobby` + `/live/[id]` (server-authoritative human-vs-human client for the sibling `dicechess-play-api` server).
 - Cross-repo contracts this repo carries:
   - `src/lib/ingest/types.ts` — `GameIngestWire`, a **verbatim copy** of the shared ingest contract (analytics `POST /api/games`). Divergence = 422 rejects, because the backend replays games with a pinned engine.

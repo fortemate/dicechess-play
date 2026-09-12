@@ -201,7 +201,7 @@
 						target="_blank"
 						rel="noopener noreferrer"
 					>
-						AGPL-3.0
+						AGPL-3.0-only
 					</a>
 					·
 					<a

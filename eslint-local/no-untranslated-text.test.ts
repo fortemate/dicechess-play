@@ -60,7 +60,7 @@ describe('no-untranslated-text', () => {
 			// allowPattern carves out non-copy tokens without disabling the rule for the file.
 			{
 				filename: 'A.svelte',
-				code: svelte('<span>AGPL-3.0</span>'),
+				code: svelte('<span>AGPL-3.0-only</span>'),
 				options: [{ allowPattern: '^AGPL-3\\.0$' }],
 			},
 
