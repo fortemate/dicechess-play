@@ -16,6 +16,7 @@
 		type AdminBotFailure,
 	} from '$lib/bots/adminApi';
 	import { toastStore } from '$lib/toastStore.svelte';
+	import { m } from '$lib/paraglide/messages.js';
 	import BotWebhookPanel from './BotWebhookPanel.svelte';
 
 	interface Props {
@@ -144,7 +145,9 @@
 		try {
 			const result = await setAdminLadder(bot.team, bot.name, !bot.onLadder);
 			if (result.outcome === 'ok') {
-				await changed(bot.onLadder ? 'Bot removed from the ladder.' : 'Bot added to the ladder.');
+				await changed(
+					bot.onLadder ? m.bots_toast_removed_from_ladder() : m.bots_toast_added_to_ladder(),
+				);
 			} else {
 				error = errorFor(result);
 			}
@@ -165,7 +168,7 @@
 		try {
 			const result = await setAdminDescription(bot.team, bot.name, next);
 			if (result.outcome === 'ok') {
-				await changed('Catalog description updated.');
+				await changed(m.bots_toast_description_updated());
 			} else {
 				error = errorFor(result);
 			}
@@ -187,7 +190,7 @@
 			try {
 				const result = await openAdminToHumans(bot.team, bot.name, next);
 				if (result.outcome === 'ok') {
-					await changed('Bot opened to humans.');
+					await changed(m.bots_toast_opened_to_humans());
 				} else {
 					error = errorFor(result);
 				}
@@ -199,7 +202,7 @@
 			try {
 				const result = await closeAdminToHumans(bot.team, bot.name);
 				if (result.outcome === 'ok') {
-					await changed('Bot closed to human games.');
+					await changed(m.bots_toast_closed_to_humans());
 				} else {
 					error = errorFor(result);
 				}
@@ -223,7 +226,7 @@
 			if (result.outcome === 'ok') {
 				capacityInput = String(result.capacity.maxConcurrentGames);
 				lastServerCapacity = result.capacity.maxConcurrentGames;
-				await changed('Bot capacity updated.');
+				await changed(m.bots_toast_capacity_updated());
 			} else {
 				error = errorFor(result);
 			}
@@ -259,7 +262,7 @@
 				revealedToken = result.token;
 				rotateOpen = false;
 				confirmInput = '';
-				await changed('Rotated bot token.');
+				await changed(m.bots_toast_token_rotated());
 			} else {
 				error = errorFor(result);
 			}

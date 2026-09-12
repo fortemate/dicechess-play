@@ -13,6 +13,7 @@
 	// the same Google account mints a FRESH account with no history.
 	import { authStore } from '$lib/authStore.svelte';
 	import { toastStore } from '$lib/toastStore.svelte';
+	import { m } from '$lib/paraglide/messages.js';
 
 	let open = $state(false);
 	let confirmInput = $state('');
@@ -47,14 +48,14 @@
 		switch (result.outcome) {
 			case 'deleted':
 				close();
-				toastStore.info('Your account was deleted. You are a guest again.');
+				toastStore.info(m.profile_toast_account_deleted());
 				break;
 			case 'invalid':
 				error = result.reason;
 				break;
 			case 'signed-out':
 				close();
-				toastStore.error('You are no longer signed in.');
+				toastStore.error(m.profile_toast_signed_out());
 				break;
 			case 'unavailable':
 				error = 'Could not reach the server. Try again.';

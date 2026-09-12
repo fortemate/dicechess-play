@@ -1,5 +1,6 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { toastStore } from './toastStore.svelte';
+import { m } from '$lib/paraglide/messages.js';
 
 beforeEach(() => {
 	toastStore.toasts = [];
@@ -13,7 +14,7 @@ afterEach(() => {
 
 describe('toastStore coalescing', () => {
 	it('collapses a burst of identical toasts into a single one', () => {
-		for (let i = 0; i < 11; i++) toastStore.info('Opponent has no legal moves — turn passed.');
+		for (let i = 0; i < 11; i++) toastStore.info(m.game_toast_no_legal_moves_opponent());
 		expect(toastStore.toasts).toHaveLength(1);
 	});
 

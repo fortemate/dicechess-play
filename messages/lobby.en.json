@@ -1,3 +1,5 @@
 {
-	"$schema": "https://inlang.com/schema/inlang-message-format"
+	"$schema": "https://inlang.com/schema/inlang-message-format",
+	"lobby_toast_claim_limit_exceeded": "Claim limit exceeded — please wait a moment.",
+	"lobby_toast_claim_seat_failed": "Could not claim seat."
 }

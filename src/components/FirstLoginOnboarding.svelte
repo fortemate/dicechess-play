@@ -17,6 +17,7 @@
 	// load-bearing: an unread count means offer, never skip (see hasSomethingToClaim).
 	import { authStore } from '$lib/authStore.svelte';
 	import { toastStore } from '$lib/toastStore.svelte';
+	import { m } from '$lib/paraglide/messages.js';
 	import { isOnboarded, markOnboarded } from '$lib/auth/onboarding';
 	import { myOpponentsStore, playerOpponentsStore } from '$lib/stores/playerOpponentsStore.svelte';
 	import { aggregateOpponents } from '$lib/stats/lobbyRecord';
@@ -125,7 +126,7 @@
 				break;
 			case 'signed-out':
 				finish();
-				toastStore.error('You are no longer signed in.');
+				toastStore.error(m.profile_toast_signed_out());
 				break;
 			case 'unavailable':
 				error = 'Could not reach the server. Try again.';
@@ -141,7 +142,7 @@
 		switch (result.outcome) {
 			case 'linked':
 				finish();
-				toastStore.success('Your earlier games are now part of your history.');
+				toastStore.success(m.profile_toast_history_linked());
 				// The account union just grew (#226): drop any pre-claim union so /me refetches
 				// with the adopted games included, instead of serving the stale singleton.
 				myOpponentsStore.reset();
@@ -151,14 +152,14 @@
 				// Terminal — one guest identity belongs to one account forever. Close rather than offering
 				// a retry that cannot succeed.
 				finish();
-				toastStore.error('That anonymous history already belongs to another account.');
+				toastStore.error(m.profile_toast_history_already_claimed());
 				break;
 			case 'invalid':
 				error = result.reason;
 				break;
 			case 'signed-out':
 				finish();
-				toastStore.error('You are no longer signed in.');
+				toastStore.error(m.profile_toast_signed_out());
 				break;
 			case 'unavailable':
 				error = 'Could not reach the server. Try again.';

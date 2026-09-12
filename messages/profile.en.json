@@ -1,3 +1,14 @@
 {
-	"$schema": "https://inlang.com/schema/inlang-message-format"
+	"$schema": "https://inlang.com/schema/inlang-message-format",
+	"profile_toast_nickname_updated": "Nickname updated.",
+	"profile_toast_signed_out": "You are no longer signed in.",
+	"profile_toast_account_deleted": "Your account was deleted. You are a guest again.",
+	"profile_toast_history_linked": "Your earlier games are now part of your history.",
+	"profile_toast_history_already_claimed": "That anonymous history already belongs to another account.",
+	"profile_toast_browser_games_linked": "This browser’s games are now part of your history.",
+	"profile_toast_server_unreachable": "Could not reach the server. Try again.",
+	"profile_toast_copy_failed": "Could not copy — select the code and copy it manually.",
+	"profile_toast_code_restored": "Player code restored.",
+	"profile_toast_invalid_code": "That does not look like a valid player code.",
+	"profile_toast_new_identity": "Started a new identity."
 }

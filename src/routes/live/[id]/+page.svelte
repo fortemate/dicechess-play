@@ -35,6 +35,7 @@
 	import { preloadSounds } from '$lib/sound';
 	import { endReasonLabel } from '$lib/gameOutcome';
 	import { toastStore } from '$lib/toastStore.svelte';
+	import { m } from '$lib/paraglide/messages.js';
 	import { fetchGameRatingChange } from '$lib/live/ratingApi';
 	import { ratingPollStep, type RatingOutcome } from '$lib/live/ratingDelta';
 	import type { Seat } from '$lib/live/liveTypes';
@@ -321,7 +322,7 @@
 			// Blocked or unavailable clipboard (insecure context, permission denied). "Watch replay"
 			// sits right next to this, so the address bar is one click away — say that instead of
 			// failing silently.
-			toastStore.error('Could not copy — open the replay and copy the address instead.');
+			toastStore.error(m.game_toast_copy_replay_failed());
 		}
 	}
 
@@ -451,14 +452,12 @@
 		const seat = live.passNoticeSeat;
 		if (seat === null) return;
 		if (live.spectator) {
-			toastStore.info(`${SEAT_LABELS[seat]} has no legal moves — turn passed.`);
+			toastStore.info(m.game_toast_no_legal_moves_seat({ seat: SEAT_LABELS[seat] }));
 			return;
 		}
 		const mine = (seat === 'White') === (live.playerColor === 'w');
 		toastStore.info(
-			mine
-				? 'You have no legal moves — turn passed.'
-				: 'Opponent has no legal moves — turn passed.',
+			mine ? m.game_toast_no_legal_moves_you() : m.game_toast_no_legal_moves_opponent(),
 		);
 	});
 

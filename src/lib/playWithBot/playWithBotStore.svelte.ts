@@ -6,6 +6,7 @@ import * as DiceChessEngine from '@fortemate/dicechess-engine';
 import type { Key } from '@lichess-org/chessground/types';
 import { getDieValue } from '../../utils/fenUtils';
 import { toastStore } from '../toastStore.svelte';
+import { m } from '$lib/paraglide/messages.js';
 import {
 	PlayWithBotBot,
 	setBotDiceChessInstance,
@@ -332,11 +333,10 @@ export class PlayWithBotStore {
 		if (this.bet > 0) {
 			if (authStore.user && authStore.user.balance < this.bet) {
 				toastStore.error(
-					'Insufficient balance! Your balance is 🪙 ' +
-						authStore.user.balance +
-						', but this bet requires 🪙 ' +
-						this.bet +
-						'.',
+					m.game_toast_insufficient_balance({
+						balance: String(authStore.user.balance),
+						bet: String(this.bet),
+					}),
 				);
 				this.gameStatus = 'idle';
 				return;
@@ -439,11 +439,11 @@ export class PlayWithBotStore {
 		if (playerTimedOut) {
 			this.gameStatus = 'defeat';
 			botStatsStore.recordResult(this.botAlgorithm, 'loss');
-			toastStore.error('Defeat! You ran out of time.');
+			toastStore.error(m.game_toast_defeat_timeout());
 		} else {
 			this.gameStatus = 'victory';
 			botStatsStore.recordResult(this.botAlgorithm, 'win');
-			toastStore.success('Victory! Bot ran out of time!');
+			toastStore.success(m.game_toast_victory_timeout());
 		}
 
 		if (this.currentTurnRecord) {
@@ -639,7 +639,7 @@ export class PlayWithBotStore {
 		}
 
 		if (!hasAtLeastOneLegalMove) {
-			toastStore.info('No legal moves available. Turn forfeited!');
+			toastStore.info(m.game_toast_no_legal_moves_forfeited());
 			this.gameStatus = 'bot_thinking';
 			if (this.toggleActiveColorInFen()) {
 				this.updateStateInHistory({ fen: this.liveBoardFen });
@@ -652,7 +652,7 @@ export class PlayWithBotStore {
 					this.botTurn();
 				}, PASS_DWELL_MS);
 			} else {
-				toastStore.error('System error: Turn transition failed.');
+				toastStore.error(m.game_toast_turn_transition_failed());
 				this.endSession();
 			}
 		} else {
@@ -878,7 +878,7 @@ export class PlayWithBotStore {
 				if (this.startTime !== gameId || this.gameStatus !== 'playing') return;
 				this.gameStatus = 'victory';
 				botStatsStore.recordResult(this.botAlgorithm, 'win');
-				toastStore.success('Victory! You captured the opponent king!');
+				toastStore.success(m.game_toast_victory_king_captured());
 				this.saveGameRecord(this.playerColor === 'w' ? 1 : -1);
 			}, 800);
 			return;
@@ -899,7 +899,7 @@ export class PlayWithBotStore {
 					this.botTurn();
 				}, 800);
 			} else {
-				toastStore.error('System error: Turn transition failed.');
+				toastStore.error(m.game_toast_turn_transition_failed());
 				this.endSession();
 			}
 		}
@@ -1029,7 +1029,7 @@ export class PlayWithBotStore {
 		this.maxMoveIndex = rollIndex;
 
 		if (!botHasMoves) {
-			toastStore.info('Bot has no legal moves. Turn forfeited!');
+			toastStore.info(m.game_toast_bot_no_legal_moves_forfeited());
 			await new Promise((resolve) => setTimeout(resolve, PASS_DWELL_MS));
 			if (this.startTime !== gameId) return; // session ended/restarted during the dwell
 			this.gameStatus = 'rolling';
@@ -1041,7 +1041,7 @@ export class PlayWithBotStore {
 				this.completeTurnForDraw('bot');
 				this.tryAutoRoll();
 			} else {
-				toastStore.error('System error: Turn transition failed.');
+				toastStore.error(m.game_toast_turn_transition_failed());
 				this.endSession();
 			}
 			return;
@@ -1200,7 +1200,7 @@ export class PlayWithBotStore {
 				if (this.startTime !== gameId || this.gameStatus !== 'bot_thinking') return;
 				this.gameStatus = 'defeat';
 				botStatsStore.recordResult(this.botAlgorithm, 'loss');
-				toastStore.error('Defeat! The bot captured your king.');
+				toastStore.error(m.game_toast_defeat_king_captured());
 				this.saveGameRecord(this.playerColor === 'w' ? -1 : 1);
 				return;
 			}
@@ -1215,7 +1215,7 @@ export class PlayWithBotStore {
 			this.completeTurnForDraw('bot');
 			this.tryAutoRoll();
 		} else {
-			toastStore.error('System error: Turn transition failed.');
+			toastStore.error(m.game_toast_turn_transition_failed());
 			this.endSession();
 		}
 	}
@@ -1243,7 +1243,7 @@ export class PlayWithBotStore {
 		this.gameEndReason = 'resign';
 		this.gameStatus = 'defeat';
 		botStatsStore.recordResult(this.botAlgorithm, 'loss');
-		toastStore.info('You resigned from this game.');
+		toastStore.info(m.game_toast_you_resigned());
 		if (this.currentTurnRecord) {
 			this.currentTurnRecord.end_dfen = this.liveBoardFen;
 			this.turnHistory.push(this.currentTurnRecord as DiceChessTurnHistory);
@@ -1266,12 +1266,12 @@ export class PlayWithBotStore {
 			// why rather than doing nothing, the same courtesy the server's refusal gets on /live.
 			toastStore.error(
 				refusal.availableAfterTurns === null
-					? 'The bot offers the next draw.'
-					: `You can offer a draw again in ${refusal.availableAfterTurns} turns.`,
+					? m.game_toast_bot_offers_next_draw()
+					: m.game_toast_draw_reoffer_turns({ turns: String(refusal.availableAfterTurns) }),
 			);
 			return;
 		}
-		toastStore.info('Draw offer armed — it goes out when your turn completes.');
+		toastStore.info(m.game_toast_draw_armed());
 	}
 
 	toggleArmDrawOffer() {
@@ -1288,11 +1288,11 @@ export class PlayWithBotStore {
 		const { state, agreed } = answerDrawOffer(this.drawState, accept);
 		this.drawState = state;
 		if (agreed) {
-			toastStore.success('You accepted the draw offer.');
+			toastStore.success(m.game_toast_you_accepted_draw());
 			this.triggerDrawEnd();
 			return;
 		}
-		toastStore.info('You declined the draw offer.');
+		toastStore.info(m.game_toast_you_declined_draw());
 		// No timer to restart: it never stopped for the offer.
 		void this.rollDice();
 	}
@@ -1303,7 +1303,7 @@ export class PlayWithBotStore {
 		const gameId = this.startTime;
 		this.stopTimer();
 		this.activeDoubleOffer = 'player';
-		toastStore.info('Offering double to bot...');
+		toastStore.info(m.game_toast_offering_double());
 
 		await new Promise((resolve) => setTimeout(resolve, 1200));
 
@@ -1348,13 +1348,13 @@ export class PlayWithBotStore {
 			// the contract has no DOUBLE_WITHDRAW, and a lone DOUBLE_OFFER would read downstream as
 			// an offer the bot ignored. That is why the player's DOUBLE_OFFER is recorded together
 			// with the bot's reply below rather than when the offer is made.
-			toastStore.info('Double offer withdrawn.');
+			toastStore.info(m.game_toast_double_withdrawn());
 			if (this.isGameLive) this.startTimer();
 			return;
 		}
 
 		if (botAccepts) {
-			toastStore.success('The bot accepted the double! 🎲');
+			toastStore.success(m.game_toast_bot_accepted_double());
 			this.recordDoubleEvent('DOUBLE_OFFER', this.playerColor, proposedBet);
 			this.recordDoubleEvent('DOUBLE_ACCEPT', this.botColor, proposedBet);
 			const increment = this.bet;
@@ -1363,7 +1363,7 @@ export class PlayWithBotStore {
 			this.cubeOwner = this.botColor;
 			this.startTimer();
 		} else {
-			toastStore.info('The bot declined the double and resigned.');
+			toastStore.info(m.game_toast_bot_declined_double_resigned());
 			this.recordDoubleEvent('DOUBLE_OFFER', this.playerColor, proposedBet);
 			this.recordDoubleEvent('DOUBLE_DECLINE', this.botColor, proposedBet);
 			this.triggerDoubleDeclinedVictory();
@@ -1378,7 +1378,7 @@ export class PlayWithBotStore {
 			this.declineBotDouble();
 			return;
 		}
-		toastStore.success('You accepted the double! 🎲');
+		toastStore.success(m.game_toast_you_accepted_double());
 		const proposedBet = 2 * this.bet;
 		this.recordDoubleEvent('DOUBLE_ACCEPT', this.playerColor, proposedBet);
 		const increment = this.bet;
@@ -1392,7 +1392,7 @@ export class PlayWithBotStore {
 
 	declineBotDouble() {
 		if (this.activeDoubleOffer !== 'bot' || this.gameStatus !== 'bot_thinking') return;
-		toastStore.info('You declined the double and resigned.');
+		toastStore.info(m.game_toast_you_declined_double_resigned());
 		const proposedBet = 2 * this.bet;
 		this.recordDoubleEvent('DOUBLE_DECLINE', this.playerColor, proposedBet);
 		this.activeDoubleOffer = null;
@@ -1436,9 +1436,7 @@ export class PlayWithBotStore {
 		this.gameEndReason = 'double_declined';
 		this.gameStatus = 'defeat';
 		botStatsStore.recordResult(this.botAlgorithm, 'loss');
-		toastStore.error(
-			'The bot offered a double, but you have insufficient funds to accept. Automatic forfeit!',
-		);
+		toastStore.error(m.game_toast_insufficient_funds_forfeit());
 
 		if (this.currentTurnRecord) {
 			this.currentTurnRecord.end_dfen = this.liveBoardFen;
@@ -1477,11 +1475,11 @@ export class PlayWithBotStore {
 		const { state, agreed } = answerDrawOffer(this.drawState, botAccepts);
 		this.drawState = state;
 		if (agreed) {
-			toastStore.success('The bot accepted the draw offer! 🤝');
+			toastStore.success(m.game_toast_bot_accepted_draw());
 			this.triggerDrawEnd();
 			return false;
 		}
-		toastStore.error('The bot declined the draw offer.');
+		toastStore.error(m.game_toast_bot_declined_draw());
 		return true;
 	}
 
@@ -1496,15 +1494,15 @@ export class PlayWithBotStore {
 		this.drawState = state;
 		if (!delivered) return false;
 		if (side === 'player') {
-			toastStore.info('Draw offer sent.');
+			toastStore.info(m.game_toast_draw_sent());
 			return true;
 		}
-		toastStore.info('The bot offers a draw!');
+		toastStore.info(m.game_toast_bot_offers_draw());
 		// The viewer who never wants to be asked is answered on their behalf, exactly as in /live:
 		// the offerer cannot tell this apart from a decline made by hand.
 		if (preferencesStore.drawOfferPolicy === 'autoDecline') {
 			this.drawState = answerDrawOffer(this.drawState, false).state;
-			toastStore.info('Draw offer declined automatically.');
+			toastStore.info(m.game_toast_draw_declined_auto());
 			return false;
 		}
 		return true;

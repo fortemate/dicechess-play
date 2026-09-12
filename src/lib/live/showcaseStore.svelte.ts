@@ -39,6 +39,7 @@ import {
 } from './playerLabel';
 import { toastStore } from '../toastStore.svelte';
 import { authStore } from '../authStore.svelte';
+import { m } from '$lib/paraglide/messages.js';
 import { createSeatStore, type SeatStore } from './showcaseSeat';
 
 const START_FEN = 'rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1';
@@ -746,11 +747,11 @@ export class ShowcaseStore {
 				this.unavailableReason = 'bot_unavailable';
 				this.schedulePoll(UNAVAILABLE_POLL_MS);
 			} else if (problem?.status === 429) {
-				toastStore.error(problem.detail || 'Claim limit exceeded — please wait a moment.');
+				toastStore.error(problem.detail || m.lobby_toast_claim_limit_exceeded());
 				this.phase = 'open';
 				this.schedulePoll(DISCOVERY_POLL_MS);
 			} else {
-				toastStore.error(problem?.detail || 'Could not claim seat.');
+				toastStore.error(problem?.detail || m.lobby_toast_claim_seat_failed());
 				this.phase = 'open';
 				void this.pollDiscovery();
 			}
