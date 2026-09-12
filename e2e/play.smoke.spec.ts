@@ -157,5 +157,5 @@ test('open-source license disclosures are reachable on mobile viewport', async (
 	await expect(page).toHaveURL(/\/licenses$/);
 	await expect(page.getByRole('heading', { name: 'Open Source Licenses', level: 1 })).toBeVisible();
 	await expect(page.getByText('GPL-3.0-or-later', { exact: true })).toBeVisible();
-	await expect(page.getByText('AGPL-3.0').first()).toBeVisible();
+	await expect(page.getByText('AGPL-3.0-only').first()).toBeVisible();
 });
