@@ -8,7 +8,7 @@
 		"name": "Jegors Čemisovs",
 		"url": "https://jc.id.lv"
 	},
-	"license": "AGPL-3.0",
+	"license": "AGPL-3.0-only",
 	"repository": {
 		"type": "git",
 		"url": "git+https://github.com/fortemate/dicechess-play.git"
