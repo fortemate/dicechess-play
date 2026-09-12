@@ -18,65 +18,28 @@ export interface TimeControlPreset {
 	value: TimeControl | null;
 }
 
+/** Helper to construct a time control preset with dynamic localized label. */
+function makePreset<T extends TimeControl | null>(id: string, value: T) {
+	return {
+		id,
+		get label() {
+			return timeControlLabel(value);
+		},
+		value,
+	};
+}
+
 /** The time-control choices offered when creating a game or a seek. The first preset is the
  * default (both pickers start at index 0). */
 export const timeControlPresets: readonly TimeControlPreset[] = [
-	{
-		id: 'fischer-300-3',
-		get label() {
-			return m.common_time_control_fischer({ initial: 5, increment: 3 });
-		},
-		value: { Fischer: { initialSeconds: 300, incrementSeconds: 3 } },
-	},
-	{
-		id: 'fischer-180-2',
-		get label() {
-			return m.common_time_control_fischer({ initial: 3, increment: 2 });
-		},
-		value: { Fischer: { initialSeconds: 180, incrementSeconds: 2 } },
-	},
-	{
-		id: 'sd-300',
-		get label() {
-			return m.common_time_control_min({ minutes: 5 });
-		},
-		value: { SuddenDeath: { initialSeconds: 300 } },
-	},
-	{
-		id: 'fischer-300-5',
-		get label() {
-			return m.common_time_control_fischer({ initial: 5, increment: 5 });
-		},
-		value: { Fischer: { initialSeconds: 300, incrementSeconds: 5 } },
-	},
-	{
-		id: 'sd-600',
-		get label() {
-			return m.common_time_control_min({ minutes: 10 });
-		},
-		value: { SuddenDeath: { initialSeconds: 600 } },
-	},
-	{
-		id: 'fischer-600-5',
-		get label() {
-			return m.common_time_control_fischer({ initial: 10, increment: 5 });
-		},
-		value: { Fischer: { initialSeconds: 600, incrementSeconds: 5 } },
-	},
-	{
-		id: 'fischer-600-10',
-		get label() {
-			return m.common_time_control_fischer({ initial: 10, increment: 10 });
-		},
-		value: { Fischer: { initialSeconds: 600, incrementSeconds: 10 } },
-	},
-	{
-		id: 'fischer-900-10',
-		get label() {
-			return m.common_time_control_fischer({ initial: 15, increment: 10 });
-		},
-		value: { Fischer: { initialSeconds: 900, incrementSeconds: 10 } },
-	},
+	makePreset('fischer-300-3', { Fischer: { initialSeconds: 300, incrementSeconds: 3 } }),
+	makePreset('fischer-180-2', { Fischer: { initialSeconds: 180, incrementSeconds: 2 } }),
+	makePreset('sd-300', { SuddenDeath: { initialSeconds: 300 } }),
+	makePreset('fischer-300-5', { Fischer: { initialSeconds: 300, incrementSeconds: 5 } }),
+	makePreset('sd-600', { SuddenDeath: { initialSeconds: 600 } }),
+	makePreset('fischer-600-5', { Fischer: { initialSeconds: 600, incrementSeconds: 5 } }),
+	makePreset('fischer-600-10', { Fischer: { initialSeconds: 600, incrementSeconds: 10 } }),
+	makePreset('fischer-900-10', { Fischer: { initialSeconds: 900, incrementSeconds: 10 } }),
 ];
 
 export interface TimeControlGroup {
@@ -130,48 +93,12 @@ export interface BotTimeControlPreset {
 /** The 6 presets offered when starting a game against a catalog bot (ADR-0014) — a curated subset,
  * not a 1:1 mirror of `timeControlPresets` (no unlimited; fewer, rounder options). */
 export const botTimeControlPresets: readonly BotTimeControlPreset[] = [
-	{
-		id: 'fischer-60-1',
-		get label() {
-			return m.common_time_control_fischer({ initial: 1, increment: 1 });
-		},
-		value: { Fischer: { initialSeconds: 60, incrementSeconds: 1 } },
-	},
-	{
-		id: 'fischer-180-3',
-		get label() {
-			return m.common_time_control_fischer({ initial: 3, increment: 3 });
-		},
-		value: { Fischer: { initialSeconds: 180, incrementSeconds: 3 } },
-	},
-	{
-		id: 'sd-300',
-		get label() {
-			return m.common_time_control_min({ minutes: 5 });
-		},
-		value: { SuddenDeath: { initialSeconds: 300 } },
-	},
-	{
-		id: 'fischer-300-5',
-		get label() {
-			return m.common_time_control_fischer({ initial: 5, increment: 5 });
-		},
-		value: { Fischer: { initialSeconds: 300, incrementSeconds: 5 } },
-	},
-	{
-		id: 'sd-600',
-		get label() {
-			return m.common_time_control_min({ minutes: 10 });
-		},
-		value: { SuddenDeath: { initialSeconds: 600 } },
-	},
-	{
-		id: 'fischer-600-10',
-		get label() {
-			return m.common_time_control_fischer({ initial: 10, increment: 10 });
-		},
-		value: { Fischer: { initialSeconds: 600, incrementSeconds: 10 } },
-	},
+	makePreset('fischer-60-1', { Fischer: { initialSeconds: 60, incrementSeconds: 1 } }),
+	makePreset('fischer-180-3', { Fischer: { initialSeconds: 180, incrementSeconds: 3 } }),
+	makePreset('sd-300', { SuddenDeath: { initialSeconds: 300 } }),
+	makePreset('fischer-300-5', { Fischer: { initialSeconds: 300, incrementSeconds: 5 } }),
+	makePreset('sd-600', { SuddenDeath: { initialSeconds: 600 } }),
+	makePreset('fischer-600-10', { Fischer: { initialSeconds: 600, incrementSeconds: 10 } }),
 ];
 
 /** Finds the default bot time control preset index by stable ID ('fischer-300-5').
