@@ -89,6 +89,11 @@ describe('terminationLabel', () => {
 		expect(terminationLabel('threefold_repetition')).toBe('Game ended');
 	});
 
+	it('returns "Game ended" for inherited Object properties like "toString"', () => {
+		expect(terminationLabel('toString')).toBe(UNKNOWN_TERMINATION_LABEL);
+		expect(terminationLabel('valueOf')).toBe(UNKNOWN_TERMINATION_LABEL);
+	});
+
 	it('returns an empty string for null, undefined, or empty values', () => {
 		expect(terminationLabel(null)).toBe('');
 		expect(terminationLabel(undefined)).toBe('');

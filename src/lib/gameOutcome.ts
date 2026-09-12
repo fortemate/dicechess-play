@@ -33,6 +33,7 @@ export function playerOutcome(result: number, playerColor: PlayerColor): GameOut
 	return whiteWon === playerIsWhite ? 'win' : 'loss';
 }
 
+/** Display label for a game outcome or server result. */
 export function outcomeLabel(outcome: GameResult | null | undefined): string {
 	if (!outcome) return '';
 	return RESULT_LABEL[outcome] ?? 'Unknown';
@@ -92,5 +93,7 @@ export const UNKNOWN_TERMINATION_LABEL = 'Game ended';
  */
 export function terminationLabel(termination: string | null | undefined): string {
 	if (!termination) return '';
-	return TERMINATION_LABELS[termination] ?? UNKNOWN_TERMINATION_LABEL;
+	return Object.prototype.hasOwnProperty.call(TERMINATION_LABELS, termination)
+		? TERMINATION_LABELS[termination]
+		: UNKNOWN_TERMINATION_LABEL;
 }
