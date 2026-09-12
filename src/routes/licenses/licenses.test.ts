@@ -80,7 +80,7 @@ describe('licenses page', () => {
 
 		// Dice Chess engine (AGPL-3.0-only)
 		const engine = container.querySelector('#engine');
-		expect(engine?.textContent).toContain('@fortemate/dicechess-engine 0.9.1');
+		expect(engine?.textContent).toContain('@fortemate/dicechess-engine 0.10.0');
 		expect(engine?.textContent).toContain('AGPL-3.0-only');
 		expect(
 			engine?.querySelector('a[href="https://github.com/fortemate/dicechess-engine"]'),
