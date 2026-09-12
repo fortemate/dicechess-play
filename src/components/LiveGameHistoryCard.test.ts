@@ -54,12 +54,19 @@ describe('LiveGameHistoryCard', () => {
 		expect(getByText('You played Black')).toBeTruthy();
 	});
 
-	it('humanises the snake_case termination and parses the raw time control', () => {
+	it('labels the snake_case termination and parses the raw time control', () => {
 		const { getByText } = render(LiveGameHistoryCard, {
 			game: game({ termination: 'draw_agreement', timeControl: 'SuddenDeath(300)' }),
 		});
 		expect(getByText('Draw agreement')).toBeTruthy();
 		expect(getByText('5 min')).toBeTruthy();
+	});
+
+	it('renders a defined fallback for an unknown termination value', () => {
+		const { getByText } = render(LiveGameHistoryCard, {
+			game: game({ termination: 'unmapped_value' }),
+		});
+		expect(getByText('Game ended')).toBeTruthy();
 	});
 
 	it('links to the replay page for its own gameId (#163)', () => {

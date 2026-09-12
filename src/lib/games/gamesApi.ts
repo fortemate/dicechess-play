@@ -1,3 +1,4 @@
+import type { GameResult } from '../gameOutcome';
 import { apiBase } from '../live/liveApi';
 import type { PublicPlayer, Seat } from '../live/liveTypes';
 
@@ -13,7 +14,7 @@ import type { PublicPlayer, Seat } from '../live/liveTypes';
 // with `parseGameResultsTimeControl` (`$lib/live/timeControls`) before displaying it; it is NOT
 // the structured shape the live WebSocket wire uses.
 
-export type PlayerGameResult = 'win' | 'draw' | 'loss' | 'unknown';
+export type PlayerGameResult = GameResult;
 
 export interface PlayerGame {
 	gameId: string;

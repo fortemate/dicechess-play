@@ -9,6 +9,7 @@
 	import { SPECTATE_PARAM } from '$lib/live/seatLink';
 	import { reconstructServerHistory } from '$lib/history/reconstructServerHistory';
 	import { buildTurnBlocks } from '$lib/playWithBot/turnBlocks';
+	import { terminationLabel as getTerminationLabel } from '$lib/gameOutcome';
 	import BotBadge from '../../../components/BotBadge.svelte';
 	import { formatDate } from '../../../utils/formatters';
 	import MoveHistory from '../../../components/MoveHistory.svelte';
@@ -119,12 +120,9 @@
 		if (history.result === 0) return 'Draw';
 		return history.result === 1 ? 'White won' : 'Black won';
 	});
-	// play-api's termination is a snake_case wire enum ('king_captured', 'draw_agreement', ...) —
-	// humanised generically (same one-liner LiveGameHistoryCard uses) so a future value the server
-	// adds still renders sensibly here without a matching update.
-	const terminationLabel = $derived(
-		history ? history.termination.replace(/_/g, ' ').replace(/^./, (c) => c.toUpperCase()) : '',
-	);
+	// play-api's termination wire enum is mapped to display labels via getTerminationLabel()
+	// ($lib/gameOutcome), replacing the runtime regex humaniser (#23).
+	const terminationLabel = $derived(history ? getTerminationLabel(history.termination) : '');
 
 	// `commit` is meant to always be present (published at game creation, never itself secret) — but
 	// the archive computes it independently of the reveal gate (see play-api's GameArchive), so a

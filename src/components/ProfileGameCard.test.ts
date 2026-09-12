@@ -58,11 +58,18 @@ describe('ProfileGameCard', () => {
 		expect(casual.getByText('Casual')).toBeTruthy();
 	});
 
-	it('humanises the snake_case termination', () => {
+	it('labels the snake_case termination', () => {
 		const { getByText } = render(ProfileGameCard, {
 			game: game({ termination: 'draw_agreement' }),
 		});
 		expect(getByText('Draw agreement')).toBeTruthy();
+	});
+
+	it('renders a defined fallback for an unknown termination value', () => {
+		const { getByText } = render(ProfileGameCard, {
+			game: game({ termination: 'future_variant' }),
+		});
+		expect(getByText('Game ended')).toBeTruthy();
 	});
 
 	it('is not a clickable link — there is nowhere to navigate (no replay data exists)', () => {
