@@ -1,13 +1,22 @@
+import { m } from '$lib/paraglide/messages.js';
 import type { GameEndReason, PlayerColor } from './localGamesDB';
 
 export type GameOutcome = 'win' | 'loss' | 'draw';
 export type GameResult = GameOutcome | 'unknown';
 
 export const RESULT_LABEL: Record<GameResult, string> = {
-	win: 'Won',
-	loss: 'Lost',
-	draw: 'Draw',
-	unknown: 'Unknown',
+	get win() {
+		return m.game_result_won();
+	},
+	get loss() {
+		return m.game_result_lost();
+	},
+	get draw() {
+		return m.game_result_draw();
+	},
+	get unknown() {
+		return m.game_result_unknown();
+	},
 };
 
 export const RESULT_CLASS: Record<GameResult, string> = {
@@ -36,22 +45,22 @@ export function playerOutcome(result: number, playerColor: PlayerColor): GameOut
 /** Display label for a game outcome or server result. */
 export function outcomeLabel(outcome: GameResult | null | undefined): string {
 	if (!outcome) return '';
-	return RESULT_LABEL[outcome] ?? 'Unknown';
+	return RESULT_LABEL[outcome] ?? m.game_result_unknown();
 }
 
 /** Short human label for how a game ended; empty for legacy records with no reason. */
 export function endReasonLabel(reason: GameEndReason | null | undefined): string {
 	switch (reason) {
 		case 'mate':
-			return 'King captured';
+			return m.game_end_reason_mate();
 		case 'timeout':
-			return 'On time';
+			return m.game_end_reason_timeout();
 		case 'resign':
-			return 'Resigned';
+			return m.game_end_reason_resign();
 		case 'agreement':
-			return 'Draw agreed';
+			return m.game_end_reason_agreement();
 		case 'double_declined':
-			return 'Double declined';
+			return m.game_end_reason_double_declined();
 		default:
 			return '';
 	}
@@ -63,20 +72,31 @@ export function endReasonLabel(reason: GameEndReason | null | undefined): string
  * plus the stake-doubling contract's `double_declined`.
  */
 export const TERMINATION_LABELS: Record<string, string> = {
-	king_captured: 'King captured',
-	timeout: 'Timeout',
-	resign: 'Resign',
-	draw_agreement: 'Draw agreement',
-	aborted: 'Aborted',
-	double_declined: 'Double declined',
+	get king_captured() {
+		return m.game_termination_king_captured();
+	},
+	get timeout() {
+		return m.game_termination_timeout();
+	},
+	get resign() {
+		return m.game_termination_resign();
+	},
+	get draw_agreement() {
+		return m.game_termination_draw_agreement();
+	},
+	get aborted() {
+		return m.game_termination_aborted();
+	},
+	get double_declined() {
+		return m.game_termination_double_declined();
+	},
 };
 
 /**
  * Fallback label for unmapped/future termination enum values.
- * Statically defined so it can be localized in the i18n catalog (#8)
- * without runtime regexes or case transforms.
+ * Dynamically resolves from the i18n catalog (#8, #138).
  */
-export const UNKNOWN_TERMINATION_LABEL = 'Game ended';
+export const UNKNOWN_TERMINATION_LABEL = () => m.game_termination_unknown();
 
 /**
  * Display label for a server game's termination wire value.
@@ -95,5 +115,5 @@ export function terminationLabel(termination: string | null | undefined): string
 	if (!termination) return '';
 	return Object.hasOwn(TERMINATION_LABELS, termination)
 		? TERMINATION_LABELS[termination]
-		: UNKNOWN_TERMINATION_LABEL;
+		: m.game_termination_unknown();
 }

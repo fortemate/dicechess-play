@@ -1,3 +1,4 @@
+import { m } from '$lib/paraglide/messages.js';
 import type { Players, PublicPlayer, Seat, Seek } from './liveTypes';
 
 // Who the user is looking at: pure display helpers over the server's public player identities
@@ -13,8 +14,12 @@ import type { Players, PublicPlayer, Seat, Seek } from './liveTypes';
  * Keeps wire values ('White' | 'Black') decoupled from presentation.
  */
 export const SEAT_LABELS: Record<Seat, string> = {
-	White: 'White',
-	Black: 'Black',
+	get White() {
+		return m.common_seat_white();
+	},
+	get Black() {
+		return m.common_seat_black();
+	},
 };
 
 /**
@@ -22,8 +27,12 @@ export const SEAT_LABELS: Record<Seat, string> = {
  * Statically defined because runtime case transforms are locale-dependent and do not survive translation (#21).
  */
 export const SEAT_LOWER_LABELS: Record<Seat, string> = {
-	White: 'white',
-	Black: 'black',
+	get White() {
+		return m.common_seat_white_lower();
+	},
+	get Black() {
+		return m.common_seat_black_lower();
+	},
 };
 
 /** Returns the display label for a given seat. */
@@ -55,7 +64,7 @@ export function seatDisplayName(
 	const name = publicPlayer(players, seat)?.name;
 	if (name) return name;
 	if (spectator) return SEAT_LABELS[seat];
-	return seat === bottomSeat ? 'You' : 'Opponent';
+	return seat === bottomSeat ? m.common_player_you() : m.common_player_opponent();
 }
 
 /** Board-strip rating for a seat (play-api #290): `undefined` when the server didn't send one —
@@ -80,7 +89,7 @@ export function seatDisplaySub(
 /** Lobby-row label for who is offering a seek. */
 export function seekOffer(seek: Seek): { name: string; bot: boolean } {
 	const bot = seek.kind === 'Bot';
-	return { name: seek.name ?? 'Anonymous player', bot };
+	return { name: seek.name ?? m.common_player_anonymous(), bot };
 }
 
 /**
@@ -90,7 +99,7 @@ export function seekOffer(seek: Seek): { name: string; bot: boolean } {
 export function showcaseBottomPlayerName(players: Players | null | undefined, seat: Seat): string {
 	const name = publicPlayer(players, seat)?.name;
 	if (name) return name;
-	return `You (${SEAT_LABELS[seat]})`;
+	return `${m.common_player_you()} (${SEAT_LABELS[seat]})`;
 }
 
 /**

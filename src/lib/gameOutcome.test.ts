@@ -34,7 +34,7 @@ describe('outcomeLabel and RESULT_LABEL', () => {
 		expect(outcomeLabel('unknown')).toBe('Unknown');
 	});
 
-	it('provides identical static mapping in RESULT_LABEL', () => {
+	it('provides identical dynamic mapping in RESULT_LABEL', () => {
 		expect(RESULT_LABEL.win).toBe('Won');
 		expect(RESULT_LABEL.loss).toBe('Lost');
 		expect(RESULT_LABEL.draw).toBe('Draw');
@@ -84,14 +84,14 @@ describe('terminationLabel', () => {
 	});
 
 	it('returns "Game ended" for unknown or unmapped termination values', () => {
-		expect(terminationLabel('future_new_reason')).toBe(UNKNOWN_TERMINATION_LABEL);
-		expect(terminationLabel('unknown')).toBe(UNKNOWN_TERMINATION_LABEL);
-		expect(terminationLabel('threefold_repetition')).toBe('Game ended');
+		expect(terminationLabel('future_new_reason')).toBe(UNKNOWN_TERMINATION_LABEL());
+		expect(terminationLabel('unknown')).toBe(UNKNOWN_TERMINATION_LABEL());
+		expect(terminationLabel('threefold_repetition')).toBe(UNKNOWN_TERMINATION_LABEL());
 	});
 
 	it('returns "Game ended" for inherited Object properties like "toString"', () => {
-		expect(terminationLabel('toString')).toBe(UNKNOWN_TERMINATION_LABEL);
-		expect(terminationLabel('valueOf')).toBe(UNKNOWN_TERMINATION_LABEL);
+		expect(terminationLabel('toString')).toBe(UNKNOWN_TERMINATION_LABEL());
+		expect(terminationLabel('valueOf')).toBe(UNKNOWN_TERMINATION_LABEL());
 	});
 
 	it('returns an empty string for null, undefined, or empty values', () => {

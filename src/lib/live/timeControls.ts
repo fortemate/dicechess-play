@@ -1,3 +1,4 @@
+import { m } from '$lib/paraglide/messages.js';
 import type { TimeControl } from './liveTypes';
 import {
 	estimatedSeconds,
@@ -17,41 +18,28 @@ export interface TimeControlPreset {
 	value: TimeControl | null;
 }
 
+/** Helper to construct a time control preset with dynamic localized label. */
+function makePreset<T extends TimeControl | null>(id: string, value: T) {
+	return {
+		id,
+		get label() {
+			return timeControlLabel(value);
+		},
+		value,
+	};
+}
+
 /** The time-control choices offered when creating a game or a seek. The first preset is the
  * default (both pickers start at index 0). */
 export const timeControlPresets: readonly TimeControlPreset[] = [
-	{
-		id: 'fischer-300-3',
-		label: '5 + 3',
-		value: { Fischer: { initialSeconds: 300, incrementSeconds: 3 } },
-	},
-	{
-		id: 'fischer-180-2',
-		label: '3 + 2',
-		value: { Fischer: { initialSeconds: 180, incrementSeconds: 2 } },
-	},
-	{ id: 'sd-300', label: '5 min', value: { SuddenDeath: { initialSeconds: 300 } } },
-	{
-		id: 'fischer-300-5',
-		label: '5 + 5',
-		value: { Fischer: { initialSeconds: 300, incrementSeconds: 5 } },
-	},
-	{ id: 'sd-600', label: '10 min', value: { SuddenDeath: { initialSeconds: 600 } } },
-	{
-		id: 'fischer-600-5',
-		label: '10 + 5',
-		value: { Fischer: { initialSeconds: 600, incrementSeconds: 5 } },
-	},
-	{
-		id: 'fischer-600-10',
-		label: '10 + 10',
-		value: { Fischer: { initialSeconds: 600, incrementSeconds: 10 } },
-	},
-	{
-		id: 'fischer-900-10',
-		label: '15 + 10',
-		value: { Fischer: { initialSeconds: 900, incrementSeconds: 10 } },
-	},
+	makePreset('fischer-300-3', { Fischer: { initialSeconds: 300, incrementSeconds: 3 } }),
+	makePreset('fischer-180-2', { Fischer: { initialSeconds: 180, incrementSeconds: 2 } }),
+	makePreset('sd-300', { SuddenDeath: { initialSeconds: 300 } }),
+	makePreset('fischer-300-5', { Fischer: { initialSeconds: 300, incrementSeconds: 5 } }),
+	makePreset('sd-600', { SuddenDeath: { initialSeconds: 600 } }),
+	makePreset('fischer-600-5', { Fischer: { initialSeconds: 600, incrementSeconds: 5 } }),
+	makePreset('fischer-600-10', { Fischer: { initialSeconds: 600, incrementSeconds: 10 } }),
+	makePreset('fischer-900-10', { Fischer: { initialSeconds: 900, incrementSeconds: 10 } }),
 ];
 
 export interface TimeControlGroup {
@@ -84,7 +72,9 @@ export const timeControlGroups: readonly TimeControlGroup[] = (() => {
 			throw new Error(`timeControlGroups: preset "${e.preset.label}" has no rating category`);
 	return RATING_CATEGORY_ORDER.map((category) => ({
 		category,
-		label: RATING_CATEGORY_LABELS[category],
+		get label() {
+			return RATING_CATEGORY_LABELS[category];
+		},
 		presets: entries
 			.filter((e) => e.category === category)
 			.sort((a, b) => compareDisplay(a.preset, b.preset))
@@ -103,28 +93,12 @@ export interface BotTimeControlPreset {
 /** The 6 presets offered when starting a game against a catalog bot (ADR-0014) — a curated subset,
  * not a 1:1 mirror of `timeControlPresets` (no unlimited; fewer, rounder options). */
 export const botTimeControlPresets: readonly BotTimeControlPreset[] = [
-	{
-		id: 'fischer-60-1',
-		label: '1 + 1',
-		value: { Fischer: { initialSeconds: 60, incrementSeconds: 1 } },
-	},
-	{
-		id: 'fischer-180-3',
-		label: '3 + 3',
-		value: { Fischer: { initialSeconds: 180, incrementSeconds: 3 } },
-	},
-	{ id: 'sd-300', label: '5 min', value: { SuddenDeath: { initialSeconds: 300 } } },
-	{
-		id: 'fischer-300-5',
-		label: '5 + 5',
-		value: { Fischer: { initialSeconds: 300, incrementSeconds: 5 } },
-	},
-	{ id: 'sd-600', label: '10 min', value: { SuddenDeath: { initialSeconds: 600 } } },
-	{
-		id: 'fischer-600-10',
-		label: '10 + 10',
-		value: { Fischer: { initialSeconds: 600, incrementSeconds: 10 } },
-	},
+	makePreset('fischer-60-1', { Fischer: { initialSeconds: 60, incrementSeconds: 1 } }),
+	makePreset('fischer-180-3', { Fischer: { initialSeconds: 180, incrementSeconds: 3 } }),
+	makePreset('sd-300', { SuddenDeath: { initialSeconds: 300 } }),
+	makePreset('fischer-300-5', { Fischer: { initialSeconds: 300, incrementSeconds: 5 } }),
+	makePreset('sd-600', { SuddenDeath: { initialSeconds: 600 } }),
+	makePreset('fischer-600-10', { Fischer: { initialSeconds: 600, incrementSeconds: 10 } }),
 ];
 
 /** Finds the default bot time control preset index by stable ID ('fischer-300-5').
@@ -145,12 +119,17 @@ export const defaultBotTimeControlIndex: number = findDefaultBotTimeControlIndex
 /** A short human label for any time control (e.g. to show a seek's control in the lobby list). Tolerates a
  * missing control (treated as Unlimited) so a malformed response can never throw. */
 export function timeControlLabel(tc: TimeControl | null | undefined): string {
-	if (!tc) return 'Unlimited';
-	if ('SuddenDeath' in tc) return `${Math.round(tc.SuddenDeath.initialSeconds / 60)} min`;
+	if (!tc) return m.common_time_control_unlimited();
+	if ('SuddenDeath' in tc)
+		return m.common_time_control_min({ minutes: Math.round(tc.SuddenDeath.initialSeconds / 60) });
 	if ('Fischer' in tc)
-		return `${Math.round(tc.Fischer.initialSeconds / 60)} + ${tc.Fischer.incrementSeconds}`;
-	if ('PerMove' in tc) return `${tc.PerMove.secondsPerMove}s / move`;
-	return 'Unlimited';
+		return m.common_time_control_fischer({
+			initial: Math.round(tc.Fischer.initialSeconds / 60),
+			increment: tc.Fischer.incrementSeconds,
+		});
+	if ('PerMove' in tc)
+		return m.common_time_control_per_move({ seconds: tc.PerMove.secondsPerMove });
+	return m.common_time_control_unlimited();
 }
 
 /** The SAME short label as `timeControlLabel`, but parsed from play-api's `GET /players/{id}/games`
@@ -162,10 +141,15 @@ export function timeControlLabel(tc: TimeControl | null | undefined): string {
  */
 export function parseGameResultsTimeControl(raw: string): string {
 	const fischer = /^Fischer\((\d+),(\d+)\)$/.exec(raw);
-	if (fischer) return `${Math.round(Number(fischer[1]) / 60)} + ${fischer[2]}`;
+	if (fischer)
+		return m.common_time_control_fischer({
+			initial: Math.round(Number(fischer[1]) / 60),
+			increment: fischer[2],
+		});
 	const suddenDeath = /^SuddenDeath\((\d+)\)$/.exec(raw);
-	if (suddenDeath) return `${Math.round(Number(suddenDeath[1]) / 60)} min`;
+	if (suddenDeath)
+		return m.common_time_control_min({ minutes: Math.round(Number(suddenDeath[1]) / 60) });
 	const perMove = /^PerMove\((\d+)\)$/.exec(raw);
-	if (perMove) return `${perMove[1]}s / move`;
-	return 'Unlimited';
+	if (perMove) return m.common_time_control_per_move({ seconds: perMove[1] });
+	return m.common_time_control_unlimited();
 }

@@ -8,6 +8,7 @@
 // The category names are the server's `wireName` form (lowercase), so the values here can ride a
 // `?category=` query parameter as-is once the server's phase 2 (play-api#280) ships it.
 
+import { m } from '$lib/paraglide/messages.js';
 import type { TimeControl } from './liveTypes';
 
 export type RatingCategory = 'bullet' | 'blitz' | 'rapid';
@@ -67,7 +68,13 @@ export function ratingCategoryOf(tc: TimeControl | null | undefined): RatingCate
 export const RATING_CATEGORY_ORDER: readonly RatingCategory[] = ['bullet', 'blitz', 'rapid'];
 
 export const RATING_CATEGORY_LABELS: Record<RatingCategory, string> = {
-	bullet: 'Bullet',
-	blitz: 'Blitz',
-	rapid: 'Rapid',
+	get bullet() {
+		return m.common_rating_category_bullet();
+	},
+	get blitz() {
+		return m.common_rating_category_blitz();
+	},
+	get rapid() {
+		return m.common_rating_category_rapid();
+	},
 };
