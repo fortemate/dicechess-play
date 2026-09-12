@@ -2,6 +2,7 @@
 	/* eslint-disable local/no-untranslated-text -- i18n debt: not yet migrated (#8) */
 	import type { ProfileRecentGame } from '$lib/leaderboard/leaderboardApi';
 	import { SEAT_LABELS } from '$lib/live/playerLabel';
+	import { RESULT_CLASS, RESULT_LABEL, terminationLabel } from '$lib/gameOutcome';
 	import { formatDate } from '../utils/formatters';
 	import BotBadge from './BotBadge.svelte';
 
@@ -23,24 +24,11 @@
 
 	const opponentName = $derived(game.opponent.name ?? 'Anonymous opponent');
 	const playedColor = $derived(SEAT_LABELS[game.seat]);
-	// play-api's termination is a snake_case wire enum ('king_captured', 'draw_agreement', ...) — a
-	// generic humaniser rather than an exhaustive label table, matching LiveGameHistoryCard's stance.
-	const termination = $derived(
-		game.termination.replace(/_/g, ' ').replace(/^./, (c) => c.toUpperCase()),
-	);
-
-	const RESULT_LABEL: Record<ProfileRecentGame['result'], string> = {
-		win: 'Won',
-		loss: 'Lost',
-		draw: 'Draw',
-		unknown: 'Unknown',
-	};
-	const RESULT_CLASS: Record<ProfileRecentGame['result'], string> = {
-		win: 'bg-primary/15 text-primary border-primary/30',
-		loss: 'bg-danger/15 text-danger border-danger/30',
-		draw: 'bg-surface text-content-muted border-border',
-		unknown: 'bg-surface text-content-muted border-border',
-	};
+	// play-api's termination wire enum is mapped to display labels via terminationLabel()
+	// ($lib/gameOutcome). Replaces the previous runtime regex humaniser which was incompatible
+	// with i18n (#23): known values come from an explicit label table and unmapped values degrade
+	// gracefully to the static label "Game ended".
+	const termination = $derived(terminationLabel(game.termination));
 </script>
 
 <div class="bg-surface/60 border border-border rounded-2xl p-5 flex flex-col gap-4">

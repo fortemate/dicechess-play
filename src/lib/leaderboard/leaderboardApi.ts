@@ -1,3 +1,4 @@
+import type { GameResult } from '../gameOutcome';
 import { apiBase } from '../live/liveApi';
 import type { PlayerOpponent } from '../games/gamesApi';
 import type { RatingCategory } from '../live/ratingCategory';
@@ -73,7 +74,7 @@ export interface ProfileRecentGame {
 	gameId: string;
 	seat: 'White' | 'Black';
 	opponent: { kind: 'Human' | 'Bot'; name: string | null };
-	result: 'win' | 'draw' | 'loss' | 'unknown';
+	result: GameResult;
 	rated: boolean;
 	termination: string;
 	finishedAt: string; // ISO-8601

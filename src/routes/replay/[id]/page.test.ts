@@ -110,4 +110,15 @@ describe('replay page — archive entry stays exact', () => {
 		await findByText(/king captured/i);
 		expect(queryByRole('link', { name: /watch the current game/i })).toBeNull();
 	});
+
+	it('renders fallback for an unmapped termination', async () => {
+		historyApi.fetchGameHistory.mockResolvedValue({
+			...HISTORY,
+			termination: 'some_future_wire_enum',
+		});
+
+		const { findByText } = render(ReplayPage);
+
+		expect(await findByText(/game ended/i)).toBeTruthy();
+	});
 });
