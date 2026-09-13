@@ -1,10 +1,7 @@
 import { getPieceFromFen, buildDfen, getDieValue, DICE_TO_CHAR_MAP } from '../../utils/fenUtils';
 import type { DieState } from '../playWithBot/playWithBotDice.svelte';
 import { logger } from '../utils/logger';
-import * as DiceChessEngine from '@fortemate/dicechess-engine';
-
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
-const DiceChess = (DiceChessEngine as any).DiceChess;
+import { DiceChess } from '@fortemate/dicechess-engine/rules';
 
 // Engine-driven replay of a single turn's UCI micro-moves — shared by the live store (replaying a
 // joining client's backlog, or an incremental TurnPlayed) and archived-game replay

@@ -27,7 +27,7 @@ import type {
 	Termination,
 	PublicRematchStartup,
 } from './liveTypes';
-import * as DiceChessEngine from '@fortemate/dicechess-engine';
+import { DiceChess } from '@fortemate/dicechess-engine/rules';
 import { buildTurnBlocks } from '../playWithBot/turnBlocks';
 import type { BotMoveHistoryState } from '../playWithBot/playWithBotHistory.svelte';
 import type { TurnBlock } from '../types';
@@ -41,9 +41,6 @@ import { settlementLine } from './stakeSettlement';
 import { fetchGameHistory } from './historyApi';
 import { finishedFromHistory } from './finishedFromHistory';
 import { DEFAULT_DRAW_RULES, mayOffer, type DrawOfferState } from '../draw/drawRules';
-
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
-const DiceChess = (DiceChessEngine as any).DiceChess;
 
 const START_FEN = 'rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1';
 
