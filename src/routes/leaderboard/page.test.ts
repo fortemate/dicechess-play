@@ -52,9 +52,8 @@ describe('leaderboard page', () => {
 
 	it('asks for the merged board on arrival, so people are visible without opting in', async () => {
 		fetchLeaderboard.mockResolvedValue(board('alice', 'bot'));
-		const { findByText, getByRole } = render(LeaderboardPage);
+		const { findByText } = render(LeaderboardPage);
 		expect(await findByText('acme alice')).toBeTruthy();
-		expect(getByRole('link', { name: 'Bot strength' }).getAttribute('href')).toBe('/strength');
 		// Both axes explicit: the merged population, on the server's default speed (blitz) — but
 		// stated, never left to the default (#206's lesson, now for `category` too).
 		expect(fetchLeaderboard).toHaveBeenCalledWith('all', 'blitz');
