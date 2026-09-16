@@ -60,12 +60,6 @@
 			>
 				Leaderboard →
 			</a>
-			<a
-				href={resolve('/strength')}
-				class="w-fit text-sm font-semibold text-content-muted transition-colors hover:text-content"
-			>
-				Bot strength →
-			</a>
 		</div>
 	</div>
 
