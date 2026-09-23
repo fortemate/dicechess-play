@@ -33,7 +33,7 @@
 	},
 	"dependencies": {
 		"@fortemate/dicechess-engine": "^0.12.2",
-		"@lichess-org/chessground": "^10.1.1",
+		"@lichess-org/chessground": "^10.2.0",
 		"@sentry/sveltekit": "^10.75.0",
 		"idb": "^8.0.3",
 		"uuid": "^14.0.2"
