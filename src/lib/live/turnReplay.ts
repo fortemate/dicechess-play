@@ -34,8 +34,9 @@ export interface TurnMoveEntry {
  * empty. Pure: takes the turn's starting board fen/color/dice, returns the per-move sequence plus
  * the resulting board fen; no history-map indices, no mutation.
  *
- * A move the engine rejects (an engine-version mismatch between client and server) truncates the
- * walk instead of throwing — the caller keeps everything successfully replayed up to that point.
+ * The walk stops at an action the remaining dice do not allow, at an action after the last die, or
+ * when the engine rejects a move (an engine-version mismatch between client and server), truncating
+ * the walk instead of throwing — the caller keeps everything successfully replayed up to that point.
  */
 export function expandTurn(
 	boardFen: string,
@@ -61,12 +62,26 @@ export function expandTurn(
 	const tempDiceState = dice.map((d) => ({ ...d }));
 	let nextBoardFen = boardFen;
 	const entries: TurnMoveEntry[] = [];
+	let previousApplied: string | undefined = undefined;
 
 	for (const move of moves) {
 		if (move.length < 4) continue;
 		const from = move.slice(0, 2);
 		const dest = move.slice(2, 4);
 		const promo = move.slice(4) || undefined;
+
+		if (
+			dice.length > 0 &&
+			previousApplied !== undefined &&
+			previousApplied.trim().split(/\s+/).length < 7
+		) {
+			logger.error('expandTurn: replay rejected a server-confirmed move; turn truncated', {
+				move,
+				moves,
+				color,
+			});
+			break;
+		}
 
 		const piece = getPieceFromFen(nextBoardFen, from);
 		if (piece) {
@@ -105,6 +120,7 @@ export function expandTurn(
 			dices: tempDiceState.map((d) => ({ ...d })),
 			move: { from, to: dest, promotion: promo ? promo.toUpperCase() : 'NONE' },
 		});
+		previousApplied = applied;
 		currentDfen = applied;
 	}
 
