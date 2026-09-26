@@ -586,7 +586,7 @@ describe('LiveGameStore snapshot history replay (#132)', () => {
 					clocks: null,
 				},
 				history: [
-					{ seat: 'White', dice: [3, 6], moves: ['b1c3', 'g1f3'], fenAfter: AFTER_WHITE_KNIGHTS },
+					{ seat: 'White', dice: [2, 2], moves: ['b1c3', 'g1f3'], fenAfter: AFTER_WHITE_KNIGHTS },
 				],
 			},
 		});
@@ -596,9 +596,9 @@ describe('LiveGameStore snapshot history replay (#132)', () => {
 		expect(live.currentMoveIndex).toBe(3); // White's roll + 2 moves, then Black's current roll
 		expect(getPieceFromFen(live.currentBoardFen, 'c3')).toBe('N');
 		expect(getPieceFromFen(live.currentBoardFen, 'f3')).toBe('N');
-		// The replayed roll's raw dice values [3, 6] must decode to White's piece letters (B, K),
+		// The replayed roll's raw dice values [2, 2] must decode to White's piece letters (N, N),
 		// not the bare numbers — the dice panel renders `value` as a piece image.
-		expect(live.historyMap['0']?.dices.map((d) => d.value)).toEqual(['B', 'K']);
+		expect(live.historyMap['0']?.dices.map((d) => d.value)).toEqual(['N', 'N']);
 
 		// The replayed turn is fully scrubbable, back to the opening position.
 		live.setMoveIndex(0);
@@ -660,7 +660,7 @@ describe('LiveGameStore snapshot history replay (#132)', () => {
 					clocks: null,
 				},
 				history: [
-					{ seat: 'White', dice: [3, 6], moves: ['b1c3', 'g1f3'], fenAfter: AFTER_WHITE_KNIGHTS },
+					{ seat: 'White', dice: [2, 2], moves: ['b1c3', 'g1f3'], fenAfter: AFTER_WHITE_KNIGHTS },
 				],
 			},
 		};
@@ -695,7 +695,7 @@ describe('LiveGameStore snapshot history replay (#132)', () => {
 					clocks: null,
 				},
 				history: [
-					{ seat: 'White', dice: [3, 6], moves: ['b1c3', 'g1f3'], fenAfter: AFTER_WHITE_KNIGHTS },
+					{ seat: 'White', dice: [2, 2], moves: ['b1c3', 'g1f3'], fenAfter: AFTER_WHITE_KNIGHTS },
 				],
 			},
 		});

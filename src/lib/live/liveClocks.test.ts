@@ -20,7 +20,7 @@ class MockWebSocket {
 	}
 }
 
-const FEN = 'rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1 NBR';
+const FEN = 'rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1 PNB';
 
 function activeSnapshot(clocks: PublicGameState['clocks']): ServerEvent {
 	return {

@@ -25,7 +25,7 @@ export const DICE_TO_CHAR_MAP: Record<number, string> = {
 };
 
 export function buildDfen(fen: string, diceVals: number[], activeColor: 'w' | 'b' = 'w'): string {
-	const parts = fen.trim().split(/\s+/);
+	const parts = fen.trim().split(/\s+/).slice(0, 6);
 	// Pad to 6 fields if necessary
 	if (parts.length < 2) parts.push('w');
 	if (parts.length < 3) parts.push('-');

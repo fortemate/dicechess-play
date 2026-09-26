@@ -17,6 +17,7 @@ import { pathToFileURL } from 'node:url';
 const CHUNK_DIR = 'dist/_app/immutable/chunks';
 const START_DFEN = 'rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1 PNB';
 const EXPECTED_E2E4 = 'rnbqkbnr/pppppppp/8/8/4P3/8/PPPP1PPP/RNBQKBNR w KQkq e3 0 1';
+const EXPECTED_DICE = 'NB';
 
 function fail(message) {
 	console.error(`✗ bundled engine check failed: ${message}`);
@@ -57,6 +58,16 @@ if (!legal.includes('e2e4')) {
 
 const applied = engine.applyMove(START_DFEN, 'e2', 'e4', undefined);
 if (!applied) fail('applyMove returned undefined for e2e4 — the bundler miscompiled the engine');
-if (applied !== EXPECTED_E2E4) fail(`applyMove returned an unexpected position: ${applied}`);
+
+const fields = applied.trim().split(/\s+/);
+const actualPosition = fields.slice(0, 6).join(' ');
+const actualDice = fields[6];
+
+if (actualPosition !== EXPECTED_E2E4) {
+	fail(`applyMove returned an unexpected position: ${actualPosition} (expected ${EXPECTED_E2E4})`);
+}
+if (actualDice !== EXPECTED_DICE) {
+	fail(`applyMove returned unexpected dice: ${actualDice ?? 'none'} (expected ${EXPECTED_DICE})`);
+}
 
 console.log('✓ bundled engine applies a legal move');

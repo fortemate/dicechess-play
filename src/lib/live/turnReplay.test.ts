@@ -56,4 +56,32 @@ describe('expandTurn', () => {
 		expect(entries).toHaveLength(1);
 		expect(resultFen).toBe(AFTER_E4);
 	});
+
+	it('stops after the first action when the remaining dice do not allow the second action', () => {
+		const dice = [dieStateFromValue(1, 'w'), dieStateFromValue(2, 'w')]; // P, N
+		const { entries, resultFen } = expandTurn(START, 'w', dice, ['e2e4', 'd2d4']);
+		expect(entries).toHaveLength(1);
+		expect(entries[0].move).toEqual({ from: 'e2', to: 'e4', promotion: 'NONE' });
+		expect(resultFen).toBe(AFTER_E4);
+	});
+
+	it('stops after the first action when an action follows the last die spent', () => {
+		const dice = [dieStateFromValue(1, 'w')]; // single P die
+		const { entries, resultFen } = expandTurn(START, 'w', dice, ['e2e4', 'd2d4']);
+		expect(entries).toHaveLength(1);
+		expect(entries[0].move).toEqual({ from: 'e2', to: 'e4', promotion: 'NONE' });
+		expect(resultFen).toBe(AFTER_E4);
+	});
+
+	it('replays in full when the dice allow every action', () => {
+		const dice = [dieStateFromValue(1, 'w'), dieStateFromValue(1, 'w')]; // P, P
+		const { entries } = expandTurn(START, 'w', dice, ['e2e4', 'd2d4']);
+		expect(entries).toHaveLength(2);
+		expect(entries[0].move).toEqual({ from: 'e2', to: 'e4', promotion: 'NONE' });
+		expect(entries[1].move).toEqual({ from: 'd2', to: 'd4', promotion: 'NONE' });
+		expect(entries[0].dices[0].used).toBe(true);
+		expect(entries[0].dices[1].used).toBe(false);
+		expect(entries[1].dices[0].used).toBe(true);
+		expect(entries[1].dices[1].used).toBe(true);
+	});
 });

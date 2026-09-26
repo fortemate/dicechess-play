@@ -1,6 +1,7 @@
 import { describe, it, expect } from 'vitest';
 import {
 	PIECE_TO_UNICODE,
+	buildDfen,
 	getFenBoardPart,
 	getPieceFromFen,
 	isOpponentKingAbsent,
@@ -140,6 +141,44 @@ describe('fenUtils', () => {
 			const dests = deriveChessgroundDests(uciMoves);
 			expect(dests.size).toBe(1);
 			expect(dests.get('e2')).toEqual(['e4']);
+		});
+	});
+
+	describe('buildDfen', () => {
+		it('appends dice to a 6-field FEN for White', () => {
+			const fen = 'rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1';
+			expect(buildDfen(fen, [1, 2], 'w')).toBe(
+				'rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1 PN',
+			);
+		});
+
+		it('appends lowercase dice for Black', () => {
+			const fen = 'rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR b KQkq - 0 1';
+			expect(buildDfen(fen, [1, 2], 'b')).toBe(
+				'rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR b KQkq - 0 1 pn',
+			);
+		});
+
+		it('keeps only the first six fields of its input when appending new dice', () => {
+			// 7-field engine result carrying unspent dice
+			const dfen7 = 'rnbqkbnr/pppppppp/8/8/4P3/8/PPPP1PPP/RNBQKBNR w KQkq e3 0 1 NB';
+			const result = buildDfen(dfen7, [2], 'w');
+			expect(result).toBe('rnbqkbnr/pppppppp/8/8/4P3/8/PPPP1PPP/RNBQKBNR w KQkq e3 0 1 N');
+			expect(result.split(/\s+/)).toHaveLength(7);
+		});
+
+		it('keeps only the first six fields of its input when appending no dice', () => {
+			const dfen7 = 'rnbqkbnr/pppppppp/8/8/4P3/8/PPPP1PPP/RNBQKBNR w KQkq e3 0 1 NB';
+			const result = buildDfen(dfen7, []);
+			expect(result).toBe('rnbqkbnr/pppppppp/8/8/4P3/8/PPPP1PPP/RNBQKBNR w KQkq e3 0 1');
+			expect(result.split(/\s+/)).toHaveLength(6);
+		});
+
+		it('pads fewer than six fields up to six fields', () => {
+			const boardOnly = 'rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR';
+			expect(buildDfen(boardOnly, [])).toBe(
+				'rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w - - 0 1',
+			);
 		});
 	});
 });
