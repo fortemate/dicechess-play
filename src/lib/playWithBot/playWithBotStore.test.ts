@@ -30,6 +30,16 @@ function createMockDiceChess() {
 		const diceSuffix = dfen.trim().split(/\s+/)[6] ?? '';
 		return diceSuffix.length >= 1 ? ['e2e4'] : [];
 	});
+	const getLegalTurnTree = vi.fn((dfen: string) => {
+		const uciMoves = getLegalUciMoves(dfen);
+		if (uciMoves.length === 0) return {};
+		const diceSuffix = dfen.trim().split(/\s+/)[6] ?? '';
+		let tree: Record<string, unknown> = {};
+		for (let i = 0; i < Math.max(1, diceSuffix.length); i++) {
+			tree = { e2e4: tree };
+		}
+		return tree;
+	});
 	const getBestMove = vi.fn((_dfen: string, _options?: unknown) => ({
 		moves: [{ from: 'e7', to: 'e5', promotion: null }],
 	}));
@@ -44,6 +54,7 @@ function createMockDiceChess() {
 	return {
 		applyMove,
 		getLegalUciMoves,
+		getLegalTurnTree,
 		getBestMove,
 		endTurn,
 		shouldBotAcceptDraw,
@@ -253,7 +264,8 @@ describe('PlayWithBotStore history scrubbing (issue #55)', () => {
 		await rolled;
 
 		// Check that the legal moves calculation received lowercase dice pool 'ppp'
-		const lastLegalMovesCall = mock.getLegalUciMoves.mock.calls.at(-1)?.[0] as string;
+		const lastLegalMovesCall = (mock.getLegalTurnTree.mock.calls.at(-1)?.[0] ??
+			mock.getLegalUciMoves.mock.calls.at(-1)?.[0]) as string;
 		expect(lastLegalMovesCall).toContain(' b ');
 		const parts = lastLegalMovesCall.trim().split(/\s+/);
 		const diceSuffix = parts[6] ?? '';
@@ -520,5 +532,72 @@ describe('PlayWithBotStore draw offers (shared lifecycle, #74)', () => {
 		store.respondDraw(true); // the offerer cannot accept their own offer
 		expect(store.activeDrawOffer).toBe('player');
 		expect(store.gameStatus).not.toBe('draw');
+	});
+});
+
+describe('PlayWithBotStore legal turn tree (#164)', () => {
+	let store: PlayWithBotStore;
+	let mock: ReturnType<typeof createMockDiceChess>;
+
+	beforeEach(() => {
+		vi.useFakeTimers();
+		vi.clearAllMocks();
+		mock = createMockDiceChess();
+		setDiceChessInstance(mock);
+		store = new PlayWithBotStore();
+	});
+
+	afterEach(() => {
+		store.endSession();
+		resetDiceChessInstance();
+		vi.useRealTimers();
+	});
+
+	it('restricts continuations based on the legal turn tree (reproduction position)', async () => {
+		mock.applyMove.mockImplementation((dfen: string, orig?: string, dest?: string) => {
+			if (orig === 'c2' && dest === 'c4') {
+				return '8/8/8/2k5/2P5/1N6/8/K7 w - c3 0 1 PN';
+			}
+			if (orig === 'b3' && dest === 'c5') {
+				return '8/8/8/2N5/2P5/8/8/K7 w - c3 0 1 P';
+			}
+			return dfen;
+		});
+
+		mock.getLegalTurnTree.mockReturnValue({
+			c2c4: { b3c5: {} },
+			c2c3: {},
+		});
+
+		const reproductionFen = '8/8/8/2k5/8/1N6/2P5/K7 w - - 0 1';
+		store.customDfen = `${reproductionFen} NPP`;
+		store.startNewGame('white', 'greedy');
+
+		const rolled = store.rollDice();
+		await vi.advanceTimersByTimeAsync(600);
+		await rolled;
+
+		expect(store.gameStatus).toBe('playing');
+		expect(store.legalMovesDests.has('c2')).toBe(true);
+
+		// White plays c2c4
+		store.handleBoardMove('c2', 'c4');
+
+		// In the tree for c2c4, only b3c5 is legal
+		const knightDests = store.legalMovesDests.get('b3') ?? [];
+		expect(knightDests).toContain('c5');
+		expect(knightDests).not.toContain('d4');
+
+		// Attempting an illegal continuation (b3d4) is refused
+		store.handleBoardMove('b3', 'd4');
+		expect(store.currentTurnRecord?.moves?.length).toBe(1);
+
+		// Playing the legal continuation (b3c5) captures the king and completes the turn / victory
+		store.handleBoardMove('b3', 'c5');
+		expect(store.turnHistory.at(-1)?.moves?.length).toBe(2);
+		expect(store.turnHistory.at(-1)?.moves?.[1].uci).toBe('b3c5');
+
+		await vi.advanceTimersByTimeAsync(800); // victory dwell
+		expect(store.gameStatus).toBe('victory');
 	});
 });

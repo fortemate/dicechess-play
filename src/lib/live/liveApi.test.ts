@@ -1,5 +1,5 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
-import { createGame, getState, isLiveEnabled, wsUrl } from './liveApi';
+import { createGame, getMoves, getState, isLiveEnabled, wsUrl } from './liveApi';
 
 describe('liveApi', () => {
 	beforeEach(() => vi.stubEnv('VITE_PLAY_API_URL', 'http://localhost:8080'));
@@ -65,6 +65,26 @@ describe('liveApi', () => {
 	it('getState throws on a non-ok response', async () => {
 		vi.stubGlobal('fetch', vi.fn().mockResolvedValue({ ok: false, status: 404 }));
 		await expect(getState('nope')).rejects.toThrow('404');
+	});
+
+	it('getMoves fetches legal turn tree from /games/{id}/moves', async () => {
+		const payload = {
+			version: 1,
+			dfen: '8/8/8/8/8/8/8/8 w - - 0 1',
+			dicePending: true,
+			legalMoves: { e2e4: {} },
+		};
+		const fetchMock = vi.fn().mockResolvedValue({ ok: true, json: async () => payload });
+		vi.stubGlobal('fetch', fetchMock);
+
+		const res = await getMoves('g1');
+		expect(res).toEqual(payload);
+		expect(fetchMock).toHaveBeenCalledWith('http://localhost:8080/games/g1/moves');
+	});
+
+	it('getMoves throws on a non-ok response', async () => {
+		vi.stubGlobal('fetch', vi.fn().mockResolvedValue({ ok: false, status: 500 }));
+		await expect(getMoves('g1')).rejects.toThrow('500');
 	});
 
 	it('wsUrl converts the http base to ws and adds the token', () => {

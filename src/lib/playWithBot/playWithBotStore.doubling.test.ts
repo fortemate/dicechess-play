@@ -66,6 +66,10 @@ function createMockDiceChess() {
 		const diceSuffix = dfen.trim().split(/\s+/)[6] ?? '';
 		return diceSuffix.length >= 1 ? ['e2e4'] : [];
 	});
+	const getLegalTurnTree = vi.fn((dfen: string) => {
+		const diceSuffix = dfen.trim().split(/\s+/)[6] ?? '';
+		return diceSuffix.length >= 1 ? { e2e4: {} } : {};
+	});
 	const getBestMove = vi.fn((_dfen: string, _options?: unknown) => ({
 		moves: [{ from: 'e7', to: 'e5', promotion: null }],
 	}));
@@ -83,6 +87,7 @@ function createMockDiceChess() {
 	return {
 		applyMove,
 		getLegalUciMoves,
+		getLegalTurnTree,
 		getBestMove,
 		endTurn,
 		shouldBotAcceptDraw,

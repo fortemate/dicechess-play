@@ -5,6 +5,7 @@ import { getPieceFromFen, deriveChessgroundDests, buildDfen } from '../../utils/
 import * as DiceChessEngine from '@fortemate/dicechess-engine';
 import type { Key } from '@lichess-org/chessground/types';
 import { getDieValue } from '../../utils/fenUtils';
+import { walkMoveTree, type MoveTree } from '../moveTreeWalker';
 import { toastStore } from '../toastStore.svelte';
 import { m } from '$lib/paraglide/messages.js';
 import {
@@ -97,6 +98,8 @@ export class PlayWithBotStore {
 	playerColor = $state<'w' | 'b'>('w');
 	botAlgorithm = $state<string>('greedy');
 	botColor = $derived((this.playerColor === 'w' ? 'b' : 'w') as 'w' | 'b');
+	private turnTree = $state<MoveTree | null>(null);
+	private turnMoves = $state<string[]>([]);
 	pendingPromotion = $state<{
 		orig: string;
 		dest: string;
@@ -297,6 +300,8 @@ export class PlayWithBotStore {
 		this.cubeOwner = null;
 		this.insufficientFundsForfeit = false;
 		this.doubleDeclined = false;
+		this.turnTree = null;
+		this.turnMoves = [];
 		// A session change mid roll-animation leaves this stuck true otherwise, permanently
 		// blocking canUserRoll/canUserDouble in the next game.
 		this.isAnimatingRoll = false;
@@ -488,6 +493,8 @@ export class PlayWithBotStore {
 		this.dice.currentDice = [];
 		this.liveBoardFen = this.initialFen;
 		this.viewedIndex = null;
+		this.turnTree = null;
+		this.turnMoves = [];
 		this.history.clear();
 
 		// Reset draw states on session end
@@ -596,16 +603,28 @@ export class PlayWithBotStore {
 		if (this.gameStatus !== 'rolling' || this.liveActiveColor !== this.playerColor) return;
 
 		const allVals = rolled.map((d) => getDieValue(d));
-		let hasAtLeastOneLegalMove = false;
+		const dfen = buildDfen(this.liveBoardFen, allVals, this.liveActiveColor);
+		this.turnMoves = [];
+		let hasAtLeastOneLegalMove: boolean;
 		try {
-			const uciMoves =
-				DiceChess.getLegalUciMoves(buildDfen(this.liveBoardFen, allVals, this.liveActiveColor)) ||
-				[];
-			if (uciMoves.length > 0) {
-				hasAtLeastOneLegalMove = true;
+			if (typeof DiceChess?.getLegalTurnTree === 'function') {
+				const tree = DiceChess.getLegalTurnTree(dfen);
+				this.turnTree = tree;
+				hasAtLeastOneLegalMove = tree ? Object.keys(tree).length > 0 : false;
+			} else {
+				this.turnTree = null;
+				const uciMoves = DiceChess?.getLegalUciMoves?.(dfen) || [];
+				hasAtLeastOneLegalMove = uciMoves.length > 0;
 			}
 		} catch (e) {
-			logger.error('Error calculating legal moves for initial roll', e as Error);
+			logger.error('Error calculating legal turn tree for initial roll', e as Error);
+			this.turnTree = null;
+			try {
+				const uciMoves = DiceChess?.getLegalUciMoves?.(dfen) || [];
+				hasAtLeastOneLegalMove = uciMoves.length > 0;
+			} catch {
+				hasAtLeastOneLegalMove = false;
+			}
 		}
 
 		this.dice.currentDice = rolled;
@@ -677,6 +696,10 @@ export class PlayWithBotStore {
 			return new Map();
 		}
 
+		if (this.turnTree !== null) {
+			return walkMoveTree(this.turnTree, this.turnMoves).dests;
+		}
+
 		try {
 			const fullFen = this.liveBoardFen;
 			const uciMoves =
@@ -692,6 +715,9 @@ export class PlayWithBotStore {
 	handleBoardMove(orig: string, dest: string, _fenAfterMove?: string) {
 		if (this.isViewingHistory) return;
 		if (this.gameStatus !== 'playing' || this.liveActiveColor !== this.playerColor) return;
+
+		const dests = this.legalMovesDests.get(orig as Key);
+		if (!dests || !dests.includes(dest as Key)) return;
 
 		const piece = getPieceFromFen(this.liveBoardFen, orig);
 		if (!piece) return;
@@ -728,24 +754,31 @@ export class PlayWithBotStore {
 				.map((d) => getDieValue(d));
 
 			let availablePieces = ['q', 'r', 'b', 'n'];
-			try {
-				if (typeof DiceChess.getLegalUciMoves === 'function') {
-					const legalMoves: string[] =
-						DiceChess.getLegalUciMoves(
-							buildDfen(this.liveBoardFen, availableDice, this.liveActiveColor),
-						) || [];
-					const movePrefix = orig + dest;
-					const apiPromos = legalMoves
-						.filter((m) => m.startsWith(movePrefix) && m.length === 5)
-						.map((m) => m[4].toLowerCase());
-
-					if (apiPromos.length > 0) {
-						// eslint-disable-next-line svelte/prefer-svelte-reactivity
-						availablePieces = Array.from(new Set(apiPromos));
-					}
+			if (this.turnTree !== null) {
+				const promos = walkMoveTree(this.turnTree, this.turnMoves).getPromotions(orig, dest);
+				if (promos.length > 0) {
+					availablePieces = promos;
 				}
-			} catch (e) {
-				logger.error('Error getting promotions from legal moves', e as Error);
+			} else {
+				try {
+					if (typeof DiceChess?.getLegalUciMoves === 'function') {
+						const legalMoves: string[] =
+							DiceChess.getLegalUciMoves(
+								buildDfen(this.liveBoardFen, availableDice, this.liveActiveColor),
+							) || [];
+						const movePrefix = orig + dest;
+						const apiPromos = legalMoves
+							.filter((m) => m.startsWith(movePrefix) && m.length === 5)
+							.map((m) => m[4].toLowerCase());
+
+						if (apiPromos.length > 0) {
+							// eslint-disable-next-line svelte/prefer-svelte-reactivity
+							availablePieces = Array.from(new Set(apiPromos));
+						}
+					}
+				} catch (e) {
+					logger.error('Error getting promotions from legal moves', e as Error);
+				}
 			}
 
 			this.pendingPromotion = { orig, dest, color: this.playerColor, availablePieces, dieIndex };
@@ -841,6 +874,7 @@ export class PlayWithBotStore {
 				fen_after: nextBoardFen,
 			});
 		}
+		this.turnMoves.push(orig + dest + (promotionStr || ''));
 
 		const destPiece = getPieceFromFen(oldBoardFen, dest);
 		const isVictory = destPiece?.toLowerCase() === 'k';
@@ -864,6 +898,8 @@ export class PlayWithBotStore {
 		this.maxMoveIndex = moveIndex;
 
 		if (isVictory) {
+			this.turnTree = null;
+			this.turnMoves = [];
 			this.stopTimer();
 			this.gameEndReason = 'mate';
 			if (this.currentTurnRecord) {
@@ -884,9 +920,14 @@ export class PlayWithBotStore {
 			return;
 		}
 
-		const hasRemainingMoves = this.legalMovesDests.size > 0;
+		const hasRemainingMoves =
+			this.turnTree !== null
+				? !walkMoveTree(this.turnTree, this.turnMoves).isComplete
+				: this.legalMovesDests.size > 0;
 
 		if (!hasRemainingMoves) {
+			this.turnTree = null;
+			this.turnMoves = [];
 			this.gameStatus = 'bot_thinking';
 			if (this.toggleActiveColorInFen()) {
 				this.updateStateInHistory({ fen: this.liveBoardFen });
