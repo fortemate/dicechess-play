@@ -7,7 +7,7 @@ import {
 } from '../../utils/fenUtils';
 import type { DieState } from '../playWithBot/playWithBotDice.svelte';
 import { LiveClient, randomClientSeed, type ConnStatus } from './liveClient';
-import { wsUrl } from './liveApi';
+import { wsUrl, getMoves } from './liveApi';
 import { getGuestUuid } from '../ingest/guestIdentity';
 import { splitDfen, stripDfen } from './dfenUtils';
 import { dieStateFromValue, expandTurn } from './turnReplay';
@@ -26,7 +26,10 @@ import type {
 	MayOfferDrawBy,
 	Termination,
 	PublicRematchStartup,
+	GameMoves,
 } from './liveTypes';
+import { walkMoveTree, type MoveTree } from '../moveTreeWalker';
+import { logger } from '../utils/logger';
 import { DiceChess } from '@fortemate/dicechess-engine/rules';
 import { buildTurnBlocks } from '../playWithBot/turnBlocks';
 import type { BotMoveHistoryState } from '../playWithBot/playWithBotHistory.svelte';
@@ -199,6 +202,9 @@ export class LiveGameStore {
 	private client: LiveClient | null = null;
 	private version = -1;
 	private pendingMoves = $state<string[]>([]); // optimistic UCI buffer for the turn in progress
+	private turnTree = $state<MoveTree | null>(null);
+	private treeFallback = $state<boolean>(false);
+	private isDicePending = false;
 	private confirmedFen = START_FEN; // last server-confirmed position, for rollback
 	private confirmedDice: DieState[] = [];
 
@@ -343,12 +349,18 @@ export class LiveGameStore {
 			return new Map();
 		const dice = this.availableDiceValues;
 		if (dice.length === 0) return new Map();
-		try {
-			const uci = DiceChess.getLegalUciMoves(buildDfen(this.liveFen, dice)) || [];
-			return deriveChessgroundDests(uci);
-		} catch {
-			return new Map();
+		if (this.treeFallback) {
+			try {
+				const uci = DiceChess.getLegalUciMoves(buildDfen(this.liveFen, dice)) || [];
+				return deriveChessgroundDests(uci);
+			} catch {
+				return new Map();
+			}
 		}
+		if (this.turnTree !== null) {
+			return walkMoveTree(this.turnTree, this.pendingMoves).dests;
+		}
+		return new Map();
 	});
 
 	// ── lifecycle ─────────────────────────────────────────────────────────────
@@ -409,6 +421,9 @@ export class LiveGameStore {
 		this.rematchStartup = null;
 		this.pendingPromotion = null;
 		this.pendingMoves = [];
+		this.turnTree = null;
+		this.treeFallback = false;
+		this.isDicePending = false;
 		this.confirmedFen = START_FEN;
 		this.confirmedDice = [];
 		this.outcome = null;
@@ -509,7 +524,7 @@ export class LiveGameStore {
 			const { fen6, dice } = splitDfen(ev.DiceRolled.dfen);
 			const color: 'w' | 'b' = ev.DiceRolled.seat === 'White' ? 'w' : 'b';
 			this.recordRoll(fen6, color, dice);
-			this.syncTurn(ev.DiceRolled.dfen, ev.DiceRolled.seat);
+			this.syncTurn(ev.DiceRolled.dfen, ev.DiceRolled.seat, true, ev.DiceRolled.legalMoves);
 			this.setClocks(ev.DiceRolled.clocks, ev.DiceRolled.seat);
 			// No sound here: every roll — the player's own included — sounds in presentLoop,
 			// in sync with its visible spin (which may lag this event during catch-up).
@@ -519,6 +534,9 @@ export class LiveGameStore {
 			if (ev.TurnPlayed.v <= this.version) return;
 			this.version = ev.TurnPlayed.v;
 			this.isDrawOfferArmed = false;
+			this.turnTree = null;
+			this.treeFallback = false;
+			this.isDicePending = false;
 			this.recordTurn(ev.TurnPlayed.moves, ev.TurnPlayed.seat);
 			this.confirmedFen = stripDfen(ev.TurnPlayed.fenAfter);
 			this.liveFen = this.confirmedFen;
@@ -647,7 +665,7 @@ export class LiveGameStore {
 			return;
 		}
 
-		this.syncTurn(state.dfen, state.activeSeat, state.dicePending);
+		this.syncTurn(state.dfen, state.activeSeat, state.dicePending, state.legalMoves);
 		// The current pending roll isn't part of `history` (the server only lists completed turns) —
 		// append it as the next entry. The historyMap-empty fallback covers a pre-history server that
 		// sent no `history` field at all on a fresh connect.
@@ -674,16 +692,82 @@ export class LiveGameStore {
 	}
 
 	/** Adopt the authoritative position + dice for the side to move. */
-	private syncTurn(dfen: string, activeSeat: Seat, dicePending = true): void {
+	private syncTurn(
+		dfen: string,
+		activeSeat: Seat,
+		dicePending = true,
+		legalMoves?: MoveTree | null,
+	): void {
 		const { fen6, dice } = splitDfen(dfen);
 		this.confirmedFen = fen6;
 		this.liveFen = fen6;
 		this.liveActiveColor = activeSeat === 'White' ? 'w' : 'b';
 		this.pendingMoves = [];
+		this.isDicePending = dicePending;
 		this.liveDice = dicePending ? dice.map((value) => ({ value, allowed: true, used: false })) : [];
 		this.confirmedDice = this.liveDice.map((d) => ({ ...d }));
 		const canAct = (dicePending || Boolean(this.drawOffer?.pending)) && activeSeat === this.mySeat;
 		this.gameStatus = canAct ? 'playing' : 'waiting';
+
+		if (legalMoves !== undefined && legalMoves !== null) {
+			this.turnTree = legalMoves;
+			this.treeFallback = false;
+		} else {
+			this.turnTree = null;
+			this.treeFallback = false;
+			if (dicePending && activeSeat === this.mySeat && this.mySeat !== null && this.gameId !== '') {
+				void this.fetchLegalMoves(this.gameId, dfen, this.version, this.epoch);
+			}
+		}
+	}
+
+	private async fetchLegalMoves(
+		gameId: string,
+		rollDfen: string,
+		rollVersion: number,
+		requestEpoch: number,
+	): Promise<void> {
+		let res: GameMoves | null = null;
+		for (let attempt = 0; attempt < 2; attempt++) {
+			if (
+				this.epoch !== requestEpoch ||
+				this.version !== rollVersion ||
+				!this.isDicePending ||
+				this.gameStatus !== 'playing'
+			) {
+				return;
+			}
+			try {
+				res = await getMoves(gameId);
+				break;
+			} catch {
+				// Retry on next attempt
+			}
+		}
+
+		if (
+			this.epoch !== requestEpoch ||
+			this.version !== rollVersion ||
+			!this.isDicePending ||
+			this.gameStatus !== 'playing'
+		) {
+			return;
+		}
+
+		if (res) {
+			if (res.dfen === rollDfen && res.version >= rollVersion) {
+				this.turnTree = res.legalMoves ?? {};
+				this.treeFallback = false;
+			}
+			return;
+		}
+
+		logger.warn('Failed to fetch legal moves, falling back to local move calculation', {
+			gameId,
+			rollDfen,
+			rollVersion,
+		});
+		this.treeFallback = true;
 	}
 
 	/** Runs once the reveal has drained to live: one suspense beat, then the announcement.
@@ -722,6 +806,9 @@ export class LiveGameStore {
 		this.authoritativeOver = over;
 		this.termination = termination;
 		this.liveDice = [];
+		this.turnTree = null;
+		this.treeFallback = false;
+		this.isDicePending = false;
 		this.drawOffer = null;
 		this.drawOfferedBy = null;
 		this.isDrawOfferArmed = false;
@@ -879,6 +966,9 @@ export class LiveGameStore {
 			);
 			return;
 		}
+		const dests = this.legalMovesDests.get(orig as Key);
+		if (!dests || !dests.includes(dest as Key)) return;
+
 		const piece = getPieceFromFen(this.liveFen, orig);
 		if (!piece) return;
 
@@ -930,6 +1020,10 @@ export class LiveGameStore {
 	}
 
 	private promotionPieces(orig: string, dest: string, dieIndex: number): string[] {
+		if (!this.treeFallback && this.turnTree !== null) {
+			const promos = walkMoveTree(this.turnTree, this.pendingMoves).getPromotions(orig, dest);
+			if (promos.length > 0) return promos;
+		}
 		const dice = this.liveDice
 			.filter((d, i) => d.allowed && (!d.used || i === dieIndex))
 			.map((d) => getDieValue(d));
@@ -966,7 +1060,11 @@ export class LiveGameStore {
 		this.pendingMoves.push(orig + dest + (promo ?? ''));
 
 		const capturedKing = getPieceFromFen(oldFen, dest)?.toLowerCase() === 'k';
-		const turnComplete = capturedKing || this.legalMovesDests.size === 0;
+		const turnComplete =
+			capturedKing ||
+			(!this.treeFallback && this.turnTree !== null
+				? walkMoveTree(this.turnTree, this.pendingMoves).isComplete
+				: this.legalMovesDests.size === 0);
 		if (turnComplete) this.submitTurn();
 	}
 

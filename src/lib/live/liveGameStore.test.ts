@@ -8,6 +8,9 @@ import { playDiceSound, playDrawOfferSound } from '../sound';
 import { toastStore } from '../toastStore.svelte';
 import { preferencesStore } from '../preferencesStore.svelte';
 import { m } from '$lib/paraglide/messages.js';
+import { DiceChess } from '@fortemate/dicechess-engine';
+import type { MoveTree } from '../moveTreeWalker';
+import { getMoves } from './liveApi';
 
 // The store triggers real audio through the shared sound service; stub it so tests can
 // assert WHEN a roll sounds (aligned with its presented spin) without touching Audio.
@@ -27,6 +30,14 @@ vi.mock('../ingest/guestIdentity', () => ({
 vi.mock('../toastStore.svelte', () => ({
 	toastStore: { error: vi.fn(), info: vi.fn(), success: vi.fn() },
 }));
+
+vi.mock('./liveApi', async (importOriginal) => {
+	const actual = await importOriginal<typeof import('./liveApi')>();
+	return {
+		...actual,
+		getMoves: vi.fn(),
+	};
+});
 
 // Minimal WebSocket stand-in: the store opens one via LiveClient; we drive events through it.
 class MockWebSocket {
@@ -57,21 +68,44 @@ const AFTER_BLACK_KNIGHTS = 'r1bqkb1r/pppppppp/2n2n2/8/8/8/PPPPPPPP/RNBQKBNR w K
 // After White plays Nb1-c3 and Ng1-f3 from the start position.
 const AFTER_WHITE_KNIGHTS = 'rnbqkbnr/pppppppp/8/8/8/2N2N2/PPPPPPPP/R1BQKB1R b KQkq - 2 2';
 
+function defaultLegalMoves(dfen: string): MoveTree {
+	try {
+		return DiceChess.getLegalTurnTree(dfen) as MoveTree;
+	} catch {
+		return {};
+	}
+}
+
 function snapshot(overrides: Partial<PublicGameState> = {}): ServerEvent {
+	const dfen = overrides.dfen ?? `${START_FEN} N`;
 	return {
 		Snapshot: {
 			v: 0,
 			state: {
 				version: 0,
-				dfen: `${START_FEN} N`,
+				dfen,
 				activeSeat: 'White',
 				dicePending: true,
 				status: { Active: {} },
 				clocks: null,
+				legalMoves:
+					overrides.legalMoves !== undefined ? overrides.legalMoves : defaultLegalMoves(dfen),
 				...overrides,
 			},
 		},
 	};
+}
+
+function deliverEvent(ev: ServerEvent) {
+	if ('DiceRolled' in ev && ev.DiceRolled.legalMoves === undefined) {
+		ev = {
+			DiceRolled: {
+				...ev.DiceRolled,
+				legalMoves: defaultLegalMoves(ev.DiceRolled.dfen),
+			},
+		};
+	}
+	MockWebSocket.last!.onmessage?.({ data: JSON.stringify(ev) });
 }
 
 describe('LiveGameStore pacing', () => {
@@ -93,8 +127,7 @@ describe('LiveGameStore pacing', () => {
 		vi.unstubAllGlobals();
 	});
 
-	const deliver = (ev: ServerEvent) =>
-		MockWebSocket.last!.onmessage?.({ data: JSON.stringify(ev) });
+	const deliver = deliverEvent;
 
 	it("paces the opponent's dice roll with a 600ms spin, blocking interaction meanwhile", async () => {
 		deliver(snapshot());
@@ -567,8 +600,7 @@ describe('LiveGameStore snapshot history replay (#132)', () => {
 		vi.unstubAllGlobals();
 	});
 
-	const deliver = (ev: ServerEvent) =>
-		MockWebSocket.last!.onmessage?.({ data: JSON.stringify(ev) });
+	const deliver = deliverEvent;
 
 	it('reconstructs a turn played before the client joined, presented already caught up (no animation)', () => {
 		live.connect('g', 'tok', null); // spectator joining mid-game
@@ -726,8 +758,7 @@ describe('LiveGameStore connection feedback (issue #76)', () => {
 		vi.unstubAllGlobals();
 	});
 
-	const deliver = (ev: ServerEvent) =>
-		MockWebSocket.last!.onmessage?.({ data: JSON.stringify(ev) });
+	const deliver = deliverEvent;
 
 	it('updates lastMove immediately when applying an optimistic board move', async () => {
 		deliver(snapshot());
@@ -935,8 +966,7 @@ describe('LiveGameStore rated flag (play-api #290)', () => {
 		vi.unstubAllGlobals();
 	});
 
-	const deliver = (ev: ServerEvent) =>
-		MockWebSocket.last!.onmessage?.({ data: JSON.stringify(ev) });
+	const deliver = deliverEvent;
 
 	it('is undefined until a Snapshot says otherwise — never assumed false/casual', () => {
 		expect(live.rated).toBeUndefined();
@@ -979,8 +1009,7 @@ describe('LiveGameStore draw offers (play-api #327, this repo #253)', () => {
 		vi.unstubAllGlobals();
 	});
 
-	const deliver = (ev: ServerEvent) =>
-		MockWebSocket.last!.onmessage?.({ data: JSON.stringify(ev) });
+	const deliver = deliverEvent;
 
 	const lastSent = () => JSON.parse(MockWebSocket.last!.sent[MockWebSocket.last!.sent.length - 1]);
 
@@ -1366,8 +1395,7 @@ describe('LiveGameStore stake doubling (#75)', () => {
 		vi.unstubAllGlobals();
 	});
 
-	const deliver = (ev: ServerEvent) =>
-		MockWebSocket.last!.onmessage?.({ data: JSON.stringify(ev) });
+	const deliver = deliverEvent;
 
 	// The canonical play-api contract examples (fixtures/stake-doubling/README.md).
 	const fixture = <T>(name: string): T =>
@@ -1505,5 +1533,218 @@ describe('LiveGameStore stake doubling (#75)', () => {
 
 		await vi.advanceTimersByTimeAsync(600); // spin finishes
 		expect(live.tickingClockSeat).toBe('White');
+	});
+});
+
+describe('LiveGameStore legal turn tree (#164)', () => {
+	let live: LiveGameStore;
+
+	beforeEach(() => {
+		vi.useFakeTimers();
+		vi.clearAllMocks();
+		vi.stubGlobal('WebSocket', MockWebSocket as unknown as typeof WebSocket);
+		MockWebSocket.last = null;
+		live = new LiveGameStore();
+		live.connect('g', 'tok', 'white');
+		MockWebSocket.last!.onopen?.();
+	});
+
+	afterEach(() => {
+		live.dispose();
+		vi.useRealTimers();
+		vi.unstubAllGlobals();
+	});
+
+	const deliver = deliverEvent;
+
+	const submittedTurns = (): string[][] =>
+		MockWebSocket.last!.sent.flatMap((raw) => {
+			const command = JSON.parse(raw) as ClientCommand;
+			return 'SubmitTurn' in command ? [command.SubmitTurn.moves] : [];
+		});
+
+	it('restricts continuations based on the legal turn tree (reproduction position)', async () => {
+		const dfen = '8/8/8/2k5/8/1N6/2P5/K7 w - - 0 1 NPP';
+		const tree = DiceChess.getLegalTurnTree(dfen) as MoveTree;
+
+		deliver(snapshot({ dfen, legalMoves: tree }));
+		deliver({
+			DiceRolled: {
+				v: 1,
+				seat: 'White',
+				dice: [1, 1, 2],
+				dfen,
+				clocks: null,
+				legalMoves: tree,
+			},
+		});
+		await vi.advanceTimersByTimeAsync(600); // let spin land
+
+		// c2 has continuations in the tree
+		expect(live.legalMovesDests.has('c2')).toBe(true);
+
+		// White plays c2c4
+		live.handleBoardMove('c2', 'c4');
+
+		// In the tree for c2c4, only b3c5 is legal (b3d4 is not)
+		const knightDests = live.legalMovesDests.get('b3') ?? [];
+		expect(knightDests).toContain('c5');
+		expect(knightDests).not.toContain('d4');
+
+		// Attempting an illegal continuation (b3d4) is refused
+		live.handleBoardMove('b3', 'd4');
+		expect(submittedTurns()).toEqual([]);
+
+		// Playing the legal continuation (b3c5) captures the king and submits the turn
+		live.handleBoardMove('b3', 'c5');
+		expect(submittedTurns()).toEqual([['c2c4', 'b3c5']]);
+	});
+
+	it('fetches elided legal turn tree and unlocks the board once received', async () => {
+		const dfen = `${START_FEN} N`;
+		let resolveMoves!: (moves: {
+			version: number;
+			dfen: string;
+			dicePending: boolean;
+			legalMoves: MoveTree | null;
+		}) => void;
+		vi.mocked(getMoves).mockImplementationOnce(
+			() =>
+				new Promise((resolve) => {
+					resolveMoves = resolve;
+				}),
+		);
+
+		deliver(snapshot());
+		deliver({
+			DiceRolled: {
+				v: 1,
+				seat: 'White',
+				dice: [2],
+				dfen,
+				clocks: null,
+				legalMoves: null, // elided tree
+			},
+		});
+		await vi.advanceTimersByTimeAsync(600); // spin lands
+
+		// Board offers no moves while fetch is in-flight
+		expect(live.legalMovesDests.size).toBe(0);
+
+		resolveMoves({
+			version: 1,
+			dfen,
+			dicePending: true,
+			legalMoves: { b1c3: {} },
+		});
+
+		// Await the fetch
+		await vi.waitFor(() => {
+			expect(live.legalMovesDests.size).toBeGreaterThan(0);
+		});
+
+		expect(vi.mocked(getMoves)).toHaveBeenCalledWith('g');
+		expect(live.legalMovesDests.get('b1')).toEqual(['c3']);
+	});
+
+	it('ignores stale getMoves response (mismatched dfen or older version)', async () => {
+		const dfen = `${START_FEN} N`;
+		vi.mocked(getMoves).mockResolvedValueOnce({
+			version: 0, // older version
+			dfen: 'stale-dfen',
+			dicePending: true,
+			legalMoves: { b1c3: {} },
+		});
+
+		deliver(snapshot());
+		deliver({
+			DiceRolled: {
+				v: 1,
+				seat: 'White',
+				dice: [2],
+				dfen,
+				clocks: null,
+				legalMoves: null,
+			},
+		});
+		await vi.advanceTimersByTimeAsync(600);
+
+		// Give time for resolution
+		await vi.advanceTimersByTimeAsync(100);
+
+		// Stale response dropped, no fallback triggered, board remains blocked
+		expect(live.legalMovesDests.size).toBe(0);
+	});
+
+	it('locks the board on forced pass ({}) and sends no SubmitTurn', async () => {
+		deliver(snapshot());
+		deliver({
+			DiceRolled: {
+				v: 1,
+				seat: 'White',
+				dice: [2],
+				dfen: `${START_FEN} N`,
+				clocks: null,
+				legalMoves: {}, // forced pass
+			},
+		});
+		await vi.advanceTimersByTimeAsync(600);
+
+		expect(live.legalMovesDests.size).toBe(0);
+		live.handleBoardMove('b1', 'c3');
+		expect(submittedTurns()).toEqual([]);
+	});
+
+	it('resets tree walk to root when move is rejected', async () => {
+		const tree: MoveTree = {
+			b1c3: {},
+		};
+		deliver(snapshot());
+		deliver({
+			DiceRolled: {
+				v: 1,
+				seat: 'White',
+				dice: [2],
+				dfen: `${START_FEN} N`,
+				clocks: null,
+				legalMoves: tree,
+			},
+		});
+		await vi.advanceTimersByTimeAsync(600);
+
+		live.handleBoardMove('b1', 'c3');
+		expect(submittedTurns()).toEqual([['b1c3']]);
+
+		// Server rejects
+		deliver({ Rejected: { v: 2, seat: 'White', reason: 'IllegalMove' } });
+
+		// Walk is reset to root, b1 is available again
+		expect(live.legalMovesDests.get('b1')).toEqual(['c3']);
+	});
+
+	it('falls back to local engine calculation when getMoves fails after retries', async () => {
+		const dfen = `${START_FEN} N`;
+		vi.mocked(getMoves).mockRejectedValue(new Error('Network error'));
+
+		deliver(snapshot());
+		deliver({
+			DiceRolled: {
+				v: 1,
+				seat: 'White',
+				dice: [2],
+				dfen,
+				clocks: null,
+				legalMoves: null,
+			},
+		});
+		await vi.advanceTimersByTimeAsync(600);
+
+		// Wait for both fetch attempts to fail and fallback to trigger
+		await vi.waitFor(() => {
+			expect(live.legalMovesDests.size).toBeGreaterThan(0);
+		});
+
+		expect(vi.mocked(getMoves)).toHaveBeenCalledTimes(2);
+		expect(live.legalMovesDests.has('b1')).toBe(true);
 	});
 });

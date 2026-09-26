@@ -36,6 +36,10 @@ function createMockDiceChess() {
 			const diceSuffix = dfen.trim().split(/\s+/)[6] ?? '';
 			return diceSuffix.length >= 1 ? ['e2e4'] : [];
 		}),
+		getLegalTurnTree: vi.fn((dfen: string) => {
+			const diceSuffix = dfen.trim().split(/\s+/)[6] ?? '';
+			return diceSuffix.length >= 1 ? { e2e4: {} } : {};
+		}),
 		getBestMove: vi.fn(() => ({ moves: [{ from: 'e7', to: 'e5', promotion: null }] })),
 		endTurn: vi.fn((fen: string) => {
 			const parts = fen.trim().split(/\s+/);

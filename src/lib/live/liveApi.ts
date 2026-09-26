@@ -1,4 +1,4 @@
-import type { CreateGameResponse, PublicGameState, TimeControl } from './liveTypes';
+import type { CreateGameResponse, GameMoves, PublicGameState, TimeControl } from './liveTypes';
 
 // REST + WebSocket-URL helpers against play-api. The base URL is configured via VITE_PLAY_API_URL;
 // when empty, live play is disabled (and so is finished-game recording — see ingest/ingestClient.ts,
@@ -43,6 +43,13 @@ export async function getState(id: string): Promise<PublicGameState> {
 	const res = await fetch(`${apiBase()}/games/${id}`);
 	if (!res.ok) throw new Error(`getState failed: ${res.status}`);
 	return (await res.json()) as PublicGameState;
+}
+
+/** Fetch the legal turn tree for the current roll of a game (e.g. when elided from WebSocket frames). */
+export async function getMoves(id: string): Promise<GameMoves> {
+	const res = await fetch(`${apiBase()}/games/${id}/moves`);
+	if (!res.ok) throw new Error(`getMoves failed: ${res.status}`);
+	return (await res.json()) as GameMoves;
 }
 
 /** The WebSocket URL for a game; pass the seat token to play, `spectator` to watch read-only.

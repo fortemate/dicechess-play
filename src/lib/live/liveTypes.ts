@@ -1,5 +1,6 @@
 // Wire types for the play-api live protocol — a frozen mirror of the server's JSON
 // (dicechess-play-api). Do not "clean these up": they must match the server's codecs exactly.
+import type { MoveTree } from '../moveTreeWalker';
 
 export type Seat = 'White' | 'Black';
 
@@ -113,6 +114,15 @@ export interface PublicGameState {
 	doubling?: Doubling | null;
 	// Rematch startup phase gate (play-api ADR 007 / #128): awaiting joins, active, or aborted.
 	rematchStartup?: PublicRematchStartup | null;
+	// Legal turn prefix tree for the pending roll (play-api #279). null when elided above 1000 paths.
+	legalMoves?: MoveTree | null;
+}
+
+export interface GameMoves {
+	version: number;
+	dfen: string;
+	dicePending: boolean;
+	legalMoves: MoveTree | null;
 }
 
 export type PublicRematchStartupPhase = 'awaiting_joins' | 'active' | 'aborted';
@@ -137,7 +147,16 @@ export interface SnapshotTurn {
 export type ServerEvent =
 	// Optional so a pre-history server still parses; the current server always sends it.
 	| { Snapshot: { v: number; state: PublicGameState; history?: SnapshotTurn[] } }
-	| { DiceRolled: { v: number; seat: Seat; dice: number[]; dfen: string; clocks: Clocks | null } }
+	| {
+			DiceRolled: {
+				v: number;
+				seat: Seat;
+				dice: number[];
+				dfen: string;
+				clocks: Clocks | null;
+				legalMoves?: MoveTree | null;
+			};
+	  }
 	| { TurnPlayed: { v: number; seat: Seat; moves: string[]; fenAfter: string } }
 	| { DrawOffered: { v: number; by: Seat } }
 	| { DrawDeclined: { v: number; by: Seat } }
