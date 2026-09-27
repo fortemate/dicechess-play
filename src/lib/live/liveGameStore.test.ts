@@ -4,7 +4,7 @@ import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import { LiveGameStore } from './liveGameStore.svelte';
 import type { ClientCommand, PublicGameState, ServerEvent } from './liveTypes';
 import { getPieceFromFen } from '../../utils/fenUtils';
-import { playDiceSound, playDrawOfferSound } from '../sound';
+import { playCue, playDrawOfferSound } from '../sound';
 import { toastStore } from '../toastStore.svelte';
 import { preferencesStore } from '../preferencesStore.svelte';
 import { m } from '$lib/paraglide/messages.js';
@@ -15,10 +15,13 @@ import { getMoves } from './liveApi';
 // The store triggers real audio through the shared sound service; stub it so tests can
 // assert WHEN a roll sounds (aligned with its presented spin) without touching Audio.
 vi.mock('../sound', () => ({
-	playDiceSound: vi.fn(),
+	playCue: vi.fn(),
 	playDrawOfferSound: vi.fn(),
 	preloadSounds: vi.fn(),
 }));
+
+/** How many times the store asked for one cue. */
+const played = (cue: string) => vi.mocked(playCue).mock.calls.filter(([c]) => c === cue).length;
 
 // Stub the toast surface so tests can assert WHEN a rejection/connection-drop notice fires,
 // without pulling in the real store's DOM-free but stateful toast queue.
@@ -219,7 +222,7 @@ describe('LiveGameStore pacing', () => {
 
 		// The spin presents immediately (values already visible underneath), with its sound…
 		expect(live.isAnimatingRoll).toBe(true);
-		expect(vi.mocked(playDiceSound)).toHaveBeenCalledTimes(1);
+		expect(played('dice_roll')).toBe(1);
 		// …and the board is NOT playable until the spin lands.
 		expect(live.legalMovesDests.size).toBe(0);
 
@@ -247,14 +250,14 @@ describe('LiveGameStore pacing', () => {
 		});
 
 		// The opponent's two knight moves are still revealing — the own roll must wait its turn.
-		expect(vi.mocked(playDiceSound)).not.toHaveBeenCalled();
+		expect(played('dice_roll')).toBe(0);
 		expect(live.isAnimatingRoll).toBe(false);
 
 		await vi.advanceTimersByTimeAsync(1000); // first knight move lands
-		expect(vi.mocked(playDiceSound)).not.toHaveBeenCalled();
+		expect(played('dice_roll')).toBe(0);
 
 		await vi.advanceTimersByTimeAsync(1000); // second knight move lands -> roll presents
-		expect(vi.mocked(playDiceSound)).toHaveBeenCalledTimes(1);
+		expect(played('dice_roll')).toBe(1);
 		expect(live.isAnimatingRoll).toBe(true);
 		expect(live.legalMovesDests.size).toBe(0);
 
@@ -454,7 +457,7 @@ describe('LiveGameStore pacing', () => {
 		live.dispose(); // user navigates away mid-reveal
 
 		await vi.advanceTimersByTimeAsync(10_000);
-		expect(vi.mocked(playDiceSound)).not.toHaveBeenCalled(); // the queued roll never presents
+		expect(played('dice_roll')).toBe(0); // the queued roll never presents
 		expect(live.isAnimatingRoll).toBe(false);
 	});
 
@@ -580,6 +583,105 @@ describe('LiveGameStore pacing', () => {
 
 		// The second pump must have actually started, not been silently dropped by a stale pumpingEpoch.
 		expect(live.isAnimatingRoll).toBe(true);
+	});
+});
+
+describe('LiveGameStore sound cues (#167)', () => {
+	let live: LiveGameStore;
+
+	beforeEach(() => {
+		vi.useFakeTimers();
+		vi.clearAllMocks();
+		vi.stubGlobal('WebSocket', MockWebSocket as unknown as typeof WebSocket);
+		MockWebSocket.last = null;
+		live = new LiveGameStore();
+		live.connect('g', 'tok', 'white');
+		MockWebSocket.last!.onopen?.();
+	});
+
+	afterEach(() => {
+		live.dispose();
+		vi.useRealTimers();
+		vi.unstubAllGlobals();
+	});
+
+	const deliver = deliverEvent;
+	const cues = () => vi.mocked(playCue).mock.calls.map(([cue]) => cue);
+
+	it("sounds each of the opponent's moves as it lands, not when the turn arrives", async () => {
+		deliver(snapshot({ dfen: `${START_FEN_BLACK} nn`, activeSeat: 'Black' }));
+		deliver({
+			TurnPlayed: { v: 1, seat: 'Black', moves: ['b8c6', 'g8f6'], fenAfter: AFTER_BLACK_KNIGHTS },
+		});
+		expect(played('piece_move')).toBe(0);
+
+		await vi.advanceTimersByTimeAsync(1000);
+		expect(played('piece_move')).toBe(1);
+
+		await vi.advanceTimersByTimeAsync(1000);
+		expect(played('piece_move')).toBe(2);
+	});
+
+	it("sounds the player's own move as they play it", async () => {
+		deliver(snapshot());
+		deliver({
+			DiceRolled: { v: 1, seat: 'White', dice: [2], dfen: `${START_FEN} N`, clocks: null },
+		});
+		await vi.advanceTimersByTimeAsync(600); // let the spin land
+		vi.mocked(playCue).mockClear();
+
+		live.handleBoardMove('b1', 'c3');
+
+		expect(cues()).toEqual(['piece_move']);
+	});
+
+	it('sounds a roll with nothing to play when its notice goes up', () => {
+		deliver(snapshot({ dfen: `${START_FEN_BLACK} n`, activeSeat: 'Black' }));
+		deliver({ TurnPlayed: { v: 1, seat: 'Black', moves: [], fenAfter: START_FEN_BLACK } });
+
+		expect(live.passNoticeSeat).toBe('Black');
+		expect(cues()).toEqual(['no_move']);
+	});
+
+	it("plays the viewer's result after the suspense beat of a game that ends in front of them", async () => {
+		deliver(snapshot());
+		deliver({
+			GameEnded: { v: 1, over: { result: { Win: { side: 'Black' } }, termination: 'Resign' } },
+		});
+		expect(played('game_loss')).toBe(0);
+
+		await vi.advanceTimersByTimeAsync(800);
+		expect(live.outcome).toBe('lost');
+		expect(played('game_loss')).toBe(1);
+	});
+
+	it('plays the draw jingle for a draw', async () => {
+		deliver(snapshot());
+		deliver({ GameEnded: { v: 1, over: { result: { Draw: {} }, termination: 'Draw' } } });
+
+		await vi.advanceTimersByTimeAsync(800);
+		expect(cues()).toContain('game_draw');
+	});
+
+	it('announces a game that was already over when the page joined without a sound', () => {
+		deliver({
+			Snapshot: {
+				v: 5,
+				state: {
+					version: 5,
+					dfen: `${START_FEN} N`,
+					activeSeat: 'White',
+					dicePending: false,
+					status: {
+						Ended: { over: { result: { Win: { side: 'White' } }, termination: 'Resign' } },
+					},
+					clocks: null,
+				},
+			},
+		});
+
+		expect(live.gameStatus).toBe('over');
+		expect(cues()).toEqual([]);
 	});
 });
 

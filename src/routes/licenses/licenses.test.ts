@@ -17,6 +17,7 @@ describe('licenses page', () => {
 			'chessground',
 			'engine',
 			'pieces',
+			'sounds',
 			'dependencies',
 			'source-notice',
 		]);
@@ -44,6 +45,14 @@ describe('licenses page', () => {
 		const ogUrl = document.head.querySelector('meta[property="og:url"]')?.getAttribute('content');
 		expect(ogTitle).toBe('Open Source Licenses & Disclosures');
 		expect(ogUrl).toBe('https://fortemate.com/licenses');
+	});
+
+	it('credits the Kenney sound packs the site plays (#167)', () => {
+		const { container } = render(LicensesPage);
+		const sounds = container.querySelector('#sounds');
+		expect(sounds?.textContent).toContain('CC0-1.0');
+		expect(sounds?.textContent).toContain('Sounds by Kenney');
+		expect(sounds?.querySelector('a[href="https://kenney.nl"]')).not.toBeNull();
 	});
 
 	it('provides third-party and play client license disclosures', () => {

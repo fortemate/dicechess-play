@@ -1,0 +1,128 @@
+{
+  "schemaVersion": 1,
+  "id": "kenney-casino-audio",
+  "author": "Kenney Vleugels (Kenney.nl)",
+  "attribution": "Sounds by Kenney – https://kenney.nl",
+  "attributionRequired": false,
+  "license": "CC0-1.0",
+  "licenseFile": "LICENSE.txt",
+  "upstream": "https://kenney.nl/assets/casino-audio",
+  "upstreamVersion": "1.1",
+  "version": "1.0.0",
+  "status": "imported",
+  "formats": [
+    "ogg",
+    "mp3"
+  ],
+  "exports": {
+    "ogg": "exports/ogg",
+    "mp3": "exports/mp3"
+  },
+  "sampleRate": 44100,
+  "channels": "stereo",
+  "checksums": "checksums.json",
+  "sourceFileCount": 54,
+  "provenance": {
+    "source": "Kenney Casino Audio, downloaded from https://kenney.nl/assets/casino-audio on 2026-09-23",
+    "download": "https://kenney.nl/media/pages/assets/casino-audio/2472606a04-1721639069/kenney_casino-audio.zip",
+    "archiveSha256": "f36250766ac5bc378c13708ddf12a23a8e54a3251f8d482c7536e51b5dbafa18",
+    "note": "source/ogg/ holds every file under the archive's Audio/ directory unchanged. LICENSE.txt is the archive's License.txt unchanged. The preview clip and the two .url shortcuts are not assets and were left out."
+  },
+  "events": {
+    "dice_roll": [
+      "exports/ogg/dice_throw_1.ogg",
+      "exports/ogg/dice_throw_2.ogg",
+      "exports/ogg/dice_throw_3.ogg",
+      "exports/mp3/dice_throw_1.mp3",
+      "exports/mp3/dice_throw_2.mp3",
+      "exports/mp3/dice_throw_3.mp3"
+    ],
+    "dice_pickup": [
+      "exports/ogg/dice_grab_1.ogg",
+      "exports/ogg/dice_grab_2.ogg",
+      "exports/mp3/dice_grab_1.mp3",
+      "exports/mp3/dice_grab_2.mp3"
+    ],
+    "dice_shake": [
+      "exports/ogg/dice_shake_1.ogg",
+      "exports/ogg/dice_shake_2.ogg",
+      "exports/ogg/dice_shake_3.ogg",
+      "exports/mp3/dice_shake_1.mp3",
+      "exports/mp3/dice_shake_2.mp3",
+      "exports/mp3/dice_shake_3.mp3"
+    ],
+    "turn_handoff": [
+      "exports/ogg/dice_grab_2.ogg",
+      "exports/mp3/dice_grab_2.mp3"
+    ]
+  },
+  "exportSources": {
+    "exports/ogg/dice_throw_1.ogg": "ogg/dice-throw-1.ogg",
+    "exports/ogg/dice_throw_2.ogg": "ogg/dice-throw-2.ogg",
+    "exports/ogg/dice_throw_3.ogg": "ogg/dice-throw-3.ogg",
+    "exports/ogg/die_throw_1.ogg": "ogg/die-throw-1.ogg",
+    "exports/ogg/die_throw_2.ogg": "ogg/die-throw-2.ogg",
+    "exports/ogg/die_throw_3.ogg": "ogg/die-throw-3.ogg",
+    "exports/ogg/die_throw_4.ogg": "ogg/die-throw-4.ogg",
+    "exports/ogg/dice_grab_1.ogg": "ogg/dice-grab-1.ogg",
+    "exports/ogg/dice_grab_2.ogg": "ogg/dice-grab-2.ogg",
+    "exports/ogg/dice_shake_1.ogg": "ogg/dice-shake-1.ogg",
+    "exports/ogg/dice_shake_2.ogg": "ogg/dice-shake-2.ogg",
+    "exports/ogg/dice_shake_3.ogg": "ogg/dice-shake-3.ogg"
+  },
+  "derivedExports": {
+    "exports/mp3/dice_throw_1.mp3": {
+      "source": "ogg/dice-throw-1.ogg",
+      "sha256": "bba01f667891a795449c2a3eb2dfe762cb469c40bfc6447665c99cdbca1d0d0b"
+    },
+    "exports/mp3/dice_throw_2.mp3": {
+      "source": "ogg/dice-throw-2.ogg",
+      "sha256": "64d8983bc2906a7da24f0591900724997aaa522e60052ea91d6e7f59174a7bd5"
+    },
+    "exports/mp3/dice_throw_3.mp3": {
+      "source": "ogg/dice-throw-3.ogg",
+      "sha256": "60edba77c5bf0c9b9994c83e038bdb09289459fc5ff2e74982aee4dc8ece45cb"
+    },
+    "exports/mp3/die_throw_1.mp3": {
+      "source": "ogg/die-throw-1.ogg",
+      "sha256": "5a6997af25d73e5de646628eef36381ceb8429d4c9fb051236cbfdae580660a2"
+    },
+    "exports/mp3/die_throw_2.mp3": {
+      "source": "ogg/die-throw-2.ogg",
+      "sha256": "67ee333560434ab6724ace70d0badee5806d25e04b47e8b57b5c3cf862f30df1"
+    },
+    "exports/mp3/die_throw_3.mp3": {
+      "source": "ogg/die-throw-3.ogg",
+      "sha256": "435d91b6631eb04aa6098d24622813f07f9986dad31cc2b8b020a9cb5f5b6c4e"
+    },
+    "exports/mp3/die_throw_4.mp3": {
+      "source": "ogg/die-throw-4.ogg",
+      "sha256": "732f3500b8862f479d6479c79a839a876b54ddc59617050a1cb774a2a299d109"
+    },
+    "exports/mp3/dice_grab_1.mp3": {
+      "source": "ogg/dice-grab-1.ogg",
+      "sha256": "ba1334f8da69b77e3ed3517a79f4fbd34c19c9559758c2c7f28f97eba36ae7c9"
+    },
+    "exports/mp3/dice_grab_2.mp3": {
+      "source": "ogg/dice-grab-2.ogg",
+      "sha256": "bf553a7a4baca9fb3f1fe475e92f851640641eb5b6b100179ef4d1b733590a82"
+    },
+    "exports/mp3/dice_shake_1.mp3": {
+      "source": "ogg/dice-shake-1.ogg",
+      "sha256": "5ddc4cb2751dff6baf2e022e98334b1f5fcf0d322ee770feb7694787254eaad0"
+    },
+    "exports/mp3/dice_shake_2.mp3": {
+      "source": "ogg/dice-shake-2.ogg",
+      "sha256": "a9d82be1f0a880ff2a186268763dbfb6a8051f3b4d042c8ab4bfcfd6909a4a73"
+    },
+    "exports/mp3/dice_shake_3.mp3": {
+      "source": "ogg/dice-shake-3.ogg",
+      "sha256": "c2fe2f68d928ee951c049314cdb412c2e6f3e40334fd3612ca35cf1dc8a93594"
+    }
+  },
+  "derivation": {
+    "tool": "ffmpeg 9.0.1 with libmp3lame",
+    "arguments": "-map_metadata -1 -fflags +bitexact -flags:a +bitexact -codec:a libmp3lame -b:a 192k",
+    "note": "Kenney ships Ogg Vorbis only, and Vega OS cannot play Vorbis. MP3 is transcoded from the verbatim OGG at the same sample rate and channel count, 192 kbit/s CBR like the JDSherbert exports. Deterministic with this encoder build. Each derived export records its own SHA-256 here, so re-encoding is a visible change to this file rather than a silent one; a re-encode on another machine is not expected to match byte for byte."
+  }
+}

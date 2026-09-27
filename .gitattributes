@@ -1,0 +1,2 @@
+# Vendored sound packs keep their bytes: Kenney's licence files are CRLF, and the lock records their digests.
+static/sounds/** -text

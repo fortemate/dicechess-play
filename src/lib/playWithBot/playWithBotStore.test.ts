@@ -6,6 +6,10 @@ import {
 } from './playWithBotStore.svelte';
 import { preferencesStore } from '../preferencesStore.svelte';
 import { initialDrawOfferState } from '../draw/drawRules';
+import { playCue } from '../sound';
+
+// jsdom has no media playback; the cues the store asks for are what these tests check.
+vi.mock('../sound', () => ({ playCue: vi.fn(), preloadSounds: vi.fn() }));
 
 const START_FEN = 'rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1';
 
@@ -599,5 +603,63 @@ describe('PlayWithBotStore legal turn tree (#164)', () => {
 
 		await vi.advanceTimersByTimeAsync(800); // victory dwell
 		expect(store.gameStatus).toBe('victory');
+	});
+});
+
+describe('PlayWithBotStore sound cues (#167)', () => {
+	let store: PlayWithBotStore;
+	let mock: ReturnType<typeof createMockDiceChess>;
+	const cues = () => vi.mocked(playCue).mock.calls.map(([cue]) => cue);
+
+	beforeEach(() => {
+		vi.useFakeTimers();
+		vi.mocked(playCue).mockClear();
+		mock = createMockDiceChess();
+		setDiceChessInstance(mock);
+		store = new PlayWithBotStore();
+		store.customDfen = `${START_FEN} PPP`;
+		store.startNewGame('white', 'greedy');
+	});
+
+	afterEach(() => {
+		store.endSession();
+		resetDiceChessInstance();
+		vi.useRealTimers();
+	});
+
+	async function roll() {
+		const rolled = store.rollDice();
+		await vi.advanceTimersByTimeAsync(600);
+		await rolled;
+	}
+
+	it('sounds the roll as the dice start to spin, and each move as it is played', async () => {
+		const rolled = store.rollDice();
+		expect(cues()).toEqual(['dice_roll']);
+		await vi.advanceTimersByTimeAsync(600);
+		await rolled;
+
+		store.handleBoardMove('e2', 'e4');
+		expect(cues()).toEqual(['dice_roll', 'piece_move']);
+	});
+
+	it('sounds a roll with nothing to play once the dice have landed', async () => {
+		mock.getLegalUciMoves.mockReturnValue([]);
+		mock.getLegalTurnTree.mockReturnValue({});
+		const rolled = store.rollDice();
+		expect(cues()).not.toContain('no_move');
+		await vi.advanceTimersByTimeAsync(600);
+		await rolled;
+
+		expect(store.gameStatus).toBe('bot_thinking');
+		expect(cues()).toContain('no_move');
+	});
+
+	it('plays the losing jingle on a resignation', async () => {
+		await roll();
+		store.resignGame();
+
+		expect(store.gameStatus).toBe('defeat');
+		expect(cues().at(-1)).toBe('game_loss');
 	});
 });

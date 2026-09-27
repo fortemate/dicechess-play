@@ -1,0 +1,69 @@
+{
+  "schemaVersion": 1,
+  "id": "kenney-music-jingles",
+  "author": "Kenney Vleugels (Kenney.nl)",
+  "attribution": "Sounds by Kenney – https://kenney.nl",
+  "attributionRequired": false,
+  "license": "CC0-1.0",
+  "licenseFile": "LICENSE.txt",
+  "upstream": "https://kenney.nl/assets/music-jingles",
+  "upstreamVersion": null,
+  "version": "1.0.0",
+  "status": "imported",
+  "formats": [
+    "ogg",
+    "mp3"
+  ],
+  "exports": {
+    "ogg": "exports/ogg",
+    "mp3": "exports/mp3"
+  },
+  "sampleRate": 44100,
+  "channels": "stereo",
+  "checksums": "checksums.json",
+  "sourceFileCount": 85,
+  "provenance": {
+    "source": "Kenney Music Jingles, downloaded from https://kenney.nl/assets/music-jingles on 2026-09-23",
+    "download": "https://kenney.nl/media/pages/assets/music-jingles/f37e530b9e-1677590399/kenney_music-jingles.zip",
+    "archiveSha256": "b729ba57959bd58793d2c5cafa348aaf2655d354f3da35ec4729e03ec77197b8",
+    "note": "source/ogg/ holds every file under the archive's Audio/ directory unchanged. LICENSE.txt is the archive's License.txt unchanged. The preview clip and the two .url shortcuts are not assets and were left out."
+  },
+  "events": {
+    "game_win": [
+      "exports/ogg/pizzicato_02.ogg",
+      "exports/mp3/pizzicato_02.mp3"
+    ],
+    "game_loss": [
+      "exports/ogg/pizzicato_01.ogg",
+      "exports/mp3/pizzicato_01.mp3"
+    ],
+    "game_draw": [
+      "exports/ogg/pizzicato_03.ogg",
+      "exports/mp3/pizzicato_03.mp3"
+    ]
+  },
+  "exportSources": {
+    "exports/ogg/pizzicato_01.ogg": "ogg/Pizzicato jingles/jingles_PIZZI01.ogg",
+    "exports/ogg/pizzicato_02.ogg": "ogg/Pizzicato jingles/jingles_PIZZI02.ogg",
+    "exports/ogg/pizzicato_03.ogg": "ogg/Pizzicato jingles/jingles_PIZZI03.ogg"
+  },
+  "derivedExports": {
+    "exports/mp3/pizzicato_01.mp3": {
+      "source": "ogg/Pizzicato jingles/jingles_PIZZI01.ogg",
+      "sha256": "caf55d540a3d590311810870b2b2a6f7d57e2771f6b2c02ac37c33fe2a23226a"
+    },
+    "exports/mp3/pizzicato_02.mp3": {
+      "source": "ogg/Pizzicato jingles/jingles_PIZZI02.ogg",
+      "sha256": "d3d287befbb9dc8e00ab774ebf8a8f1dc9bc3deb8a6add7a69a90fece9f29b51"
+    },
+    "exports/mp3/pizzicato_03.mp3": {
+      "source": "ogg/Pizzicato jingles/jingles_PIZZI03.ogg",
+      "sha256": "5cc40e6c736c50831a3ba68e1aa92d2cc387accd1460b46720701a0af4490f8f"
+    }
+  },
+  "derivation": {
+    "tool": "ffmpeg 9.0.1 with libmp3lame",
+    "arguments": "-map_metadata -1 -fflags +bitexact -flags:a +bitexact -codec:a libmp3lame -b:a 192k",
+    "note": "Kenney ships Ogg Vorbis only, and Vega OS cannot play Vorbis. MP3 is transcoded from the verbatim OGG at the same sample rate and channel count, 192 kbit/s CBR like the JDSherbert exports. Deterministic with this encoder build. Each derived export records its own SHA-256 here, so re-encoding is a visible change to this file rather than a silent one; a re-encode on another machine is not expected to match byte for byte."
+  }
+}

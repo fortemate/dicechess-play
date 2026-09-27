@@ -1,0 +1,134 @@
+{
+	"upstream": "fortemate/dicechess-assets",
+	"commit": "ddfd44b71b619db2069660bbead89b628ea1201c",
+	"formats": ["ogg", "mp3"],
+	"packs": {
+		"kenney-casino-audio": {
+			"version": "1.0.0",
+			"license": "CC0-1.0",
+			"attribution": "Sounds by Kenney – https://kenney.nl",
+			"attributionRequired": false,
+			"files": {
+				"manifest.json": {
+					"from": "sounds/kenney-casino-audio/manifest.json",
+					"sha256": "7fee0f1f2c435c0043dcfe59e9f98cbe2d2f7c8b7c2413e094a00bbd192c0a33"
+				},
+				"LICENSE.txt": {
+					"from": "sounds/kenney-casino-audio/LICENSE.txt",
+					"sha256": "3d9c53acb6e236d760da14030f54bc53e1d8c2599f78470c36b96fddcde09221"
+				},
+				"dice_throw_1.mp3": {
+					"from": "sounds/kenney-casino-audio/exports/mp3/dice_throw_1.mp3",
+					"sha256": "bba01f667891a795449c2a3eb2dfe762cb469c40bfc6447665c99cdbca1d0d0b"
+				},
+				"dice_throw_2.mp3": {
+					"from": "sounds/kenney-casino-audio/exports/mp3/dice_throw_2.mp3",
+					"sha256": "64d8983bc2906a7da24f0591900724997aaa522e60052ea91d6e7f59174a7bd5"
+				},
+				"dice_throw_3.mp3": {
+					"from": "sounds/kenney-casino-audio/exports/mp3/dice_throw_3.mp3",
+					"sha256": "60edba77c5bf0c9b9994c83e038bdb09289459fc5ff2e74982aee4dc8ece45cb"
+				},
+				"dice_throw_1.ogg": {
+					"from": "sounds/kenney-casino-audio/exports/ogg/dice_throw_1.ogg",
+					"sha256": "4e6581c73465cdd7ec32e86a709b4ea5c682e819c9bdb7989d1df1880ba67886"
+				},
+				"dice_throw_2.ogg": {
+					"from": "sounds/kenney-casino-audio/exports/ogg/dice_throw_2.ogg",
+					"sha256": "e0b8c370503b2c5c2a72d311cccae30fe63a6afd48f2be32e771fcf1a98585d6"
+				},
+				"dice_throw_3.ogg": {
+					"from": "sounds/kenney-casino-audio/exports/ogg/dice_throw_3.ogg",
+					"sha256": "09c13d35a9a30bfce31a5e9bca94adc5be189ddecd0b4500237d54c7fd05227c"
+				}
+			}
+		},
+		"kenney-interface-sounds": {
+			"version": "1.0.0",
+			"license": "CC0-1.0",
+			"attribution": "Sounds by Kenney – https://kenney.nl",
+			"attributionRequired": false,
+			"files": {
+				"manifest.json": {
+					"from": "sounds/kenney-interface-sounds/manifest.json",
+					"sha256": "fe3c954727856ae831171f49e9fd26b32fa438cbe2c940d9a96b52ddf00f164a"
+				},
+				"LICENSE.txt": {
+					"from": "sounds/kenney-interface-sounds/LICENSE.txt",
+					"sha256": "f7966c773bbed0eca6a9c75081c44a178b38eae112724dbb5fdfbd4192d118a9"
+				},
+				"glass_004.mp3": {
+					"from": "sounds/kenney-interface-sounds/exports/mp3/glass_004.mp3",
+					"sha256": "0bbc0cf70bc0992364f2e969055c88195744975a651ff75b89a5f190c6ee48f7"
+				},
+				"maximize_006.mp3": {
+					"from": "sounds/kenney-interface-sounds/exports/mp3/maximize_006.mp3",
+					"sha256": "5370809cd3e1a29aacc79024a8ba8b72a12202464f9c514f88ff19124874ecc1"
+				},
+				"glass_004.ogg": {
+					"from": "sounds/kenney-interface-sounds/exports/ogg/glass_004.ogg",
+					"sha256": "2379b58f953e3d86982aa8cddcae763022c6258e9820171bf905ce58b4e97766"
+				},
+				"maximize_006.ogg": {
+					"from": "sounds/kenney-interface-sounds/exports/ogg/maximize_006.ogg",
+					"sha256": "f050b3bb77cb0b901bc8df43d2cc1872c353aebae10b4030cf8ae681726ad343"
+				}
+			}
+		},
+		"kenney-music-jingles": {
+			"version": "1.0.0",
+			"license": "CC0-1.0",
+			"attribution": "Sounds by Kenney – https://kenney.nl",
+			"attributionRequired": false,
+			"files": {
+				"manifest.json": {
+					"from": "sounds/kenney-music-jingles/manifest.json",
+					"sha256": "6573da44acd53cb13538ef792a0bbbd90cb4e57d1be5362a682d78ab05b73abb"
+				},
+				"LICENSE.txt": {
+					"from": "sounds/kenney-music-jingles/LICENSE.txt",
+					"sha256": "373b1c880ee6c7a83c1ccf209f251cf45fc9ea9b1f0330844fa7be64a401adc4"
+				},
+				"pizzicato_01.mp3": {
+					"from": "sounds/kenney-music-jingles/exports/mp3/pizzicato_01.mp3",
+					"sha256": "caf55d540a3d590311810870b2b2a6f7d57e2771f6b2c02ac37c33fe2a23226a"
+				},
+				"pizzicato_02.mp3": {
+					"from": "sounds/kenney-music-jingles/exports/mp3/pizzicato_02.mp3",
+					"sha256": "d3d287befbb9dc8e00ab774ebf8a8f1dc9bc3deb8a6add7a69a90fece9f29b51"
+				},
+				"pizzicato_03.mp3": {
+					"from": "sounds/kenney-music-jingles/exports/mp3/pizzicato_03.mp3",
+					"sha256": "5cc40e6c736c50831a3ba68e1aa92d2cc387accd1460b46720701a0af4490f8f"
+				},
+				"pizzicato_01.ogg": {
+					"from": "sounds/kenney-music-jingles/exports/ogg/pizzicato_01.ogg",
+					"sha256": "3f8f2534a297d19386c233a7ee4fa8737cc40870dd206010263760e1983dde46"
+				},
+				"pizzicato_02.ogg": {
+					"from": "sounds/kenney-music-jingles/exports/ogg/pizzicato_02.ogg",
+					"sha256": "4967dc3cd31257716f455ef50f8980378726ce086954c7a5563c0c57ee129e3e"
+				},
+				"pizzicato_03.ogg": {
+					"from": "sounds/kenney-music-jingles/exports/ogg/pizzicato_03.ogg",
+					"sha256": "88da900ec74a79fb845f2dcf2068383998833a9ee1b87a23f074924781af5700"
+				}
+			}
+		}
+	},
+	"cues": {
+		"dice_roll": [
+			"kenney-casino-audio/dice_throw_1",
+			"kenney-casino-audio/dice_throw_2",
+			"kenney-casino-audio/dice_throw_3"
+		],
+		"piece_move": [],
+		"piece_capture": [],
+		"castle": [],
+		"promotion": ["kenney-interface-sounds/maximize_006"],
+		"no_move": ["kenney-interface-sounds/glass_004"],
+		"game_win": ["kenney-music-jingles/pizzicato_02"],
+		"game_loss": ["kenney-music-jingles/pizzicato_01"],
+		"game_draw": ["kenney-music-jingles/pizzicato_03"]
+	}
+}

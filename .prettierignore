@@ -6,3 +6,5 @@ public/
 src/lib/paraglide/
 project.inlang/*
 !project.inlang/settings.json
+# Vendored sound packs are byte-for-byte upstream copies with recorded digests (scripts/vendor-sounds.mjs).
+static/sounds/*/

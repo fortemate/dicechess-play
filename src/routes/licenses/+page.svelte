@@ -10,6 +10,7 @@
 		{ id: 'chessground', title: 'Chessground (Lichess)' },
 		{ id: 'engine', title: 'Dice Chess Engine' },
 		{ id: 'pieces', title: 'Chess Piece Graphics' },
+		{ id: 'sounds', title: 'Sound Effects (Kenney)' },
 		{ id: 'dependencies', title: 'Third-Party Libraries' },
 		{ id: 'source-notice', title: 'Source Code & AGPL-3.0-only Notice' },
 	] as const;
@@ -259,6 +260,58 @@
 					rel="noopener noreferrer"
 				>
 					Creative Commons Attribution-ShareAlike 3.0 (CC BY-SA 3.0)
+				</a>
+			</div>
+		</div>
+	</section>
+
+	<section
+		id="sounds"
+		class="flex flex-col gap-4 rounded-2xl border border-border bg-surface/40 p-6"
+	>
+		<div class="flex flex-col gap-1">
+			<div class="flex flex-wrap items-center justify-between gap-2">
+				<h2 class="text-xl font-bold text-content">Sound Effects (Kenney)</h2>
+				<span
+					class="rounded-md border border-primary/40 bg-primary/10 px-2.5 py-0.5 font-mono text-xs font-semibold text-primary"
+				>
+					CC0-1.0
+				</span>
+			</div>
+			<p class="text-xs text-content-muted">
+				Asset: <code class="font-mono">/sounds/kenney-*/</code>
+			</p>
+		</div>
+
+		<p class="leading-relaxed text-content-muted">
+			The dice, promotion, no-legal-moves and game-result sounds come from Kenney's Casino Audio,
+			Interface Sounds and Music Jingles packs, the same cues as Dice Chess for Fire TV. Kenney
+			dedicates them to the public domain under CC0 1.0, so no credit is required; we give it
+			anyway. Each pack's licence file is served beside its sounds.
+		</p>
+
+		<div class="flex flex-col gap-2 text-sm">
+			<div>
+				<span class="font-semibold text-content">Credit:</span>
+				<span class="text-content-muted"> Sounds by Kenney –</span>
+				<a
+					class="font-semibold text-primary hover:underline"
+					href="https://kenney.nl"
+					target="_blank"
+					rel="noopener noreferrer"
+				>
+					https://kenney.nl
+				</a>
+			</div>
+			<div>
+				<span class="font-semibold text-content">License:</span>
+				<a
+					class="font-semibold text-primary hover:underline"
+					href="https://creativecommons.org/publicdomain/zero/1.0/"
+					target="_blank"
+					rel="noopener noreferrer"
+				>
+					Creative Commons Zero 1.0 Universal (CC0 1.0)
 				</a>
 			</div>
 		</div>

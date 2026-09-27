@@ -10,7 +10,7 @@ import type { GameHistory } from './historyApi';
  * socket for half a minute and then sit on a board that looks playable, for a game that is decided.
  */
 vi.mock('../sound', () => ({
-	playDiceSound: vi.fn(),
+	playCue: vi.fn(),
 	playDrawOfferSound: vi.fn(),
 	preloadSounds: vi.fn(),
 }));
