@@ -11,7 +11,7 @@ import type {
 
 // Mock audio and toasts
 vi.mock('../sound', () => ({
-	playDiceSound: vi.fn(),
+	playCue: vi.fn(),
 	playDrawOfferSound: vi.fn(),
 	preloadSounds: vi.fn(),
 }));

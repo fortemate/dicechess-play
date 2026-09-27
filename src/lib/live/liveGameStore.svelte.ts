@@ -34,7 +34,8 @@ import { DiceChess } from '@fortemate/dicechess-engine/rules';
 import { buildTurnBlocks } from '../playWithBot/turnBlocks';
 import type { BotMoveHistoryState } from '../playWithBot/playWithBotHistory.svelte';
 import type { TurnBlock } from '../types';
-import { playDiceSound, playDrawOfferSound } from '../sound';
+import { playCue, playDrawOfferSound } from '../sound';
+import { historyUci, moveCue, resultCue } from '../soundCues';
 import { ROLL_ANIMATION_MS, MOVE_STEP_MS, PASS_DWELL_MS, GAME_END_SUSPENSE_MS } from '../timings';
 import { lastMoveKeys } from '../lastMove';
 import { toastStore } from '../toastStore.svelte';
@@ -782,6 +783,9 @@ export class LiveGameStore {
 		await this.sleep(GAME_END_SUSPENSE_MS);
 		if (epoch !== this.epoch || this.pendingOver === null) return;
 		this.finalizeEnd(this.pendingOver);
+		// Only here, where the game ended while the viewer watched: joining a finished game (the
+		// snapshot path) or reading it back from the archive announces it silently.
+		playCue(resultCue(this.outcome));
 	}
 
 	private finalizeEnd(over: Over): void {
@@ -1056,6 +1060,7 @@ export class LiveGameStore {
 			return;
 		}
 		this.liveFen = stripDfen(nextRaw);
+		playCue(moveCue(oldFen, orig + dest + (promo ?? '')));
 		this.consumeCastlingDie(orig, dest, getPieceFromFen(oldFen, orig));
 		this.pendingMoves.push(orig + dest + (promo ?? ''));
 
@@ -1234,7 +1239,7 @@ export class LiveGameStore {
 					this.presentedIndex = nextIndex; // dice values visible immediately, spin plays on top
 					this.isAnimatingRoll = true;
 					this.updateClockTicking();
-					playDiceSound();
+					playCue('dice_roll');
 					await this.sleep(ROLL_ANIMATION_MS);
 					if (epoch !== this.epoch) return;
 					this.isAnimatingRoll = false;
@@ -1244,6 +1249,7 @@ export class LiveGameStore {
 					// notice up, then move on.
 					this.passNoticeSeat = entry.active_color === 'w' ? 'White' : 'Black';
 					this.updateClockTicking();
+					playCue('no_move'); // after the roll's spin: the dice have landed
 					await this.sleep(PASS_DWELL_MS);
 					if (epoch !== this.epoch) return; // reset()/endGame already cleared the notice
 					this.passNoticeSeat = null;
@@ -1253,8 +1259,11 @@ export class LiveGameStore {
 					this.updateClockTicking();
 					await this.sleep(MOVE_STEP_MS); // pause on the OLD position, then reveal
 					if (epoch !== this.epoch) return;
+					const before = this.historyMap[String(this.presentedIndex)]?.fen;
 					this.presentedIndex = nextIndex;
 					this.updateClockTicking();
+					const move = entry.gameMoveHistoryMove;
+					if (before && move) playCue(moveCue(before, historyUci(move)));
 				}
 			}
 			// Fully caught up: if the game already ended on the wire, the final move has now

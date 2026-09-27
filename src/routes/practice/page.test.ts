@@ -21,7 +21,7 @@ vi.mock('../../components/PlayerStrip.svelte', stub);
 vi.mock('../../components/PawnPromotionSelector.svelte', stub);
 vi.mock('../../components/GameEndModal.svelte', stub);
 
-vi.mock('$lib/sound', () => ({ preloadSounds: vi.fn(), playSound: vi.fn() }));
+vi.mock('$lib/sound', () => ({ preloadSounds: vi.fn(), playCue: vi.fn() }));
 vi.mock('$lib/ingest/outbox', () => ({ flushOutbox: vi.fn() }));
 
 const state = vi.hoisted(() => ({ current: {} as Record<string, unknown> }));

@@ -1,0 +1,60 @@
+{
+  "schemaVersion": 1,
+  "id": "kenney-interface-sounds",
+  "author": "Kenney Vleugels (Kenney.nl)",
+  "attribution": "Sounds by Kenney – https://kenney.nl",
+  "attributionRequired": false,
+  "license": "CC0-1.0",
+  "licenseFile": "LICENSE.txt",
+  "upstream": "https://kenney.nl/assets/interface-sounds",
+  "upstreamVersion": "1.0",
+  "version": "1.0.0",
+  "status": "imported",
+  "formats": [
+    "ogg",
+    "mp3"
+  ],
+  "exports": {
+    "ogg": "exports/ogg",
+    "mp3": "exports/mp3"
+  },
+  "sampleRate": 44100,
+  "channels": "mixed",
+  "checksums": "checksums.json",
+  "sourceFileCount": 100,
+  "provenance": {
+    "source": "Kenney Interface Sounds, downloaded from https://kenney.nl/assets/interface-sounds on 2026-09-23",
+    "download": "https://kenney.nl/media/pages/assets/interface-sounds/fa43c1dd4d-1677589452/kenney_interface-sounds.zip",
+    "archiveSha256": "f2193d072726d6758a5f7871b2dcc54dcce0d5c35c6f0a62f92549b327c81232",
+    "note": "source/ogg/ holds every file under the archive's Audio/ directory unchanged. LICENSE.txt is the archive's License.txt unchanged. The preview clip and the two .url shortcuts are not assets and were left out."
+  },
+  "events": {
+    "promotion": [
+      "exports/ogg/maximize_006.ogg",
+      "exports/mp3/maximize_006.mp3"
+    ],
+    "no_move": [
+      "exports/ogg/glass_004.ogg",
+      "exports/mp3/glass_004.mp3"
+    ]
+  },
+  "exportSources": {
+    "exports/ogg/maximize_006.ogg": "ogg/maximize_006.ogg",
+    "exports/ogg/glass_004.ogg": "ogg/glass_004.ogg"
+  },
+  "derivedExports": {
+    "exports/mp3/maximize_006.mp3": {
+      "source": "ogg/maximize_006.ogg",
+      "sha256": "5370809cd3e1a29aacc79024a8ba8b72a12202464f9c514f88ff19124874ecc1"
+    },
+    "exports/mp3/glass_004.mp3": {
+      "source": "ogg/glass_004.ogg",
+      "sha256": "0bbc0cf70bc0992364f2e969055c88195744975a651ff75b89a5f190c6ee48f7"
+    }
+  },
+  "derivation": {
+    "tool": "ffmpeg 9.0.1 with libmp3lame",
+    "arguments": "-map_metadata -1 -fflags +bitexact -flags:a +bitexact -codec:a libmp3lame -b:a 192k",
+    "note": "Kenney ships Ogg Vorbis only, and Vega OS cannot play Vorbis. MP3 is transcoded from the verbatim OGG at the same sample rate and channel count, 192 kbit/s CBR like the JDSherbert exports. Deterministic with this encoder build. Each derived export records its own SHA-256 here, so re-encoding is a visible change to this file rather than a silent one; a re-encode on another machine is not expected to match byte for byte."
+  }
+}

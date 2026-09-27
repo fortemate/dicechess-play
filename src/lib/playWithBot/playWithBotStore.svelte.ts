@@ -14,7 +14,8 @@ import {
 	resetBotDiceChessInstance,
 } from './playWithBotBot';
 import { authStore } from '../authStore.svelte';
-import { playDiceSound } from '../sound';
+import { playCue } from '../sound';
+import { moveCue, resultCue } from '../soundCues';
 import { ROLL_ANIMATION_MS, PASS_DWELL_MS } from '../timings';
 import { lastMoveKeys } from '../lastMove';
 import {
@@ -82,6 +83,9 @@ import { PlayWithBotDice, type DieState } from './playWithBotDice.svelte';
 
 export type GameStatus =
 	'idle' | 'rolling' | 'playing' | 'bot_thinking' | 'victory' | 'defeat' | 'draw';
+
+// The player's side of each ending, for its jingle.
+const OUTCOME = { victory: 'won', defeat: 'lost', draw: 'draw' } as const;
 
 export class PlayWithBotStore {
 	gameStatus = $state<GameStatus>('idle');
@@ -442,11 +446,11 @@ export class PlayWithBotStore {
 		const playerTimedOut = color === this.playerColor;
 
 		if (playerTimedOut) {
-			this.gameStatus = 'defeat';
+			this.finish('defeat');
 			botStatsStore.recordResult(this.botAlgorithm, 'loss');
 			toastStore.error(m.game_toast_defeat_timeout());
 		} else {
-			this.gameStatus = 'victory';
+			this.finish('victory');
 			botStatsStore.recordResult(this.botAlgorithm, 'win');
 			toastStore.success(m.game_toast_victory_timeout());
 		}
@@ -585,7 +589,7 @@ export class PlayWithBotStore {
 		if (!this.canUserRoll) return;
 
 		this.isAnimatingRoll = true;
-		playDiceSound();
+		playCue('dice_roll');
 
 		let rolled: DieState[];
 		if (this.parsedDfen.dice && this.history.maxMoveIndex === 0) {
@@ -658,6 +662,7 @@ export class PlayWithBotStore {
 		}
 
 		if (!hasAtLeastOneLegalMove) {
+			playCue('no_move'); // after the roll's spin: the dice have landed
 			toastStore.info(m.game_toast_no_legal_moves_forfeited());
 			this.gameStatus = 'bot_thinking';
 			if (this.toggleActiveColorInFen()) {
@@ -858,6 +863,7 @@ export class PlayWithBotStore {
 		const nextBoardFen = nextBoardFenRaw.split(/\s+/).slice(0, 6).join(' ');
 
 		this.liveBoardFen = nextBoardFen;
+		playCue(moveCue(oldBoardFen, orig + dest + (promotionStr || '')));
 
 		// Handle castling die consumption after successful move validation
 		const pieceChar = getPieceFromFen(oldBoardFen, orig);
@@ -912,7 +918,7 @@ export class PlayWithBotStore {
 				// Resign/new-game inside the dwell already settled (or replaced) this game; firing
 				// anyway would record it twice or stamp the fresh game with the old ending.
 				if (this.startTime !== gameId || this.gameStatus !== 'playing') return;
-				this.gameStatus = 'victory';
+				this.finish('victory');
 				botStatsStore.recordResult(this.botAlgorithm, 'win');
 				toastStore.success(m.game_toast_victory_king_captured());
 				this.saveGameRecord(this.playerColor === 'w' ? 1 : -1);
@@ -1013,7 +1019,7 @@ export class PlayWithBotStore {
 			}
 		}
 
-		playDiceSound();
+		playCue('dice_roll');
 
 		this.isAnimatingRoll = true;
 
@@ -1070,6 +1076,7 @@ export class PlayWithBotStore {
 		this.maxMoveIndex = rollIndex;
 
 		if (!botHasMoves) {
+			playCue('no_move');
 			toastStore.info(m.game_toast_bot_no_legal_moves_forfeited());
 			await new Promise((resolve) => setTimeout(resolve, PASS_DWELL_MS));
 			if (this.startTime !== gameId) return; // session ended/restarted during the dwell
@@ -1194,6 +1201,7 @@ export class PlayWithBotStore {
 			const nextBoardFen = nextBoardFenRaw.split(/\s+/).slice(0, 6).join(' ');
 
 			this.liveBoardFen = nextBoardFen;
+			playCue(moveCue(prevBoard, move.from + move.to + (move.promotion || '')));
 
 			// Handle castling die consumption for bot moves
 			this.handleCastlingDieConsumption(move.from, move.to, movingPiece);
@@ -1239,7 +1247,7 @@ export class PlayWithBotStore {
 				}
 				await new Promise((resolve) => setTimeout(resolve, 800));
 				if (this.startTime !== gameId || this.gameStatus !== 'bot_thinking') return;
-				this.gameStatus = 'defeat';
+				this.finish('defeat');
 				botStatsStore.recordResult(this.botAlgorithm, 'loss');
 				toastStore.error(m.game_toast_defeat_king_captured());
 				this.saveGameRecord(this.playerColor === 'w' ? -1 : 1);
@@ -1282,7 +1290,7 @@ export class PlayWithBotStore {
 		this.drawState = initialDrawOfferState<DrawSide>();
 		this.activeDoubleOffer = null;
 		this.gameEndReason = 'resign';
-		this.gameStatus = 'defeat';
+		this.finish('defeat');
 		botStatsStore.recordResult(this.botAlgorithm, 'loss');
 		toastStore.info(m.game_toast_you_resigned());
 		if (this.currentTurnRecord) {
@@ -1441,10 +1449,17 @@ export class PlayWithBotStore {
 		this.triggerDoubleDeclinedDefeat();
 	}
 
+	/** Put the game in a terminal status and play its jingle: every ending here happens in front of
+	 * the player, so each one is heard. */
+	private finish(status: 'victory' | 'defeat' | 'draw'): void {
+		this.gameStatus = status;
+		playCue(resultCue(OUTCOME[status]));
+	}
+
 	private triggerDoubleDeclinedVictory() {
 		this.stopTimer();
 		this.gameEndReason = 'double_declined';
-		this.gameStatus = 'victory';
+		this.finish('victory');
 		botStatsStore.recordResult(this.botAlgorithm, 'win');
 
 		if (this.currentTurnRecord) {
@@ -1459,7 +1474,7 @@ export class PlayWithBotStore {
 	private triggerDoubleDeclinedDefeat() {
 		this.stopTimer();
 		this.gameEndReason = 'double_declined';
-		this.gameStatus = 'defeat';
+		this.finish('defeat');
 		botStatsStore.recordResult(this.botAlgorithm, 'loss');
 
 		if (this.currentTurnRecord) {
@@ -1475,7 +1490,7 @@ export class PlayWithBotStore {
 		this.stopTimer();
 		this.insufficientFundsForfeit = true;
 		this.gameEndReason = 'double_declined';
-		this.gameStatus = 'defeat';
+		this.finish('defeat');
 		botStatsStore.recordResult(this.botAlgorithm, 'loss');
 		toastStore.error(m.game_toast_insufficient_funds_forfeit());
 
@@ -1551,7 +1566,7 @@ export class PlayWithBotStore {
 
 	private triggerDrawEnd() {
 		this.stopTimer();
-		this.gameStatus = 'draw';
+		this.finish('draw');
 		this.gameEndReason = 'agreement';
 
 		if (this.currentTurnRecord) {
