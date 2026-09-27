@@ -81,12 +81,13 @@ for (const [cue, source] of Object.entries(CUES)) {
 
 const soundsDir = join(root, 'static/sounds');
 const lock = { upstream: UPSTREAM, commit, formats: FORMATS, packs: {}, cues };
+// Every file of every pack is read and checked before anything on disk changes, so a digest that
+// does not match leaves the vendored packs and their lock exactly as they were.
+const contents = {};
 for (const [packId, { manifest, exports }] of Object.entries(packs)) {
 	const published = JSON.parse(show(`sounds/${packId}/checksums.json`).toString('utf8'));
-	const dir = join(soundsDir, packId);
-	rmSync(dir, { recursive: true, force: true });
-	mkdirSync(dir, { recursive: true });
 	const files = {};
+	contents[packId] = {};
 	for (const path of ['manifest.json', manifest.licenseFile, ...[...exports].sort(byCodeUnit)]) {
 		const bytes = show(`sounds/${packId}/${path}`);
 		const digest = sha256(bytes);
@@ -94,7 +95,7 @@ for (const [packId, { manifest, exports }] of Object.entries(packs)) {
 			throw new Error(
 				`${packId}/${path} does not match the digest ${UPSTREAM} published at ${commit}`,
 			);
-		writeFileSync(join(dir, baseName(path)), bytes);
+		contents[packId][baseName(path)] = bytes;
 		files[baseName(path)] = { from: `sounds/${packId}/${path}`, sha256: digest };
 	}
 	lock.packs[packId] = {
@@ -104,6 +105,12 @@ for (const [packId, { manifest, exports }] of Object.entries(packs)) {
 		attributionRequired: manifest.attributionRequired,
 		files,
 	};
+}
+for (const [packId, files] of Object.entries(contents)) {
+	const dir = join(soundsDir, packId);
+	rmSync(dir, { recursive: true, force: true });
+	mkdirSync(dir, { recursive: true });
+	for (const [name, bytes] of Object.entries(files)) writeFileSync(join(dir, name), bytes);
 }
 writeFileSync(join(soundsDir, 'sounds.lock.json'), JSON.stringify(lock, null, '\t') + '\n');
 
