@@ -46,6 +46,9 @@ const MIME: Readonly<Record<(typeof SOUND_FORMATS)[number], string>> = {
 
 const elements = new Map<string, HTMLAudioElement>();
 const playing = new Map<Channel, HTMLAudioElement>();
+// The take each cue played last. Takes play in turn rather than at random, so the same one never
+// plays twice running, which a random draw from three does a third of the time.
+const lastTake = new Map<Cue, number>();
 // Elements created since the last gesture, waiting for the next one to unlock them.
 const locked = new Set<HTMLAudioElement>();
 let extension: string | null = null;
@@ -125,13 +128,15 @@ export function preloadSounds(): void {
 	for (const files of Object.values(CUE_FILES)) for (const file of files) ensureElement(file);
 }
 
-/** Play one cue, a take picked at random where it has several. Silent for a cue with no files. */
+/** Play one cue, the next of its takes where it has several. Silent for a cue with no files. */
 export function playCue(cue: Cue): void {
 	if (!hasAudio() || !preferencesStore.soundEnabled) return;
 	const files = CUE_FILES[cue];
 	if (files.length === 0) return;
 	try {
-		const audio = ensureElement(files[Math.floor(Math.random() * files.length)]);
+		const take = ((lastTake.get(cue) ?? -1) + 1) % files.length;
+		lastTake.set(cue, take);
+		const audio = ensureElement(files[take]);
 		const channel = CHANNEL[cue];
 		const previous = playing.get(channel);
 		if (previous && previous !== audio) previous.pause();

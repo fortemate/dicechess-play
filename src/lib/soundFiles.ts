@@ -2,7 +2,7 @@
 //
 // The vendored files each cue may play, under /sounds/ and without the extension: every one exists
 // as .ogg and as .mp3, and the player picks the format the browser can play. Where there are
-// several, one is picked at random. An empty list is a cue that stays silent.
+// several, they take turns. An empty list is a cue that stays silent.
 import type { Cue } from './soundCues';
 
 export const SOUND_FORMATS = ['ogg', 'mp3'] as const;

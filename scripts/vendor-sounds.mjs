@@ -12,7 +12,7 @@
 // CUES below is the one place this site decides which sound means what. The choices are Dice Chess
 // TV's, made by ear by the owner (dicechess-assets#8, dicechess-tv#85), so the two sound alike.
 // Each cue names a pack and one of that pack's events; the files the event lists are what the cue
-// may play, one picked at random when there are several.
+// may play, taking turns when there are several.
 import { execFileSync } from 'node:child_process';
 import { createHash } from 'node:crypto';
 import { mkdirSync, rmSync, writeFileSync } from 'node:fs';
@@ -119,7 +119,7 @@ writeFileSync(
 //
 // The vendored files each cue may play, under /sounds/ and without the extension: every one exists
 // as .ogg and as .mp3, and the player picks the format the browser can play. Where there are
-// several, one is picked at random. An empty list is a cue that stays silent.
+// several, they take turns. An empty list is a cue that stays silent.
 import type { Cue } from './soundCues';
 
 export const SOUND_FORMATS = [${FORMATS.map((f) => `'${f}'`).join(', ')}] as const;

@@ -2,6 +2,8 @@ import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
 
 class AudioMock {
 	static instances: AudioMock[] = [];
+	// Every file played, unmuted, in order.
+	static heard: string[] = [];
 	// What canPlayType answers for OGG Vorbis; MP3 is always playable.
 	static ogg: '' | 'maybe' | 'probably' = 'probably';
 	src: string;
@@ -10,7 +12,10 @@ class AudioMock {
 	paused = true;
 	currentTime = 0;
 	volume = 1;
-	play = vi.fn(() => Promise.resolve());
+	play = vi.fn(() => {
+		if (!this.muted) AudioMock.heard.push(this.src);
+		return Promise.resolve();
+	});
 	pause = vi.fn();
 	canPlayType = vi.fn((type: string) => (type.startsWith('audio/ogg') ? AudioMock.ogg : 'maybe'));
 	constructor(src?: string) {
@@ -38,9 +43,9 @@ describe('sound service', () => {
 		window.dispatchEvent(new Event('pointerdown'));
 		vi.resetModules(); // fresh module state: no cached elements between tests
 		AudioMock.instances = [];
+		AudioMock.heard = [];
 		AudioMock.ogg = 'probably';
 		vi.stubGlobal('Audio', AudioMock);
-		vi.spyOn(Math, 'random').mockReturnValue(0); // the first take of every cue
 		globalThis.localStorage?.clear(); // soundEnabled must not leak into the re-imported store
 	});
 
@@ -52,23 +57,26 @@ describe('sound service', () => {
 		const { playCue, preferencesStore } = await loadSound();
 		preferencesStore.setSoundEnabled(true);
 
-		playCue('dice_roll');
-		playCue('dice_roll');
+		playCue('game_win');
+		playCue('game_win');
 
 		expect(AudioMock.instances).toHaveLength(1);
 		const audio = AudioMock.instances[0];
-		expect(audio.src).toBe('/sounds/kenney-casino-audio/dice_throw_1.ogg');
+		expect(audio.src).toBe('/sounds/kenney-music-jingles/pizzicato_02.ogg');
 		expect(audio.play).toHaveBeenCalledTimes(2);
 	});
 
-	it('picks one of the takes at random', async () => {
+	it('plays the takes in turn, so none plays twice running', async () => {
 		const { playCue, preferencesStore } = await loadSound();
 		preferencesStore.setSoundEnabled(true);
-		vi.mocked(Math.random).mockReturnValue(0.99);
+		for (let i = 0; i < 4; i++) playCue('dice_roll');
 
-		playCue('dice_roll');
-
-		expect(AudioMock.instances[0].src).toBe('/sounds/kenney-casino-audio/dice_throw_3.ogg');
+		expect(AudioMock.heard).toEqual([
+			'/sounds/kenney-casino-audio/dice_throw_1.ogg',
+			'/sounds/kenney-casino-audio/dice_throw_2.ogg',
+			'/sounds/kenney-casino-audio/dice_throw_3.ogg',
+			'/sounds/kenney-casino-audio/dice_throw_1.ogg',
+		]);
 	});
 
 	it('falls back to MP3 where the browser cannot play OGG Vorbis', async () => {
@@ -95,9 +103,9 @@ describe('sound service', () => {
 		const { playCue, preferencesStore } = await loadSound();
 		preferencesStore.setSoundEnabled(true);
 
-		playCue('dice_roll');
+		playCue('game_win');
 		AudioMock.instances[0].currentTime = 3;
-		playCue('dice_roll');
+		playCue('game_win');
 
 		expect(AudioMock.instances[0].currentTime).toBe(0);
 	});

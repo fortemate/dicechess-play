@@ -17,7 +17,7 @@ export type Cue =
 	| 'game_loss'
 	| 'game_draw';
 
-const fileOf = (square: string): number => square.charCodeAt(0) - 'a'.charCodeAt(0);
+const fileOf = (square: string): number => 'abcdefgh'.indexOf(square[0]);
 
 /** The cue for one move, given the position before it and the move in UCI (`e7e8q` promotes). */
 export function moveCue(fenBefore: string, uci: string): Cue {
