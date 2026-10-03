@@ -66,10 +66,25 @@ describe('vendored sounds', () => {
 	});
 
 	it('are only packs this public repository may publish', () => {
-		// JDSherbert's licence forbids sharing the raw files; the author's permission covers
-		// dicechess-tv alone (#167). Anything that is not CC0 needs a recorded decision first.
+		// CC0 needs nothing. JDSherbert's licence forbids sharing the raw files, but the author
+		// permitted their use in Dice Chess on every platform, this site included (#167). Any other
+		// licence needs a recorded decision first.
+		const PERMITTED: Record<string, string> = {
+			'jdsherbert-tabletop': 'Custom (Free with Attribution)',
+		};
 		for (const [pack, { license }] of Object.entries(lock.packs))
-			expect(license, pack).toBe('CC0-1.0');
+			expect(license, pack).toBe(PERMITTED[pack] ?? 'CC0-1.0');
+	});
+
+	it('are credited on /licenses, as each pack asks', () => {
+		const page = readFileSync(path.join(process.cwd(), 'src/routes/licenses/+page.svelte'), 'utf8');
+		for (const [pack, { attribution }] of Object.entries(lock.packs)) {
+			// "Sounds by JDSherbert – https://jdsherbert.itch.io": the words and the link, which the
+			// page sets apart.
+			const [words, link] = attribution.split(' – ');
+			expect(page, pack).toContain(words);
+			expect(page, pack).toContain(link);
+		}
 	});
 
 	it('match the cue table the site reads, in every format', () => {

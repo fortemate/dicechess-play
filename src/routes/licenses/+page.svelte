@@ -11,6 +11,7 @@
 		{ id: 'engine', title: 'Dice Chess Engine' },
 		{ id: 'pieces', title: 'Chess Piece Graphics' },
 		{ id: 'sounds', title: 'Sound Effects (Kenney)' },
+		{ id: 'sounds-jdsherbert', title: 'Sound Effects (JDSherbert)' },
 		{ id: 'dependencies', title: 'Third-Party Libraries' },
 		{ id: 'source-notice', title: 'Source Code & AGPL-3.0-only Notice' },
 	] as const;
@@ -313,6 +314,67 @@
 				>
 					Creative Commons Zero 1.0 Universal (CC0 1.0)
 				</a>
+			</div>
+		</div>
+	</section>
+
+	<section
+		id="sounds-jdsherbert"
+		class="flex flex-col gap-4 rounded-2xl border border-border bg-surface/40 p-6"
+	>
+		<div class="flex flex-col gap-1">
+			<div class="flex flex-wrap items-center justify-between gap-2">
+				<h2 class="text-xl font-bold text-content">Sound Effects (JDSherbert)</h2>
+				<span
+					class="rounded-md border border-primary/40 bg-primary/10 px-2.5 py-0.5 font-mono text-xs font-semibold text-primary"
+				>
+					Free with attribution
+				</span>
+			</div>
+			<p class="text-xs text-content-muted">
+				Asset: <code class="font-mono">/sounds/jdsherbert-tabletop/</code>
+			</p>
+		</div>
+
+		<p class="leading-relaxed text-content-muted">
+			The move, castling and capture sounds come from JDSherbert's Tabletop Games SFX Pack, the same
+			cues as Dice Chess for Fire TV. Its licence asks for visible credit and does not allow sharing
+			the raw files. The author permitted their use in Dice Chess on every platform, this site
+			included. They are not covered by this repository's AGPL-3.0-only licence, and using them
+			anywhere else needs the author's permission. The pack's licence file is served beside its
+			sounds.
+		</p>
+
+		<div class="flex flex-col gap-2 text-sm">
+			<div>
+				<span class="font-semibold text-content">Credit:</span>
+				<span class="text-content-muted"> Sounds by JDSherbert –</span>
+				<a
+					class="font-semibold text-primary hover:underline"
+					href="https://jdsherbert.itch.io"
+					target="_blank"
+					rel="noopener noreferrer"
+				>
+					https://jdsherbert.itch.io
+				</a>
+			</div>
+			<div>
+				<span class="font-semibold text-content">Source:</span>
+				<a
+					class="font-semibold text-primary hover:underline"
+					href="https://jdsherbert.itch.io/tabletop-games-sfx-pack"
+					target="_blank"
+					rel="noopener noreferrer"
+				>
+					Tabletop Games SFX Pack
+				</a>
+			</div>
+			<div>
+				<span class="font-semibold text-content">License:</span>
+				<span class="text-content-muted">
+					JDSherbert's own, served as
+					<code class="font-mono">/sounds/jdsherbert-tabletop/LICENSE.txt</code>
+				</span>
 			</div>
 		</div>
 	</section>

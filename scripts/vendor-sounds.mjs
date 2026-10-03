@@ -21,11 +21,13 @@ import { fileURLToPath } from 'node:url';
 
 const CUES = {
 	dice_roll: ['kenney-casino-audio', 'dice_roll'],
-	// The TV's move, capture and castling sounds are JDSherbert's, whose licence forbids sharing the
-	// raw files; the author's permission covers dicechess-tv alone. Silent until #167 settles them.
-	piece_move: null,
-	piece_capture: null,
-	castle: null,
+	// The move, capture and castling sounds are JDSherbert's, as on the TV. Their licence forbids
+	// sharing the raw files; the author permitted their use in Dice Chess on every platform, this
+	// site included (#167).
+	piece_move: ['jdsherbert-tabletop', 'piece_move'],
+	// Castling is a move, and it spends one; it sounds like one, as on the TV.
+	castle: ['jdsherbert-tabletop', 'piece_move'],
+	piece_capture: ['jdsherbert-tabletop', 'piece_capture'],
 	promotion: ['kenney-interface-sounds', 'promotion'],
 	// A roll with nothing to play.
 	no_move: ['kenney-interface-sounds', 'no_move'],
