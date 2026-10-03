@@ -43,6 +43,54 @@
 				}
 			}
 		},
+		"jdsherbert-tabletop": {
+			"version": "1.1.0",
+			"license": "Custom (Free with Attribution)",
+			"attribution": "Sounds by JDSherbert – https://jdsherbert.itch.io",
+			"attributionRequired": true,
+			"files": {
+				"manifest.json": {
+					"from": "sounds/jdsherbert-tabletop/manifest.json",
+					"sha256": "6cc443e57210077f075b6c3a6a09f941aa800ab5679705b1e52ce9c07e48279b"
+				},
+				"LICENSE.txt": {
+					"from": "sounds/jdsherbert-tabletop/LICENSE.txt",
+					"sha256": "1057472f5eeabc93352e120f6db9cd0f20ecdf71647adf1884b58502c11f9c85"
+				},
+				"piece_impact_1.mp3": {
+					"from": "sounds/jdsherbert-tabletop/exports/mp3/piece_impact_1.mp3",
+					"sha256": "3df6d469bcb7de2d3c24a854cd7a6780ab88acabe3b7d2a0c52c72d9997ef0fa"
+				},
+				"piece_impact_2.mp3": {
+					"from": "sounds/jdsherbert-tabletop/exports/mp3/piece_impact_2.mp3",
+					"sha256": "aacd4ec780eb46cb7dba6d589c4128d52ceb74fe8af6cfa427b1e8ca89dfeb83"
+				},
+				"piece_move_1.mp3": {
+					"from": "sounds/jdsherbert-tabletop/exports/mp3/piece_move_1.mp3",
+					"sha256": "580117ec1dc731712224d642990db6fb5b94893da2b078e2855745e5fdb20deb"
+				},
+				"piece_move_2.mp3": {
+					"from": "sounds/jdsherbert-tabletop/exports/mp3/piece_move_2.mp3",
+					"sha256": "6d553ebed10670d2c8faeeb8e9706645eac3b416fd37f948de697954668d01c7"
+				},
+				"piece_impact_1.ogg": {
+					"from": "sounds/jdsherbert-tabletop/exports/ogg/piece_impact_1.ogg",
+					"sha256": "3a67b44d36e53b41c39d586bc0f3f7d6e6ffd0cb7673f62be1a711eb3c2e1d7e"
+				},
+				"piece_impact_2.ogg": {
+					"from": "sounds/jdsherbert-tabletop/exports/ogg/piece_impact_2.ogg",
+					"sha256": "6f5f22708b14b5ad0588ca608a417b9bc43cdb978956fbb5291a5a88e6423c8e"
+				},
+				"piece_move_1.ogg": {
+					"from": "sounds/jdsherbert-tabletop/exports/ogg/piece_move_1.ogg",
+					"sha256": "dd81c8164e1109edb0e6bc5b8c6b35eef7e0c64154262b7eda789622a48ef36f"
+				},
+				"piece_move_2.ogg": {
+					"from": "sounds/jdsherbert-tabletop/exports/ogg/piece_move_2.ogg",
+					"sha256": "5739dbc6769844a72e2c8cb6603a7c078487584fa41e8ce8100eb8e29cd1c2ca"
+				}
+			}
+		},
 		"kenney-interface-sounds": {
 			"version": "1.0.0",
 			"license": "CC0-1.0",
@@ -122,9 +170,9 @@
 			"kenney-casino-audio/dice_throw_2",
 			"kenney-casino-audio/dice_throw_3"
 		],
-		"piece_move": [],
-		"piece_capture": [],
-		"castle": [],
+		"piece_move": ["jdsherbert-tabletop/piece_move_1", "jdsherbert-tabletop/piece_move_2"],
+		"castle": ["jdsherbert-tabletop/piece_move_1", "jdsherbert-tabletop/piece_move_2"],
+		"piece_capture": ["jdsherbert-tabletop/piece_impact_1", "jdsherbert-tabletop/piece_impact_2"],
 		"promotion": ["kenney-interface-sounds/maximize_006"],
 		"no_move": ["kenney-interface-sounds/glass_004"],
 		"game_win": ["kenney-music-jingles/pizzicato_02"],

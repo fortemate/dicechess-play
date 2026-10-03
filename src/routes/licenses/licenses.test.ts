@@ -18,6 +18,7 @@ describe('licenses page', () => {
 			'engine',
 			'pieces',
 			'sounds',
+			'sounds-jdsherbert',
 			'dependencies',
 			'source-notice',
 		]);

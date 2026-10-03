@@ -120,12 +120,39 @@ describe('sound service', () => {
 	});
 
 	it('stays silent for a cue with no files', async () => {
+		// Every cue has files today, so the table is emptied for one of them here.
+		vi.doMock('./soundFiles', async (importOriginal) => {
+			const real = await importOriginal<typeof import('./soundFiles')>();
+			return { ...real, CUE_FILES: { ...real.CUE_FILES, piece_move: [] } };
+		});
+		try {
+			const { playCue, preferencesStore } = await loadSound();
+			preferencesStore.setSoundEnabled(true);
+
+			playCue('piece_move');
+
+			expect(AudioMock.instances).toHaveLength(0);
+		} finally {
+			vi.doUnmock('./soundFiles');
+		}
+	});
+
+	it('plays a move, a capture and castling from JDSherbert’s pack, as the TV does', async () => {
 		const { playCue, preferencesStore } = await loadSound();
 		preferencesStore.setSoundEnabled(true);
 
 		playCue('piece_move');
+		playCue('piece_capture');
+		playCue('castle');
+		playCue('piece_move');
 
-		expect(AudioMock.instances).toHaveLength(0);
+		expect(AudioMock.heard).toEqual([
+			'/sounds/jdsherbert-tabletop/piece_move_1.ogg',
+			'/sounds/jdsherbert-tabletop/piece_impact_1.ogg',
+			// Castling sounds like a move: the same takes, taken in turn of its own.
+			'/sounds/jdsherbert-tabletop/piece_move_1.ogg',
+			'/sounds/jdsherbert-tabletop/piece_move_2.ogg',
+		]);
 	});
 
 	it('cuts the last cue on the same channel short, and leaves other channels alone', async () => {
@@ -148,8 +175,9 @@ describe('sound service', () => {
 
 		preloadSounds();
 
-		// Three throws, promotion, the empty roll and three jingles.
-		expect(AudioMock.instances).toHaveLength(8);
+		// Three throws, two moves (castling shares them), two impacts, promotion, the empty roll and
+		// three jingles.
+		expect(AudioMock.instances).toHaveLength(12);
 		for (const audio of AudioMock.instances) {
 			expect(audio.preload).toBe('auto');
 			expect(audio.play).not.toHaveBeenCalled();
