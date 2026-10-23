@@ -169,10 +169,12 @@
 
 	<main
 		class="flex-grow w-full mx-auto {chromeStore.zen
-			? page.url.pathname === '/' || page.url.pathname === '/showcase-preview'
+			? page.url.pathname === '/table' || page.url.pathname === '/showcase-preview'
 				? 'p-0 max-w-none'
 				: 'max-w-[1800px] py-3 sm:py-4 px-3 sm:px-6'
-			: 'max-w-5xl py-6 sm:py-8 pb-20 sm:pb-8 px-3 sm:px-6'}"
+			: page.url.pathname === '/'
+				? 'max-w-6xl py-4 sm:py-8 px-4 sm:px-6'
+				: 'max-w-5xl py-6 sm:py-8 pb-20 sm:pb-8 px-3 sm:px-6'}"
 	>
 		{@render children()}
 	</main>
@@ -185,7 +187,25 @@
 				class="max-w-5xl mx-auto px-4 flex flex-col sm:flex-row items-center justify-between gap-2"
 			>
 				<p>
-					Dice Chess — Play · anonymous, free ·
+					Dice Chess ·
+					<a
+						class="hover:text-content hover:underline text-primary"
+						href="https://www.amazon.com/dp/B0HL6K9N47/"
+						target="_blank"
+						rel="noopener noreferrer"
+					>
+						Fire TV in Amazon Appstore
+					</a>
+					·
+					<a
+						class="hover:text-content hover:underline"
+						href="https://dicechess-tv.fortemate.com"
+						target="_blank"
+						rel="noopener noreferrer"
+					>
+						Technical Docs
+					</a>
+					·
 					<a class="hover:text-content hover:underline" href={resolve('/rules')}>How to play</a>
 					·
 					<a class="hover:text-content hover:underline" href={resolve('/licenses')}>

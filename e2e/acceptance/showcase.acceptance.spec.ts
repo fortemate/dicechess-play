@@ -32,8 +32,8 @@ test.describe('Showcase Acceptance: Browser Contention, Seating, Layout & Reopen
 			if (res.status() >= 400) console.log(`[P2 HTTP ${res.status()}] ${res.url()}`);
 		});
 
-		await page1.goto('/');
-		await page2.goto('/');
+		await page1.goto('/table');
+		await page2.goto('/table');
 
 		// Wait for both to show Open state
 		const claimBtn1 = page1.locator(
@@ -128,7 +128,7 @@ test.describe('Showcase Acceptance: Browser Contention, Seating, Layout & Reopen
 		page3.on('response', (res) => {
 			if (res.status() >= 400) console.log(`[P3 HTTP ${res.status()}] ${res.url()}`);
 		});
-		await page3.goto('/');
+		await page3.goto('/table');
 
 		// Late visitor immediately converges into spectator mode
 		await expect(page3.locator('[data-surface="showcase"]').getByText('In play')).toBeVisible({
