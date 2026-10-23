@@ -1,25 +1,7 @@
 <script lang="ts">
 	/* eslint-disable local/no-untranslated-text -- i18n debt: not yet migrated (#8) */
 	import { resolve } from '$app/paths';
-
-	let activeVideoModal = $state(false);
-
-	function openVideo() {
-		activeVideoModal = true;
-	}
-
-	function closeVideo() {
-		activeVideoModal = false;
-	}
-
-	function handleKeydown(e: KeyboardEvent) {
-		if (e.key === 'Escape' && activeVideoModal) {
-			closeVideo();
-		}
-	}
 </script>
-
-<svelte:window onkeydown={handleKeydown} />
 
 <svelte:head>
 	<title>Dice Chess for Fire TV — The Living Room Chess Game</title>
@@ -82,7 +64,7 @@
 				href="https://www.amazon.com/dp/B0HL6K9N47/"
 				target="_blank"
 				rel="noopener noreferrer"
-				class="inline-flex items-center gap-3.5 px-6 py-3.5 rounded-xl bg-primary text-primary-content hover:bg-primary-hover font-bold shadow-lg shadow-primary/20 transition-all hover:scale-[1.02] active:scale-[0.98]"
+				class="inline-flex items-center gap-3.5 px-7 py-4 rounded-xl bg-primary text-primary-content hover:bg-primary-hover font-bold shadow-lg shadow-primary/20 transition-all hover:scale-[1.02] active:scale-[0.98]"
 			>
 				<!-- Amazon Smile Icon -->
 				<svg class="h-6 w-6 fill-current" viewBox="0 0 24 24">
@@ -96,25 +78,17 @@
 				</div>
 			</a>
 
-			<!-- Watch Demo Button -->
-			<button
-				type="button"
-				onclick={openVideo}
-				class="inline-flex items-center gap-2.5 px-6 py-3.5 rounded-xl border border-border bg-surface hover:bg-surface-hover text-content font-bold shadow-sm transition-colors cursor-pointer"
-			>
-				<svg class="h-5 w-5 text-primary fill-current" viewBox="0 0 24 24">
-					<polygon points="5 3 19 12 5 21 5 3" />
-				</svg>
-				<span>Watch Gameplay (2:50)</span>
-			</button>
-
-			<!-- Web Version Quick Link -->
+			<!-- Web Version Quick Link Button -->
 			<a
 				href={resolve('/play')}
-				class="inline-flex items-center gap-1.5 px-4 py-3.5 text-sm font-semibold text-content-muted hover:text-content transition-colors"
+				class="inline-flex items-center gap-2.5 px-6 py-4 rounded-xl border border-border bg-surface hover:bg-surface-hover text-content font-bold shadow-sm transition-colors"
 			>
 				<span>Play Web Beta</span>
-				<span class="text-xs px-1.5 py-0.5 rounded bg-surface border border-border">Browser</span>
+				<span
+					class="text-xs px-2 py-0.5 rounded-md bg-surface-hover border border-border text-content-muted"
+				>
+					Browser
+				</span>
 				<span>→</span>
 			</a>
 		</div>
@@ -131,7 +105,7 @@
 
 				<!-- TV Bezel Visual -->
 				<div
-					class="relative rounded-xl sm:rounded-2xl overflow-hidden border border-border bg-black"
+					class="relative rounded-xl sm:rounded-2xl overflow-hidden border border-border bg-black shadow-inner"
 				>
 					<img
 						src="/tv/demo.png"
@@ -141,21 +115,6 @@
 						height="720"
 						loading="eager"
 					/>
-					<!-- Play overlay button -->
-					<button
-						type="button"
-						onclick={openVideo}
-						class="absolute inset-0 flex items-center justify-center bg-black/30 hover:bg-black/10 transition-colors cursor-pointer group-hover:scale-100"
-						aria-label="Play video demo"
-					>
-						<span
-							class="flex h-16 w-16 sm:h-20 sm:w-20 items-center justify-center rounded-full bg-primary/90 text-primary-content shadow-2xl shadow-primary/40 transform transition-transform group-hover:scale-110"
-						>
-							<svg class="h-8 w-8 ml-1 fill-current" viewBox="0 0 24 24">
-								<polygon points="5 3 19 12 5 21 5 3" />
-							</svg>
-						</span>
-					</button>
 				</div>
 
 				<!-- TV Stand base hint -->
@@ -624,48 +583,3 @@
 		</a>
 	</section>
 </div>
-
-<!-- Video Modal Dialog -->
-{#if activeVideoModal}
-	<div
-		class="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/80 backdrop-blur-md animate-fade-in"
-		role="dialog"
-		aria-modal="true"
-		aria-label="Dice Chess Fire TV gameplay video"
-	>
-		<div
-			class="relative w-full max-w-4xl rounded-2xl overflow-hidden bg-black border border-border shadow-2xl"
-		>
-			<!-- Close button -->
-			<button
-				type="button"
-				onclick={closeVideo}
-				class="absolute top-3 right-3 z-10 flex h-10 w-10 items-center justify-center rounded-full bg-black/60 text-white hover:bg-black/90 transition-colors cursor-pointer"
-				aria-label="Close video"
-			>
-				<svg
-					class="h-5 w-5"
-					viewBox="0 0 24 24"
-					fill="none"
-					stroke="currentColor"
-					stroke-width="2.5"
-				>
-					<line x1="18" y1="6" x2="6" y2="18" />
-					<line x1="6" y1="6" x2="18" y2="18" />
-				</svg>
-			</button>
-
-			<!-- YouTube Embed -->
-			<div class="relative w-full pt-[56.25%]">
-				<iframe
-					class="absolute inset-0 w-full h-full"
-					src="https://www.youtube-nocookie.com/embed/Xyz0KxkmxWU?autoplay=1"
-					title="Dice Chess for Fire TV Demo"
-					frameborder="0"
-					allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
-					allowfullscreen
-				></iframe>
-			</div>
-		</div>
-	</div>
-{/if}
