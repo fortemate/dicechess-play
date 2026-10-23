@@ -8,6 +8,8 @@
 		name="description"
 		content="Dice Chess for Amazon Fire TV: family chess with a roll of the dice, built for the living room. Share one remote, or take on three computer opponents with voice acting. Available now on the Amazon Appstore."
 	/>
+	<meta property="og:type" content="website" />
+	<meta property="og:site_name" content="Dice Chess" />
 	<meta property="og:title" content="Dice Chess for Fire TV — The Living Room Chess Game" />
 	<meta
 		property="og:description"
@@ -39,6 +41,7 @@
 					fill="none"
 					stroke="currentColor"
 					stroke-width="2.5"
+					aria-hidden="true"
 				>
 					<path d="M5 12h14M12 5l7 7-7 7" />
 				</svg>
@@ -66,7 +69,7 @@
 				class="inline-flex items-center gap-3.5 px-8 py-4 rounded-xl bg-primary text-primary-content hover:bg-primary-hover font-bold shadow-lg shadow-primary/20 transition-all hover:scale-[1.02] active:scale-[0.98]"
 			>
 				<!-- Amazon Smile Icon -->
-				<svg class="h-6 w-6 fill-current" viewBox="0 0 24 24">
+				<svg class="h-6 w-6 fill-current" viewBox="0 0 24 24" aria-hidden="true">
 					<path
 						d="M13.9 14.6c-2.4 1.8-6 .9-8.3-.4-.3-.2-.6.1-.4.4 1.5 2.2 4.6 3.5 7.4 2.8 1.8-.4 3.4-1.6 4.3-3.1.2-.4-.1-.7-.5-.5-.8.5-1.6.7-2.5.8zm7.1 2.2c-.2-.3-.5-.4-.7-.2-1.3 1-2.9 1.6-4.6 1.8-.4 0-.5.4-.1.6 1.5.8 3.3.7 4.8-.3.3-.2.4-.6.2-.9zM19.7 13c-.3-.4-1.9-.2-2.7 0-.3.1-.3.3 0 .4.9.4 2.4.4 2.8.1.3-.2.3-.4-.1-.5zm-6-8.9c-3.7 0-6.7 2.4-6.7 6.3 0 2.2 1.1 4 2.8 4.9.3.2.6 0 .6-.3v-.8c0-.3-.2-.5-.4-.6-1.1-.7-1.8-1.9-1.8-3.3 0-2.8 2.3-4.8 5.4-4.8 3 0 5 1.8 5 4.5 0 2.1-1.3 3.6-3.2 3.6-1 0-1.8-.6-1.8-1.7V7.6c0-.4-.3-.6-.6-.6h-1.2c-.3 0-.6.3-.6.6v.3c-.6-.7-1.4-1-2.4-1-2.2 0-3.9 1.8-3.9 4.3 0 2.6 1.7 4.4 4 4.4 1.1 0 2-.4 2.6-1.2v.7c0 .4.3.7.7.7h1.2c.4 0 .7-.3.7-.7v-4.8c0-1.7 1.1-2.8 2.5-2.8 1.4 0 2.2 1 2.2 2.7 0 2.7-1.7 4.7-4.4 4.7-.5 0-1-.1-1.4-.3-.3-.1-.6.1-.6.4v.7c0 .3.2.5.5.6.5.2 1.1.3 1.7.3 3.5 0 5.8-2.6 5.8-6.1.1-4-3-6.5-6.8-6.5zm-3.6 8.3c-1.3 0-2.2-1.1-2.2-2.5 0-1.5.9-2.5 2.2-2.5 1.2 0 2.1 1.1 2.1 2.5 0 1.5-.9 2.5-2.1 2.5z"
 					/>
@@ -140,6 +143,7 @@
 						fill="none"
 						stroke="currentColor"
 						stroke-width="2"
+						aria-hidden="true"
 					>
 						<rect x="3" y="3" width="18" height="18" rx="2" />
 						<circle cx="8.5" cy="8.5" r="1.5" fill="currentColor" />
@@ -166,6 +170,7 @@
 						fill="none"
 						stroke="currentColor"
 						stroke-width="2"
+						aria-hidden="true"
 					>
 						<rect x="7" y="2" width="10" height="20" rx="3" />
 						<circle cx="12" cy="7" r="2" />
@@ -190,6 +195,7 @@
 						fill="none"
 						stroke="currentColor"
 						stroke-width="2"
+						aria-hidden="true"
 					>
 						<polygon
 							points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"
@@ -224,7 +230,7 @@
 			>
 				<img
 					src="/tv/thinkle-badge-128.png"
-					alt="Thinkle the Wizard portrait"
+					alt=""
 					class="w-24 h-24 rounded-2xl mb-4 border border-border/70 shadow-md object-cover bg-surface"
 					width="128"
 					height="128"
@@ -248,7 +254,7 @@
 			>
 				<img
 					src="/tv/grabby-badge-128.png"
-					alt="Grabby portrait"
+					alt=""
 					class="w-24 h-24 rounded-2xl mb-4 border border-border/70 shadow-md object-cover bg-surface"
 					width="128"
 					height="128"
@@ -272,7 +278,7 @@
 			>
 				<img
 					src="/tv/rolly-badge-128.png"
-					alt="Rolly portrait"
+					alt=""
 					class="w-24 h-24 rounded-2xl mb-4 border border-border/70 shadow-md object-cover bg-surface"
 					width="128"
 					height="128"
@@ -296,7 +302,7 @@
 			>
 				<img
 					src="/tv/rampage-badge-128.png"
-					alt="Rampage portrait"
+					alt=""
 					class="w-24 h-24 rounded-2xl mb-4 border border-border/70 shadow-md object-cover bg-surface"
 					width="128"
 					height="128"
@@ -427,6 +433,7 @@
 						fill="none"
 						stroke="currentColor"
 						stroke-width="2"
+						aria-hidden="true"
 					>
 						<path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z" />
 					</svg>
@@ -446,6 +453,7 @@
 						fill="none"
 						stroke="currentColor"
 						stroke-width="2"
+						aria-hidden="true"
 					>
 						<circle cx="12" cy="12" r="10" />
 						<line x1="2" y1="12" x2="22" y2="12" />
@@ -476,6 +484,7 @@
 						fill="none"
 						stroke="currentColor"
 						stroke-width="2"
+						aria-hidden="true"
 					>
 						<path d="M9 18V5l12-2v13" />
 						<circle cx="6" cy="18" r="3" />
@@ -520,6 +529,7 @@
 				fill="none"
 				stroke="currentColor"
 				stroke-width="2"
+				aria-hidden="true"
 			>
 				<path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6" />
 				<polyline points="15 3 21 3 21 9" />
