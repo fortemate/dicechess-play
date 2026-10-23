@@ -1,6 +1,5 @@
 <script lang="ts">
 	/* eslint-disable local/no-untranslated-text -- i18n debt: not yet migrated (#8) */
-	import { resolve } from '$app/paths';
 </script>
 
 <svelte:head>
@@ -58,13 +57,13 @@
 		</p>
 
 		<!-- CTAs -->
-		<div class="flex flex-wrap items-center justify-center gap-4 mb-12">
+		<div class="flex items-center justify-center mb-12">
 			<!-- Amazon Appstore Button -->
 			<a
 				href="https://www.amazon.com/dp/B0HL6K9N47/"
 				target="_blank"
 				rel="noopener noreferrer"
-				class="inline-flex items-center gap-3.5 px-7 py-4 rounded-xl bg-primary text-primary-content hover:bg-primary-hover font-bold shadow-lg shadow-primary/20 transition-all hover:scale-[1.02] active:scale-[0.98]"
+				class="inline-flex items-center gap-3.5 px-8 py-4 rounded-xl bg-primary text-primary-content hover:bg-primary-hover font-bold shadow-lg shadow-primary/20 transition-all hover:scale-[1.02] active:scale-[0.98]"
 			>
 				<!-- Amazon Smile Icon -->
 				<svg class="h-6 w-6 fill-current" viewBox="0 0 24 24">
@@ -76,20 +75,6 @@
 					<span class="text-[11px] uppercase tracking-wider opacity-90">Available on</span>
 					<span class="text-base font-extrabold">Amazon Appstore</span>
 				</div>
-			</a>
-
-			<!-- Web Version Quick Link Button -->
-			<a
-				href={resolve('/play')}
-				class="inline-flex items-center gap-2.5 px-6 py-4 rounded-xl border border-border bg-surface hover:bg-surface-hover text-content font-bold shadow-sm transition-colors"
-			>
-				<span>Play Web Beta</span>
-				<span
-					class="text-xs px-2 py-0.5 rounded-md bg-surface-hover border border-border text-content-muted"
-				>
-					Browser
-				</span>
-				<span>→</span>
 			</a>
 		</div>
 
@@ -503,46 +488,6 @@
 					urgency when kings enter direct danger.
 				</p>
 			</div>
-		</div>
-	</section>
-
-	<!-- Web Version Callout -->
-	<section
-		class="relative rounded-3xl border border-primary/30 bg-primary/5 p-8 sm:p-12 text-center flex flex-col items-center gap-6 overflow-hidden"
-	>
-		<div class="max-w-xl flex flex-col gap-2">
-			<span class="text-xs uppercase font-extrabold tracking-wider text-primary">
-				Don't have a Fire TV?
-			</span>
-			<h2 class="text-2xl sm:text-4xl font-extrabold text-content tracking-tight">
-				Try the Web Client in your browser
-			</h2>
-			<p class="text-content-muted text-sm sm:text-base leading-relaxed">
-				Our browser application is currently in development. You can practice against bots right
-				now, test opening rolls, or explore the community lobby.
-			</p>
-		</div>
-
-		<div class="flex flex-wrap items-center justify-center gap-3">
-			<a
-				href={resolve('/practice')}
-				class="inline-flex items-center gap-2 px-6 py-3 rounded-xl bg-primary text-primary-content hover:bg-primary-hover font-bold shadow-md transition-colors text-sm"
-			>
-				<span>Start Practice Game (Instant)</span>
-				<span>→</span>
-			</a>
-			<a
-				href={resolve('/play')}
-				class="inline-flex items-center gap-2 px-5 py-3 rounded-xl border border-border bg-surface hover:bg-surface-hover text-content font-bold transition-colors text-sm"
-			>
-				<span>Browse All Game Modes</span>
-			</a>
-			<a
-				href={resolve('/table')}
-				class="inline-flex items-center gap-2 px-4 py-3 rounded-xl text-content-muted hover:text-content text-sm font-semibold transition-colors"
-			>
-				<span>Live Table</span>
-			</a>
 		</div>
 	</section>
 
