@@ -11,8 +11,8 @@ on the leaderboard, and history that follows you across devices. Two ways to pla
   That server is authoritative: it owns the dice (provably fair), the clocks, and move legality;
   this client only applies versioned events and rolls back optimistic moves.
 
-Around them: the game hub (`/play` — every way to start a game, also rendered on the landing
-page), a bot catalog (`/bots`), the live rating ladder (`/leaderboard`), local + server game history
+The Fire TV product page at `/` introduces the living-room game and links to the Amazon Appstore.
+The browser game has its own hub (`/play`), a bot catalog (`/bots`), the live rating ladder (`/leaderboard`), local + server game history
 with replays (`/games`, `/replay/[id]`), and a profile (`/me`) — guest by default, with an optional
 account for a rating.
 
@@ -72,8 +72,8 @@ messages/                      hand-edited i18n catalogs, one JSON per surface (
 project.inlang/                inlang project: locale list + the namespace pathPattern
 src/
 ├── routes/                    SPA pages (ssr/prerender disabled in +layout.ts)
-│   ├── +layout.svelte         themed shell: nav, theme switcher, toasts, zen chrome
-│   ├── +page.svelte           landing — marketing hero over the game hub
+│   ├── +layout.svelte         selects the TV page or browser game shell
+│   ├── +page.svelte           Fire TV storefront, screenshots and store link
 │   ├── rules/                 prerendered rules page (#254) — ssr/prerender re-enabled, so crawlers
 │   │                          get real HTML + OG tags (src/hooks.server.ts strips default head)
 │   ├── licenses/              prerendered open-source licenses disclosure page (#14)
@@ -100,7 +100,8 @@ src/
 │                              management, keyed per bot so a staged secret cannot outlive it (#48)
 ├── components/                shared UI
 │   ├── Board.svelte           thin chessground wrapper driven by either game store
-│   ├── GameHub                the ways-to-start-a-game cards shared by the landing and /play
+│   ├── GameShell              game navigation, themes, identity and onboarding
+│   ├── GameHub                the ways-to-start-a-game cards on /play
 │   ├── lib/Chessground.svelte
 │   ├── PlayerStrip · DicePanel · MoveHistory · GameEndModal · BotBadge · PawnPromotionSelector
 │   ├── GameHistoryCard · LiveGameHistoryCard · BotProfileGameCard · WdlBar · WdlCounts
@@ -131,6 +132,7 @@ src/
 │   │                          edited by hand. See CONTRIBUTING.md "Internationalisation (i18n)"
 │   ├── auth/                  authApi — play-api /auth/* client (ADR-0017): session is an HttpOnly
 │   │                          cookie, so the SPA holds no token; login is a full-page navigation
+│   ├── auth/loginReturn.ts    hands the initiating browser tab back to Play after Google sign-in
 │   ├── authStore.svelte.ts    identity: guest by default, account once signed in (status/nickname/
 │   │                          externalId; `user:<uuid>` signed in, `guest:<uuid>` otherwise)
 │   ├── playWithBot/           bot-play core: store, engine worker, dice/history, opening book

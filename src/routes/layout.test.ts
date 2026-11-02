@@ -1,12 +1,14 @@
-import { afterEach, describe, expect, it, vi } from 'vitest';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { cleanup, render } from '@testing-library/svelte';
 import { createRawSnippet } from 'svelte';
 
-vi.mock('$app/environment', () => ({ browser: false }));
+const { url } = vi.hoisted(() => ({ url: { pathname: '/play' } }));
+
+vi.mock('$app/env', () => ({ browser: false }));
 vi.mock('$app/paths', () => ({
 	resolve: (path: string) => (path.startsWith('/') ? path : `/${path}`),
 }));
-vi.mock('$app/state', () => ({ page: { url: { pathname: '/' } } }));
+vi.mock('$app/state', () => ({ page: { url } }));
 vi.mock('virtual:pwa-info', () => ({ pwaInfo: null }));
 vi.mock('virtual:pwa-register/svelte', () => ({ useRegisterSW: vi.fn() }));
 vi.mock('#lib/authStore.svelte', () => ({ authStore: { refresh: vi.fn(), status: 'signed-out' } }));
@@ -15,7 +17,18 @@ vi.mock('#lib/live/liveApi.js', () => ({ isLiveEnabled: () => false }));
 import Layout from './+layout.svelte';
 
 describe('+layout.svelte', () => {
+	beforeEach(() => {
+		url.pathname = '/play';
+	});
 	afterEach(() => cleanup());
+
+	it('renders only the product page at the root, without the game shell', () => {
+		url.pathname = '/';
+		const children = createRawSnippet(() => ({ render: () => '<main>TV product page</main>' }));
+		const { container, getByText } = render(Layout, { props: { children } });
+		expect(getByText('TV product page')).toBeTruthy();
+		expect(container.querySelector('nav, header, footer, button')).toBeNull();
+	});
 
 	it('renders footer with links to licenses, rules, and source code across viewports', () => {
 		const snippet = createRawSnippet(() => ({

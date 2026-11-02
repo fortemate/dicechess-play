@@ -90,7 +90,7 @@ export default defineConfig({
 					// No orientation lock: the board is playable in portrait or landscape
 					// (e.g. tablets), so pinning to portrait-primary only hurt those users.
 					orientation: 'any',
-					start_url: '/',
+					start_url: '/play',
 					scope: '/',
 					categories: ['games', 'entertainment'],
 					// Approved Fortemate identity icons from fortemate/brand dist/identity/web (#65). The
