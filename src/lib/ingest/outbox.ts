@@ -41,15 +41,25 @@ async function flushRecord(
 	return res.outcome;
 }
 
+const MAX_CONCURRENT_FLUSH = 4;
+
 export async function flushOutbox(): Promise<FlushSummary> {
 	const summary: FlushSummary = { created: 0, exists: 0, rejected: 0, error: 0 };
 	const pending = await getPendingGames();
 	if (pending.length === 0) return summary;
 
 	const guestId = getGuestId();
-	const outcomes = await Promise.all(pending.map((record) => flushRecord(record, guestId)));
-	for (const outcome of outcomes) {
+	let nextIndex = 0;
+
+	async function drainWorker(): Promise<void> {
+		if (nextIndex >= pending.length) return;
+		const record = pending[nextIndex++];
+		const outcome = await flushRecord(record, guestId);
 		summary[outcome]++;
+		await drainWorker();
 	}
+
+	const workerCount = Math.min(MAX_CONCURRENT_FLUSH, pending.length);
+	await Promise.all(Array.from({ length: workerCount }, drainWorker));
 	return summary;
 }

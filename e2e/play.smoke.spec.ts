@@ -88,13 +88,16 @@ test('the built bundle can play a move', async ({ page }) => {
 	await expect(page.locator('cg-board')).toBeVisible();
 
 	const before = await piecesOnBoard(page);
-	await expect
-		.poll(async () => tryPlayOneMove(page), {
-			timeout: 60_000,
-			intervals: [500],
-			message: `no move was accepted in 60s; engine console errors: ${JSON.stringify(engineFailures)}`,
-		})
-		.toBe(true);
+	try {
+		await expect
+			.poll(async () => tryPlayOneMove(page), { timeout: 60_000, intervals: [500] })
+			.toBe(true);
+	} catch (error) {
+		throw new Error(
+			`no move was accepted in 60s; engine console errors: ${JSON.stringify(engineFailures)}`,
+			{ cause: error },
+		);
+	}
 	expect(await piecesOnBoard(page)).not.toEqual(before);
 	expect(engineFailures, 'engine reported failures in the console').toEqual([]);
 });

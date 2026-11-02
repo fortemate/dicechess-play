@@ -544,22 +544,28 @@ export class LiveGameStore {
 		this.freezeClocks();
 	}
 
+	private handleDrawOffered(
+		payload: Extract<ServerEvent, { DrawOffered: unknown }>['DrawOffered'],
+	): void {
+		if (payload.v <= this.version) return;
+		this.version = payload.v;
+		this.drawOffer = { pending: true };
+		this.drawOfferedBy = payload.by;
+		const responderSeat: Seat = payload.by === 'White' ? 'Black' : 'White';
+		this.liveActiveColor = responderSeat === 'White' ? 'w' : 'b';
+		this.setClocks(this.clockBaseMs, responderSeat);
+		if (this.mySeat === responderSeat) {
+			this.gameStatus = 'playing';
+			playDrawOfferSound();
+			this.autoDeclineIfPreferred();
+		} else {
+			this.gameStatus = 'waiting';
+		}
+	}
+
 	private handleDrawEvent(ev: ServerEvent): void {
 		if ('DrawOffered' in ev) {
-			if (ev.DrawOffered.v <= this.version) return;
-			this.version = ev.DrawOffered.v;
-			this.drawOffer = { pending: true };
-			this.drawOfferedBy = ev.DrawOffered.by;
-			const responderSeat: Seat = ev.DrawOffered.by === 'White' ? 'Black' : 'White';
-			this.liveActiveColor = responderSeat === 'White' ? 'w' : 'b';
-			this.setClocks(this.clockBaseMs, responderSeat);
-			if (this.mySeat === responderSeat) {
-				this.gameStatus = 'playing';
-				playDrawOfferSound();
-				this.autoDeclineIfPreferred();
-			} else {
-				this.gameStatus = 'waiting';
-			}
+			this.handleDrawOffered(ev.DrawOffered);
 			return;
 		}
 		if ('DrawOfferArmed' in ev) {
