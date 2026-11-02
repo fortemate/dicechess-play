@@ -4,10 +4,9 @@ import { vitePreprocess } from '@sveltejs/vite-plugin-svelte';
 /// <reference types="vitest/config" />
 import { paraglideVitePlugin } from '@inlang/paraglide-js';
 import { sentrySvelteKit } from '@sentry/sveltekit/vite';
-import { sveltekit } from '@sveltejs/kit/vite';
 import tailwindcss from '@tailwindcss/vite';
 import { svelteTesting } from '@testing-library/svelte/vite';
-import { SvelteKitPWA } from '@vite-pwa/sveltekit';
+import { withPwa } from '@vite-pwa/sveltekit';
 import { defineConfig } from 'vitest/config';
 
 // Both halves of "Sentry is on". A token without a DSN would upload source maps for a bundle
@@ -64,51 +63,64 @@ export default defineConfig({
 			strategy: ['preferredLanguage', 'baseLocale'],
 		}),
 
-		sveltekit({
-			preprocess: vitePreprocess(),
-			// SPA mode: every unknown path falls back to index.html. Output to dist/.
-			adapter: adapter({ pages: 'dist', assets: 'dist', fallback: 'index.html' }),
+		// v2 of @vite-pwa/sveltekit owns the sveltekit() plugin (Kit 3 removed `$service-worker`), so
+		// the SvelteKit options and the PWA options are passed together instead of two plugins.
+		withPwa(
+			{
+				preprocess: vitePreprocess(),
+				// SPA mode: every unknown path falls back to index.html. Output to dist/.
+				adapter: adapter({ pages: 'dist', assets: 'dist', fallback: 'index.html' }),
 
-			// Every push to main deploys, replacing the hash-named chunks a long-lived tab will
-			// lazy-load on its next navigation. Polling version.json lets SvelteKit spot the new
-			// deployment and turn that navigation into a full-page load instead of a broken dynamic
-			// import (src/lib/staleBundleRecovery.ts covers the non-navigation imports).
-			version: { pollInterval: 60_000 },
-		}),
-
+				// Every push to main deploys, replacing the hash-named chunks a long-lived tab will
+				// lazy-load on its next navigation. Polling version.json lets SvelteKit spot the new
+				// deployment and turn that navigation into a full-page load instead of a broken dynamic
+				// import (src/lib/staleBundleRecovery.ts covers the non-navigation imports).
+				version: { pollInterval: 60_000 },
+			},
+			{
+				registerType: 'autoUpdate',
+				manifest: {
+					id: 'dicechess-play',
+					name: 'Dice Chess — Play',
+					short_name: 'Dice Chess',
+					description: 'Play Dice Chess against our bots',
+					theme_color: '#020617',
+					background_color: '#020617',
+					display: 'standalone',
+					// No orientation lock: the board is playable in portrait or landscape
+					// (e.g. tablets), so pinning to portrait-primary only hurt those users.
+					orientation: 'any',
+					start_url: '/',
+					scope: '/',
+					categories: ['games', 'entertainment'],
+					// Approved Fortemate identity icons from fortemate/brand dist/identity/web (#65). The
+					// maskable variants keep the mark inside the 80 % safe zone; the `any` ones are larger.
+					icons: [
+						{ src: 'pwa-192.png', sizes: '192x192', type: 'image/png', purpose: 'any' },
+						{ src: 'pwa-512.png', sizes: '512x512', type: 'image/png', purpose: 'any' },
+						{
+							src: 'pwa-maskable-192.png',
+							sizes: '192x192',
+							type: 'image/png',
+							purpose: 'maskable',
+						},
+						{
+							src: 'pwa-maskable-512.png',
+							sizes: '512x512',
+							type: 'image/png',
+							purpose: 'maskable',
+						},
+					],
+				},
+				workbox: {
+					globPatterns: ['**/*.{js,css,html,ico,png,svg,mp3,ogg,wasm}'],
+				},
+			},
+		),
 		// Test-mode only: points Svelte imports at the client build so component
 		// tests can mount (vitest otherwise resolves the SSR build and mount() throws).
 		svelteTesting(),
 		tailwindcss(),
-		SvelteKitPWA({
-			registerType: 'autoUpdate',
-			manifest: {
-				id: 'dicechess-play',
-				name: 'Dice Chess — Play',
-				short_name: 'Dice Chess',
-				description: 'Play Dice Chess against our bots',
-				theme_color: '#020617',
-				background_color: '#020617',
-				display: 'standalone',
-				// No orientation lock: the board is playable in portrait or landscape
-				// (e.g. tablets), so pinning to portrait-primary only hurt those users.
-				orientation: 'any',
-				start_url: '/',
-				scope: '/',
-				categories: ['games', 'entertainment'],
-				// Approved Fortemate identity icons from fortemate/brand dist/identity/web (#65). The
-				// maskable variants keep the mark inside the 80 % safe zone; the `any` ones are larger.
-				icons: [
-					{ src: 'pwa-192.png', sizes: '192x192', type: 'image/png', purpose: 'any' },
-					{ src: 'pwa-512.png', sizes: '512x512', type: 'image/png', purpose: 'any' },
-					{ src: 'pwa-maskable-192.png', sizes: '192x192', type: 'image/png', purpose: 'maskable' },
-					{ src: 'pwa-maskable-512.png', sizes: '512x512', type: 'image/png', purpose: 'maskable' },
-				],
-			},
-			workbox: {
-				globPatterns: ['**/*.{js,css,html,ico,png,svg,mp3,ogg,wasm}'],
-			},
-		}),
 	],
 	test: {
 		environment: 'jsdom',
