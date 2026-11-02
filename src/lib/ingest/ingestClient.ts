@@ -40,7 +40,7 @@ const REQUEST_TIMEOUT_MS = 15_000;
  * HTTP status (transport errors and timeouts resolve to 'error' so the caller can
  * retry/quarantine via the localGamesDB outbox).
  *
- * TODO(phase-1): retry with backoff on error instead of waiting for the next visit.
+ * Note (phase-1): retry with backoff on error instead of waiting for the next visit.
  */
 export async function postGame(payload: GameIngestWire): Promise<IngestResult> {
 	const base = apiBase();

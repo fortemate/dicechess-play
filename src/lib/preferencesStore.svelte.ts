@@ -56,7 +56,12 @@ class PreferencesStore {
 	botChallengeColor: 'random' | 'White' | 'Black' = $state('random');
 
 	constructor() {
-		// Load from localStorage on initialization
+		this.loadPracticePreferences();
+		this.loadGamePreferences();
+		this.loadBotChallengePreferences();
+	}
+
+	private loadPracticePreferences() {
 		const storedMode = getStoredValue('preferredMode') as
 			'view' | 'train' | 'bookmarks' | 'positions' | null;
 		if (
@@ -99,7 +104,9 @@ class PreferencesStore {
 		) {
 			this.playerColorPreference = storedPlayerColorPref;
 		}
+	}
 
+	private loadGamePreferences() {
 		const storedTimeLimit = getStoredValue('timeLimit');
 		if (storedTimeLimit !== null) {
 			const parsed = Number.parseInt(storedTimeLimit, 10);
@@ -136,7 +143,9 @@ class PreferencesStore {
 		if (storedDrawOfferPolicy === 'ask' || storedDrawOfferPolicy === 'autoDecline') {
 			this.drawOfferPolicy = storedDrawOfferPolicy;
 		}
+	}
 
+	private loadBotChallengePreferences() {
 		const storedBotChallengeRated = getStoredValue('botChallengeRated');
 		if (storedBotChallengeRated !== null) {
 			this.botChallengeRated = storedBotChallengeRated === 'true';

@@ -49,17 +49,15 @@ const DB_VERSION = 1;
 let dbPromise: Promise<IDBPDatabase<LocalGamesDBSchema>> | null = null;
 
 export function getDB(): Promise<IDBPDatabase<LocalGamesDBSchema>> {
-	if (!dbPromise) {
-		dbPromise = openDB<LocalGamesDBSchema>(DB_NAME, DB_VERSION, {
-			upgrade(db) {
-				if (!db.objectStoreNames.contains('local_games')) {
-					const store = db.createObjectStore('local_games', { keyPath: 'id' });
-					store.createIndex('by-sync-status', 'sync_status');
-					store.createIndex('by-start-time', 'start_time');
-				}
-			},
-		});
-	}
+	dbPromise ??= openDB<LocalGamesDBSchema>(DB_NAME, DB_VERSION, {
+		upgrade(db) {
+			if (!db.objectStoreNames.contains('local_games')) {
+				const store = db.createObjectStore('local_games', { keyPath: 'id' });
+				store.createIndex('by-sync-status', 'sync_status');
+				store.createIndex('by-start-time', 'start_time');
+			}
+		},
+	});
 	return dbPromise;
 }
 

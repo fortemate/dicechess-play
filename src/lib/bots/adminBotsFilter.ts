@@ -51,14 +51,26 @@ export const DEFAULT_ADMIN_BOTS_QUERY: AdminBotsQuery = {
 	dir: 'asc',
 };
 
-const LADDER_VALUES: readonly LadderFilter[] = ['all', 'on', 'off'];
-const CATALOG_VALUES: readonly CatalogFilter[] = ['all', 'open', 'closed'];
-const OWNERSHIP_VALUES: readonly OwnershipFilter[] = ['all', 'owned', 'unowned'];
-const WEBHOOK_VALUES: readonly WebhookFilter[] = ['all', 'configured', 'none'];
-const PROVISIONAL_VALUES: readonly ProvisionalFilter[] = ['all', 'provisional', 'established'];
-const CAPACITY_VALUES: readonly CapacityFilter[] = ['all', 'reached', 'available'];
-const SORT_KEYS: readonly AdminBotSortKey[] = ['identity', 'rating', 'utilization'];
-const SORT_DIRS: readonly SortDirection[] = ['asc', 'desc'];
+const LADDER_VALUES: ReadonlySet<string> = new Set<LadderFilter>(['all', 'on', 'off']);
+const CATALOG_VALUES: ReadonlySet<string> = new Set<CatalogFilter>(['all', 'open', 'closed']);
+const OWNERSHIP_VALUES: ReadonlySet<string> = new Set<OwnershipFilter>(['all', 'owned', 'unowned']);
+const WEBHOOK_VALUES: ReadonlySet<string> = new Set<WebhookFilter>(['all', 'configured', 'none']);
+const PROVISIONAL_VALUES: ReadonlySet<string> = new Set<ProvisionalFilter>([
+	'all',
+	'provisional',
+	'established',
+]);
+const CAPACITY_VALUES: ReadonlySet<string> = new Set<CapacityFilter>([
+	'all',
+	'reached',
+	'available',
+]);
+const SORT_KEYS: ReadonlySet<string> = new Set<AdminBotSortKey>([
+	'identity',
+	'rating',
+	'utilization',
+]);
+const SORT_DIRS: ReadonlySet<string> = new Set<SortDirection>(['asc', 'desc']);
 
 /**
  * Locale-pinned collator for deterministic identity ordering and tie-breaking.
@@ -102,15 +114,15 @@ export function parseAdminBotsQuery(
 
 	return {
 		search,
-		ladder: LADDER_VALUES.includes(ladder) ? ladder : 'all',
-		catalog: CATALOG_VALUES.includes(catalog) ? catalog : 'all',
-		ownership: OWNERSHIP_VALUES.includes(ownership) ? ownership : 'all',
-		webhook: WEBHOOK_VALUES.includes(webhook) ? webhook : 'all',
-		provisional: PROVISIONAL_VALUES.includes(provisional) ? provisional : 'all',
-		capacity: CAPACITY_VALUES.includes(capacity) ? capacity : 'all',
+		ladder: LADDER_VALUES.has(ladder) ? ladder : 'all',
+		catalog: CATALOG_VALUES.has(catalog) ? catalog : 'all',
+		ownership: OWNERSHIP_VALUES.has(ownership) ? ownership : 'all',
+		webhook: WEBHOOK_VALUES.has(webhook) ? webhook : 'all',
+		provisional: PROVISIONAL_VALUES.has(provisional) ? provisional : 'all',
+		capacity: CAPACITY_VALUES.has(capacity) ? capacity : 'all',
 		capability: capability === '' ? 'all' : capability,
-		sort: SORT_KEYS.includes(sort) ? sort : 'identity',
-		dir: SORT_DIRS.includes(dir) ? dir : 'asc',
+		sort: SORT_KEYS.has(sort) ? sort : 'identity',
+		dir: SORT_DIRS.has(dir) ? dir : 'asc',
 	};
 }
 
@@ -206,76 +218,70 @@ function compareIdentity(a: AdminBot, b: AdminBot): number {
 	return IDENTITY_COLLATOR.compare(a.name.normalize('NFC'), b.name.normalize('NFC'));
 }
 
+function matchesSearch(bot: AdminBot, searchNorm: string): boolean {
+	if (!searchNorm) return true;
+	const matchesTeam = normalizeForSearch(bot.team).includes(searchNorm);
+	const matchesName = normalizeForSearch(bot.name).includes(searchNorm);
+	const matchesCombined = normalizeForSearch(`${bot.team}/${bot.name}`).includes(searchNorm);
+	const matchesWebhook =
+		bot.webhook?.url !== undefined && normalizeForSearch(bot.webhook.url).includes(searchNorm);
+
+	return matchesTeam || matchesName || matchesCombined || matchesWebhook;
+}
+
+function matchesStateFilters(bot: AdminBot, query: AdminBotsQuery): boolean {
+	if (query.ladder === 'on' && !bot.onLadder) return false;
+	if (query.ladder === 'off' && bot.onLadder) return false;
+	if (query.catalog === 'open' && !bot.openToHumans) return false;
+	if (query.catalog === 'closed' && bot.openToHumans) return false;
+	if (query.ownership === 'owned' && !bot.owned) return false;
+	if (query.ownership === 'unowned' && bot.owned) return false;
+	return true;
+}
+
+function matchesWebhookAndCapacity(bot: AdminBot, query: AdminBotsQuery): boolean {
+	if (query.webhook === 'configured' && !bot.webhook) return false;
+	if (query.webhook === 'none' && bot.webhook !== null) return false;
+	if (query.provisional === 'provisional' && !bot.provisional) return false;
+	if (query.provisional === 'established' && bot.provisional) return false;
+	if (query.capacity === 'reached' && !isCapacityReached(bot)) return false;
+	if (query.capacity === 'available' && isCapacityReached(bot)) return false;
+	return true;
+}
+
+function matchesCapability(bot: AdminBot, capability: string): boolean {
+	if (capability === 'all' || capability.trim() === '') return true;
+	const targetCap = normalizeForSearch(capability.trim());
+	return bot.webhook?.capabilities.some((c) => normalizeForSearch(c.trim()) === targetCap) ?? false;
+}
+
+function matchesBotFilter(bot: AdminBot, query: AdminBotsQuery, searchNorm: string): boolean {
+	return (
+		matchesSearch(bot, searchNorm) &&
+		matchesStateFilters(bot, query) &&
+		matchesWebhookAndCapacity(bot, query) &&
+		matchesCapability(bot, query.capability)
+	);
+}
+
+function compareBots(a: AdminBot, b: AdminBot, query: AdminBotsQuery): number {
+	const sign = query.dir === 'desc' ? -1 : 1;
+	if (query.sort === 'rating') {
+		const diff = toFiniteOrZero(a.rating) - toFiniteOrZero(b.rating);
+		if (diff !== 0) return diff * sign;
+	} else if (query.sort === 'utilization') {
+		const diff = toFiniteOrZero(computeUtilization(a)) - toFiniteOrZero(computeUtilization(b));
+		if (diff !== 0) return diff * sign;
+	} else {
+		const cmp = compareIdentity(a, b);
+		if (cmp !== 0) return cmp * sign;
+	}
+	return compareIdentity(a, b);
+}
+
 /** Applies search, filters, and deterministic sorting to a fleet of AdminBots. */
 export function applyAdminBotsQuery(bots: AdminBot[], query: AdminBotsQuery): AdminBot[] {
 	const searchNorm = normalizeForSearch(query.search.trim());
-
-	const filtered = bots.filter((bot) => {
-		// Search: normalize both sides for case- and Unicode-canonical-form-insensitive matching.
-		if (searchNorm) {
-			const matchesTeam = normalizeForSearch(bot.team).includes(searchNorm);
-			const matchesName = normalizeForSearch(bot.name).includes(searchNorm);
-			const matchesCombined = normalizeForSearch(`${bot.team}/${bot.name}`).includes(searchNorm);
-			const matchesWebhook =
-				bot.webhook?.url !== undefined && normalizeForSearch(bot.webhook.url).includes(searchNorm);
-
-			if (!matchesTeam && !matchesName && !matchesCombined && !matchesWebhook) {
-				return false;
-			}
-		}
-
-		// Ladder filter
-		if (query.ladder === 'on' && !bot.onLadder) return false;
-		if (query.ladder === 'off' && bot.onLadder) return false;
-
-		// Catalog filter
-		if (query.catalog === 'open' && !bot.openToHumans) return false;
-		if (query.catalog === 'closed' && bot.openToHumans) return false;
-
-		// Ownership filter
-		if (query.ownership === 'owned' && !bot.owned) return false;
-		if (query.ownership === 'unowned' && bot.owned) return false;
-
-		// Webhook filter — 'configured' requires an active verified webhook registration
-		if (query.webhook === 'configured' && !bot.webhook) return false;
-		if (query.webhook === 'none' && bot.webhook !== null) return false;
-
-		// Provisional filter
-		if (query.provisional === 'provisional' && !bot.provisional) return false;
-		if (query.provisional === 'established' && bot.provisional) return false;
-
-		// Capacity reached filter
-		if (query.capacity === 'reached' && !isCapacityReached(bot)) return false;
-		if (query.capacity === 'available' && isCapacityReached(bot)) return false;
-
-		// Capability filter — case- and Unicode-canonical-form-insensitive matching
-		if (query.capability !== 'all' && query.capability.trim() !== '') {
-			const targetCap = normalizeForSearch(query.capability.trim());
-			const hasCap =
-				bot.webhook?.capabilities.some((c) => normalizeForSearch(c.trim()) === targetCap) ?? false;
-			if (!hasCap) return false;
-		}
-
-		return true;
-	});
-
-	// Deterministic sort with locale-pinned identity tie-breaking
-	const sign = query.dir === 'desc' ? -1 : 1;
-
-	return filtered.slice().sort((a, b) => {
-		if (query.sort === 'rating') {
-			const diff = toFiniteOrZero(a.rating) - toFiniteOrZero(b.rating);
-			if (diff !== 0) return diff * sign;
-		} else if (query.sort === 'utilization') {
-			const diff = toFiniteOrZero(computeUtilization(a)) - toFiniteOrZero(computeUtilization(b));
-			if (diff !== 0) return diff * sign;
-		} else {
-			// Primary identity sort (also the default)
-			const cmp = compareIdentity(a, b);
-			if (cmp !== 0) return cmp * sign;
-		}
-
-		// Tie-break: always ascending identity for stability, independent of sort direction
-		return compareIdentity(a, b);
-	});
+	const filtered = bots.filter((bot) => matchesBotFilter(bot, query, searchNorm));
+	return filtered.slice().sort((a, b) => compareBots(a, b, query));
 }

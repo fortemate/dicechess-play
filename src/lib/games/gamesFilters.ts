@@ -38,8 +38,8 @@ export interface GamesFilters {
 	source: SourceFilter | null;
 }
 
-const RESULTS: readonly ResultFilter[] = ['win', 'draw', 'loss'];
-const SOURCES: readonly SourceFilter[] = ['device', 'lobby'];
+const RESULTS: ReadonlySet<string> = new Set<ResultFilter>(['win', 'draw', 'loss']);
+const SOURCES: ReadonlySet<string> = new Set<SourceFilter>(['device', 'lobby']);
 
 export function parseVsParam(raw: string): VsFilter | null {
 	if (raw === 'human') return { kind: 'human' };
@@ -81,8 +81,8 @@ export function parseGamesFilters(url: {
 	const source = params.get('source');
 	return {
 		vs: vs === null ? null : parseVsParam(vs),
-		result: RESULTS.includes(result as ResultFilter) ? (result as ResultFilter) : null,
-		source: SOURCES.includes(source as SourceFilter) ? (source as SourceFilter) : null,
+		result: result && RESULTS.has(result) ? (result as ResultFilter) : null,
+		source: source && SOURCES.has(source) ? (source as SourceFilter) : null,
 	};
 }
 

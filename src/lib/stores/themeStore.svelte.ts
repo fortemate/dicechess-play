@@ -46,7 +46,7 @@ class ThemeStore {
 
 	private applyTheme(theme: Theme) {
 		if (typeof document !== 'undefined') {
-			document.documentElement.setAttribute('data-theme', theme);
+			document.documentElement.dataset.theme = theme;
 			const metaTag = document.getElementById('theme-color-meta');
 			if (metaTag && metaColors[theme]) {
 				metaTag.setAttribute('content', metaColors[theme]);

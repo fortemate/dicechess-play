@@ -73,6 +73,12 @@ export function seatRating(players: Players | null | undefined, seat: Seat): num
 	return publicPlayer(players, seat)?.rating;
 }
 
+function participantKind(face: ReturnType<typeof publicPlayer>, spectator: boolean): string {
+	if (face?.kind === 'Bot') return 'bot';
+	if (face?.name) return 'player';
+	return spectator ? 'live' : 'guest';
+}
+
 /** Board-strip subtitle: what kind of participant sits there ("bot" for bots, the old labels otherwise). */
 export function seatDisplaySub(
 	players: Players | null | undefined,
@@ -82,7 +88,7 @@ export function seatDisplaySub(
 	const face = publicPlayer(players, seat);
 	// A named human is a registered player, not a guest — calling them "guest" would be plainly wrong now
 	// that accounts exist. Only an unnamed human is one.
-	const who = face?.kind === 'Bot' ? 'bot' : face?.name ? 'player' : spectator ? 'live' : 'guest';
+	const who = participantKind(face, spectator);
 	return `${who} · ${SEAT_LOWER_LABELS[seat]}`;
 }
 

@@ -66,6 +66,15 @@ export function initialOf(nickname: string): string {
 	return first ? first.toUpperCase() : '?';
 }
 
+/**
+ * Start the login round-trip. A full-page navigation, not a fetch: play-api 303s to Google and
+ * back, and only a real navigation can carry the user through that and land the cookie.
+ */
+function signIn(): void {
+	if (!isAuthEnabled()) return;
+	window.location.assign(loginUrl());
+}
+
 function createAuthStore() {
 	const user = $state<User>({ ...GUEST_USER });
 	let status = $state<AuthStatus>('loading');
@@ -108,15 +117,6 @@ function createAuthStore() {
 		if (result.outcome === 'signed-in') apply(result.me);
 		else clear(result.outcome);
 		return status;
-	}
-
-	/**
-	 * Start the login round-trip. A full-page navigation, not a fetch: play-api 303s to Google and
-	 * back, and only a real navigation can carry the user through that and land the cookie.
-	 */
-	function signIn(): void {
-		if (!isAuthEnabled()) return;
-		window.location.assign(loginUrl());
 	}
 
 	/**

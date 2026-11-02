@@ -181,7 +181,7 @@ export class PlayWithBotBot {
 		});
 	}
 
-	private async selectBestMoveFallback(
+	private selectBestMoveFallback(
 		dfen: string,
 		algorithm: string,
 		clock?: ClockOptions,
@@ -191,10 +191,10 @@ export class PlayWithBotBot {
 				? { algorithm, clock }
 				: { algorithm, timeBudgetMs: BOT_TIME_BUDGET_MS };
 			const result = DiceChess.getBestMove(dfen, options);
-			return result?.moves || [];
+			return Promise.resolve(result?.moves || []);
 		} catch (e) {
 			logger.error(`Error getting bot moves with algorithm: ${algorithm}`, e as Error);
-			return [];
+			return Promise.resolve([]);
 		}
 	}
 }

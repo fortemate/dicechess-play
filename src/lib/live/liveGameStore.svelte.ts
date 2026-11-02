@@ -373,7 +373,11 @@ export class LiveGameStore {
 		// so a follower of a rematch chain cannot end up holding a board it is able to play.
 		this.gameId = id;
 		this.playerColor = !spectator && as === 'black' ? 'b' : 'w';
-		this.mySeat = spectator ? null : as === 'white' ? 'White' : as === 'black' ? 'Black' : null;
+		if (spectator || as === null) {
+			this.mySeat = null;
+		} else {
+			this.mySeat = as === 'white' ? 'White' : 'Black';
+		}
 		// Our guest id rides along on a seated connection so the server can bind the seat to us
 		// (play-api #285) — without it, a friend-by-link game stays recorded as the creator playing
 		// themselves and neither side finds it in their history. A signed-in visitor's session wins
@@ -505,68 +509,66 @@ export class LiveGameStore {
 	}
 
 	// ── server events ──────────────────────────────────────────────────────────
-	private applyEvent(ev: ServerEvent): void {
-		if ('Snapshot' in ev) {
-			this.version = ev.Snapshot.v;
-			this.syncState(ev.Snapshot.state, ev.Snapshot.history);
-			// A reconnect can land straight into someone else's pending offer, so the preference has to
-			// be honoured here too and not only on the live event.
+	private handleDiceRolled(
+		payload: Extract<ServerEvent, { DiceRolled: unknown }>['DiceRolled'],
+	): void {
+		if (payload.v <= this.version) return;
+		this.version = payload.v;
+		this.drawOffer = null;
+		this.drawOfferedBy = null;
+		if (this.rematchStartup?.phase === 'awaiting_joins') {
+			this.rematchStartup = { phase: 'active' };
+		}
+		const { fen6, dice } = splitDfen(payload.dfen);
+		const color: 'w' | 'b' = payload.seat === 'White' ? 'w' : 'b';
+		this.recordRoll(fen6, color, dice);
+		this.syncTurn(payload.dfen, payload.seat, true, payload.legalMoves);
+		this.setClocks(payload.clocks, payload.seat);
+	}
+
+	private handleTurnPlayed(
+		payload: Extract<ServerEvent, { TurnPlayed: unknown }>['TurnPlayed'],
+	): void {
+		if (payload.v <= this.version) return;
+		this.version = payload.v;
+		this.isDrawOfferArmed = false;
+		this.turnTree = null;
+		this.treeFallback = false;
+		this.isDicePending = false;
+		this.recordTurn(payload.moves, payload.seat);
+		this.confirmedFen = stripDfen(payload.fenAfter);
+		this.liveFen = this.confirmedFen;
+		this.pendingMoves = [];
+		this.liveDice = [];
+		this.gameStatus = 'waiting';
+		this.freezeClocks();
+	}
+
+	private handleDrawOffered(
+		payload: Extract<ServerEvent, { DrawOffered: unknown }>['DrawOffered'],
+	): void {
+		if (payload.v <= this.version) return;
+		this.version = payload.v;
+		this.drawOffer = { pending: true };
+		this.drawOfferedBy = payload.by;
+		const responderSeat: Seat = payload.by === 'White' ? 'Black' : 'White';
+		this.liveActiveColor = responderSeat === 'White' ? 'w' : 'b';
+		this.setClocks(this.clockBaseMs, responderSeat);
+		if (this.mySeat === responderSeat) {
+			this.gameStatus = 'playing';
+			playDrawOfferSound();
 			this.autoDeclineIfPreferred();
-			return;
-		}
-		if ('DiceRolled' in ev) {
-			if (ev.DiceRolled.v <= this.version) return;
-			this.version = ev.DiceRolled.v;
-			this.drawOffer = null;
-			this.drawOfferedBy = null;
-			if (this.rematchStartup?.phase === 'awaiting_joins') {
-				this.rematchStartup = { phase: 'active' };
-			}
-			const { fen6, dice } = splitDfen(ev.DiceRolled.dfen);
-			const color: 'w' | 'b' = ev.DiceRolled.seat === 'White' ? 'w' : 'b';
-			this.recordRoll(fen6, color, dice);
-			this.syncTurn(ev.DiceRolled.dfen, ev.DiceRolled.seat, true, ev.DiceRolled.legalMoves);
-			this.setClocks(ev.DiceRolled.clocks, ev.DiceRolled.seat);
-			// No sound here: every roll — the player's own included — sounds in presentLoop,
-			// in sync with its visible spin (which may lag this event during catch-up).
-			return;
-		}
-		if ('TurnPlayed' in ev) {
-			if (ev.TurnPlayed.v <= this.version) return;
-			this.version = ev.TurnPlayed.v;
-			this.isDrawOfferArmed = false;
-			this.turnTree = null;
-			this.treeFallback = false;
-			this.isDicePending = false;
-			this.recordTurn(ev.TurnPlayed.moves, ev.TurnPlayed.seat);
-			this.confirmedFen = stripDfen(ev.TurnPlayed.fenAfter);
-			this.liveFen = this.confirmedFen;
-			this.pendingMoves = [];
-			this.liveDice = [];
+		} else {
 			this.gameStatus = 'waiting';
-			this.freezeClocks(); // hold the clocks until the next DiceRolled brings authoritative values
-			return;
 		}
+	}
+
+	private handleDrawEvent(ev: ServerEvent): void {
 		if ('DrawOffered' in ev) {
-			if (ev.DrawOffered.v <= this.version) return;
-			this.version = ev.DrawOffered.v;
-			this.drawOffer = { pending: true };
-			this.drawOfferedBy = ev.DrawOffered.by;
-			const responderSeat: Seat = ev.DrawOffered.by === 'White' ? 'Black' : 'White';
-			this.liveActiveColor = responderSeat === 'White' ? 'w' : 'b';
-			this.setClocks(this.clockBaseMs, responderSeat);
-			if (this.mySeat === responderSeat) {
-				this.gameStatus = 'playing';
-				playDrawOfferSound();
-				this.autoDeclineIfPreferred();
-			} else {
-				this.gameStatus = 'waiting';
-			}
+			this.handleDrawOffered(ev.DrawOffered);
 			return;
 		}
 		if ('DrawOfferArmed' in ev) {
-			// Carries no version: it is this socket's private answer, not a room event, so it is applied
-			// as-is and never compared against `version`.
 			const { armed, reason, availableAfterTurns } = ev.DrawOfferArmed;
 			this.isDrawOfferArmed = armed;
 			this.drawArmRefusal = reason
@@ -579,33 +581,31 @@ export class LiveGameStore {
 			this.version = ev.DrawDeclined.v;
 			this.drawOffer = null;
 			this.drawOfferedBy = null;
-			return;
 		}
-		if ('GameEnded' in ev) {
-			if (ev.GameEnded.v <= this.version) return;
-			this.version = ev.GameEnded.v;
-			// Freeze the clocks at their server-final values and stop reconnecting right away,
-			// but let an in-flight reveal finish (the winning move should land on the board) and
-			// hold a short suspense beat before announcing the result.
-			this.settleClocks(ev.GameEnded.over.termination);
-			this.client?.close();
-			this.authoritativeOver = ev.GameEnded.over;
-			this.pendingOver = ev.GameEnded.over;
-			this.scheduleGameEnd(this.epoch);
-			return;
+	}
+
+	private handleGameEnded(
+		payload: Extract<ServerEvent, { GameEnded: unknown }>['GameEnded'],
+	): void {
+		if (payload.v <= this.version) return;
+		this.version = payload.v;
+		this.settleClocks(payload.over.termination);
+		this.client?.close();
+		this.authoritativeOver = payload.over;
+		this.pendingOver = payload.over;
+		this.scheduleGameEnd(this.epoch);
+	}
+
+	private handleRejected(payload: Extract<ServerEvent, { Rejected: unknown }>['Rejected']): void {
+		if (payload.v <= this.version) return;
+		this.version = payload.v;
+		if (payload.seat === this.mySeat) {
+			this.rollback();
+			toastStore.error(m.game_toast_move_rejected());
 		}
-		if ('Rejected' in ev) {
-			if (ev.Rejected.v <= this.version) return;
-			this.version = ev.Rejected.v;
-			if (ev.Rejected.seat === this.mySeat) {
-				this.rollback();
-				toastStore.error(m.game_toast_move_rejected());
-			}
-			return;
-		}
-		// Cube events only ever ADJUST the server's doubling object: a take moves the stake and the
-		// cube, a drop settles at the pre-offer stake the event names. Without a `doubling` snapshot
-		// there is nothing to adjust and the event is ignored (a classic game never receives one).
+	}
+
+	private handleDoubleEvent(ev: ServerEvent): void {
 		if ('DoubleAccepted' in ev) {
 			if (ev.DoubleAccepted.v <= this.version) return;
 			this.version = ev.DoubleAccepted.v;
@@ -625,7 +625,25 @@ export class LiveGameStore {
 					decision: null,
 				};
 			}
+		}
+	}
+
+	private applyEvent(ev: ServerEvent): void {
+		if ('Snapshot' in ev) {
+			this.version = ev.Snapshot.v;
+			this.syncState(ev.Snapshot.state, ev.Snapshot.history);
+			this.autoDeclineIfPreferred();
 			return;
+		}
+		if ('DiceRolled' in ev) return this.handleDiceRolled(ev.DiceRolled);
+		if ('TurnPlayed' in ev) return this.handleTurnPlayed(ev.TurnPlayed);
+		if ('DrawOffered' in ev || 'DrawOfferArmed' in ev || 'DrawDeclined' in ev) {
+			return this.handleDrawEvent(ev);
+		}
+		if ('GameEnded' in ev) return this.handleGameEnded(ev.GameEnded);
+		if ('Rejected' in ev) return this.handleRejected(ev.Rejected);
+		if ('DoubleAccepted' in ev || 'DoubleDeclined' in ev) {
+			this.handleDoubleEvent(ev);
 		}
 	}
 
@@ -835,7 +853,11 @@ export class LiveGameStore {
 			this.winner = null;
 		} else {
 			this.winner = result.Win.side;
-			this.outcome = this.mySeat === null ? null : this.winner === this.mySeat ? 'won' : 'lost';
+			if (this.mySeat === null) {
+				this.outcome = null;
+			} else {
+				this.outcome = this.winner === this.mySeat ? 'won' : 'lost';
+			}
 		}
 	}
 
@@ -920,10 +942,7 @@ export class LiveGameStore {
 	 * When presentation finishes, the clock for targetTickingSeat resumes from Date.now().
 	 */
 	private updateClockTicking(): void {
-		if (this.isPresenting || this.gameStatus === 'over') {
-			this.tickingSeat = null;
-			this.stopClockTimer();
-		} else if (this.targetTickingSeat !== null) {
+		if (!this.isPresenting && this.gameStatus !== 'over' && this.targetTickingSeat !== null) {
 			const wasTicking = this.tickingSeat === this.targetTickingSeat;
 			this.tickingSeat = this.targetTickingSeat;
 			if (!wasTicking) {
@@ -971,7 +990,7 @@ export class LiveGameStore {
 			return;
 		}
 		const dests = this.legalMovesDests.get(orig as Key);
-		if (!dests || !dests.includes(dest as Key)) return;
+		if (!dests?.includes(dest as Key)) return;
 
 		const piece = getPieceFromFen(this.liveFen, orig);
 		if (!piece) return;
@@ -990,7 +1009,7 @@ export class LiveGameStore {
 			// anyway costs the whole turn — `applyMove` ignores it locally, but the server's
 			// legal-turn index is keyed on the engine's own UCI and rejects `c7d8q` (#177).
 			const target = getPieceFromFen(this.liveFen, dest);
-			if (target && target.toLowerCase() === 'k') {
+			if (target?.toLowerCase() === 'k') {
 				this.completeMove(orig, dest, undefined, dieIndex);
 				return;
 			}
@@ -1075,7 +1094,9 @@ export class LiveGameStore {
 
 	private consumeCastlingDie(orig: string, dest: string, piece: string | null): void {
 		if (piece?.toLowerCase() !== 'k') return;
-		if (Math.abs(orig.charCodeAt(0) - dest.charCodeAt(0)) !== 2) return;
+		const origCol = orig.codePointAt(0) ?? 0;
+		const destCol = dest.codePointAt(0) ?? 0;
+		if (Math.abs(origCol - destCol) !== 2) return;
 		const rookDie = getDieValue('r');
 		const i = this.liveDice.findIndex((d) => d.allowed && !d.used && getDieValue(d) === rookDie);
 		if (i !== -1) this.liveDice[i].used = true;
@@ -1215,6 +1236,52 @@ export class LiveGameStore {
 	 * isViewingHistory) until the opponent's moves finish animating in order, and the roll's
 	 * spin+sound then fire when it actually presents. This is intentional: the player sees the
 	 * opponent's whole turn land before the board becomes theirs to act on. */
+	private async presentRoll(nextIndex: number, epoch: number): Promise<boolean> {
+		this.presentedIndex = nextIndex; // dice values visible immediately, spin plays on top
+		this.isAnimatingRoll = true;
+		this.updateClockTicking();
+		playCue('dice_roll');
+		await this.sleep(ROLL_ANIMATION_MS);
+		if (epoch !== this.epoch) return false;
+		this.isAnimatingRoll = false;
+		this.updateClockTicking();
+		return true;
+	}
+
+	private async presentPass(
+		entry: BotMoveHistoryState,
+		nextIndex: number,
+		epoch: number,
+	): Promise<boolean> {
+		// The passed roll's entry is still on display, dice visible — hold it with the
+		// notice up, then move on.
+		this.passNoticeSeat = entry.active_color === 'w' ? 'White' : 'Black';
+		this.updateClockTicking();
+		playCue('no_move'); // after the roll's spin: the dice have landed
+		await this.sleep(PASS_DWELL_MS);
+		if (epoch !== this.epoch) return false; // reset()/endGame already cleared the notice
+		this.passNoticeSeat = null;
+		this.presentedIndex = nextIndex;
+		this.updateClockTicking();
+		return true;
+	}
+
+	private async presentMove(
+		entry: BotMoveHistoryState,
+		nextIndex: number,
+		epoch: number,
+	): Promise<boolean> {
+		this.updateClockTicking();
+		await this.sleep(MOVE_STEP_MS); // pause on the OLD position, then reveal
+		if (epoch !== this.epoch) return false;
+		const before = this.historyMap[String(this.presentedIndex)]?.fen;
+		this.presentedIndex = nextIndex;
+		this.updateClockTicking();
+		const move = entry.gameMoveHistoryMove;
+		if (before && move) playCue(moveCue(before, historyUci(move)));
+		return true;
+	}
+
 	private async presentLoop(epoch: number): Promise<void> {
 		try {
 			while (this.presentedIndex < this.maxMoveIndex) {
@@ -1235,36 +1302,15 @@ export class LiveGameStore {
 					continue;
 				}
 
+				let ok = true;
 				if (isRoll) {
-					this.presentedIndex = nextIndex; // dice values visible immediately, spin plays on top
-					this.isAnimatingRoll = true;
-					this.updateClockTicking();
-					playCue('dice_roll');
-					await this.sleep(ROLL_ANIMATION_MS);
-					if (epoch !== this.epoch) return;
-					this.isAnimatingRoll = false;
-					this.updateClockTicking();
+					ok = await this.presentRoll(nextIndex, epoch);
 				} else if (isPass) {
-					// The passed roll's entry is still on display, dice visible — hold it with the
-					// notice up, then move on.
-					this.passNoticeSeat = entry.active_color === 'w' ? 'White' : 'Black';
-					this.updateClockTicking();
-					playCue('no_move'); // after the roll's spin: the dice have landed
-					await this.sleep(PASS_DWELL_MS);
-					if (epoch !== this.epoch) return; // reset()/endGame already cleared the notice
-					this.passNoticeSeat = null;
-					this.presentedIndex = nextIndex;
-					this.updateClockTicking();
+					ok = await this.presentPass(entry, nextIndex, epoch);
 				} else {
-					this.updateClockTicking();
-					await this.sleep(MOVE_STEP_MS); // pause on the OLD position, then reveal
-					if (epoch !== this.epoch) return;
-					const before = this.historyMap[String(this.presentedIndex)]?.fen;
-					this.presentedIndex = nextIndex;
-					this.updateClockTicking();
-					const move = entry.gameMoveHistoryMove;
-					if (before && move) playCue(moveCue(before, historyUci(move)));
+					ok = await this.presentMove(entry, nextIndex, epoch);
 				}
+				if (!ok) return;
 			}
 			// Fully caught up: if the game already ended on the wire, the final move has now
 			// landed — run the suspense beat and announce.

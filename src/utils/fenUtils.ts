@@ -50,7 +50,7 @@ export function getPieceFromFen(fen: string, square: string): string | null {
 	const board = parts[0].split('/');
 	if (board.length !== 8) return null;
 
-	const fileIndex = square.toLowerCase().charCodeAt(0) - 'a'.charCodeAt(0);
+	const fileIndex = (square.toLowerCase().codePointAt(0) ?? 0) - ('a'.codePointAt(0) ?? 97);
 	const rankIndex = 8 - Number.parseInt(square[1]);
 	if (rankIndex < 0 || rankIndex > 7 || fileIndex < 0 || fileIndex > 7) return null;
 
