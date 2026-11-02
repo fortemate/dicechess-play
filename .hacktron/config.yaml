@@ -1,0 +1,21 @@
+version: 1
+
+# Exclude automated bot PRs and non-production paths
+exclude:
+  authors:
+    - 'dependabot[bot]'
+    - 'renovate[bot]'
+    - 'github-actions[bot]'
+  paths:
+    # Documentation
+    - 'docs/**'
+    - '**/*.md'
+    # Tests and reports
+    - 'e2e/**'
+    - '**/*.test.ts'
+    - 'test-results/**'
+    # Build output, caches, and lockfiles
+    - '.svelte-kit/**'
+    - 'build/**'
+    - 'node_modules/**'
+    - 'package-lock.json'
