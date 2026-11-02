@@ -202,7 +202,7 @@ describe('SpectatorFollowStore', () => {
 
 		const callsAfterFailure = read.mock.calls.length;
 		await vi.advanceTimersByTimeAsync(500);
-		expect(read.mock.calls.length).toBe(callsAfterFailure); // backed off, not hammering
+		expect(read.mock.calls).toHaveLength(callsAfterFailure); // backed off, not hammering
 
 		fail = false;
 		store.retry();
@@ -280,7 +280,7 @@ describe('SpectatorFollowStore', () => {
 
 		store.retry();
 		await vi.advanceTimersByTimeAsync(0);
-		expect(read.mock.calls.length).toBe(calls + 1);
+		expect(read.mock.calls).toHaveLength(calls + 1);
 		store.dispose();
 	});
 
@@ -333,7 +333,7 @@ describe('SpectatorFollowStore', () => {
 		expect(store.status).toBe('closed');
 		const calls = read.mock.calls.length;
 		await vi.advanceTimersByTimeAsync(10000);
-		expect(read.mock.calls.length).toBe(calls);
+		expect(read.mock.calls).toHaveLength(calls);
 		store.dispose();
 	});
 
@@ -351,11 +351,11 @@ describe('SpectatorFollowStore', () => {
 		document.dispatchEvent(new Event('visibilitychange'));
 		await vi.advanceTimersByTimeAsync(0);
 
-		expect(read.mock.calls.length).toBe(calls);
+		expect(read.mock.calls).toHaveLength(calls);
 		// The explicit way back still works: a viewer asking is not a background poll.
 		store.retry();
 		await vi.advanceTimersByTimeAsync(0);
-		expect(read.mock.calls.length).toBe(calls + 1);
+		expect(read.mock.calls).toHaveLength(calls + 1);
 		store.dispose();
 	});
 
@@ -417,7 +417,7 @@ describe('SpectatorFollowStore', () => {
 
 		const calls = read.mock.calls.length;
 		await vi.advanceTimersByTimeAsync(10000);
-		expect(read.mock.calls.length).toBe(calls);
+		expect(read.mock.calls).toHaveLength(calls);
 		store.dispose();
 	});
 });

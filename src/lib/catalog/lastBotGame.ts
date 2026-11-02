@@ -109,11 +109,11 @@ export function recallBotGame(gameId: string): BotGameSetup | null {
  * for them would be answering a question they declined to ask.
  */
 export function rematchSetup(setup: BotGameSetup): BotGameSetup {
-	const preferredColor =
-		setup.preferredColor === 'White'
-			? 'Black'
-			: setup.preferredColor === 'Black'
-				? 'White'
-				: 'random';
+	let preferredColor: BotGameSetup['preferredColor'] = 'random';
+	if (setup.preferredColor === 'White') {
+		preferredColor = 'Black';
+	} else if (setup.preferredColor === 'Black') {
+		preferredColor = 'White';
+	}
 	return { ...setup, preferredColor };
 }

@@ -3,6 +3,65 @@ import type { BotMoveHistoryState } from './playWithBotHistory.svelte';
 import { getPieceFromFen, PIECE_TO_UNICODE } from '../../utils/fenUtils';
 import { logger } from '../utils/logger';
 
+function createNewTurnBlock(turnNumber: number): TurnBlock {
+	return {
+		turnNumber,
+		whiteDice: null,
+		blackDice: null,
+		whiteMoves: [],
+		blackMoves: [],
+		events: [],
+	};
+}
+
+function recordDice(
+	block: TurnBlock,
+	state: BotMoveHistoryState,
+	index: number,
+	activeColor: string,
+): void {
+	if (state.dices.length === 0) return;
+	const diceInfo = { index, diceChars: state.dices.map((d) => d.value) };
+	if (activeColor === 'w' && !block.whiteDice) {
+		block.whiteDice = diceInfo;
+	} else if (activeColor === 'b' && !block.blackDice) {
+		block.blackDice = diceInfo;
+	}
+}
+
+function formatMoveText(from: string, to: string): string {
+	if (!from || !to) return 'PASS';
+	return `${from.toLowerCase()}-${to.toLowerCase()}`;
+}
+
+function recordMove(
+	block: TurnBlock,
+	state: BotMoveHistoryState,
+	prevState: BotMoveHistoryState | null,
+	index: number,
+	activeColor: string,
+): void {
+	if (!state.gameMoveHistoryMove) return;
+
+	const fen = prevState?.fen ?? state.fen;
+	const { from, to } = state.gameMoveHistoryMove;
+	const pieceChar = from ? getPieceFromFen(fen, from) : null;
+	const pieceIcon = pieceChar ? PIECE_TO_UNICODE[pieceChar] : '';
+
+	const moveData = {
+		index,
+		text: formatMoveText(from, to),
+		pieceIcon: pieceIcon || '',
+		pieceChar: pieceChar ?? null,
+	};
+
+	if (activeColor === 'w') {
+		block.whiteMoves.push(moveData);
+	} else {
+		block.blackMoves.push(moveData);
+	}
+}
+
 /**
  * Groups the flat index→state history map into per-turn visual blocks (white and
  * black columns) for MoveHistory.svelte.
@@ -24,64 +83,13 @@ export function buildTurnBlocks(
 			if (!state) continue;
 
 			const activeColor = state.active_color || 'w';
-			const isNewTurn =
-				!currentTurnBlock || (prevState && activeColor === 'w' && prevState.active_color === 'b');
-
-			if (isNewTurn) {
-				currentTurnBlock = {
-					turnNumber: blocks.length + 1,
-					whiteDice: null,
-					blackDice: null,
-					whiteMoves: [],
-					blackMoves: [],
-					events: [],
-				};
+			if (!currentTurnBlock || (prevState?.active_color === 'b' && activeColor === 'w')) {
+				currentTurnBlock = createNewTurnBlock(blocks.length + 1);
 				blocks.push(currentTurnBlock);
 			}
 
-			if (currentTurnBlock && state.dices.length > 0) {
-				if (activeColor === 'w' && !currentTurnBlock.whiteDice) {
-					currentTurnBlock.whiteDice = {
-						index: i,
-						diceChars: state.dices.map((d) => d.value),
-					};
-				} else if (activeColor === 'b' && !currentTurnBlock.blackDice) {
-					currentTurnBlock.blackDice = {
-						index: i,
-						diceChars: state.dices.map((d) => d.value),
-					};
-				}
-			}
-
-			if (state.gameMoveHistoryMove) {
-				const fen = prevState?.fen ?? state.fen;
-				const from = state.gameMoveHistoryMove.from;
-				const to = state.gameMoveHistoryMove.to;
-				const pieceChar = from ? getPieceFromFen(fen, from) : null;
-				const pieceIcon = pieceChar ? PIECE_TO_UNICODE[pieceChar] : '';
-
-				let text: string;
-				if (!from || !to) {
-					text = 'PASS';
-				} else {
-					text = `${from.toLowerCase()}-${to.toLowerCase()}`;
-				}
-
-				const moveData = {
-					index: i,
-					text,
-					pieceIcon: pieceIcon || '',
-					pieceChar: pieceChar ?? null,
-				};
-
-				if (currentTurnBlock) {
-					if (activeColor === 'w') {
-						currentTurnBlock.whiteMoves.push(moveData);
-					} else {
-						currentTurnBlock.blackMoves.push(moveData);
-					}
-				}
-			}
+			recordDice(currentTurnBlock, state, i, activeColor);
+			recordMove(currentTurnBlock, state, prevState, i, activeColor);
 
 			prevState = state;
 		}

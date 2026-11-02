@@ -88,20 +88,13 @@ test('the built bundle can play a move', async ({ page }) => {
 	await expect(page.locator('cg-board')).toBeVisible();
 
 	const before = await piecesOnBoard(page);
-	const deadline = Date.now() + 60_000;
-	let played = false;
-	while (!played && Date.now() < deadline) {
-		played = await tryPlayOneMove(page);
-		if (!played) await page.waitForTimeout(500); // let the bot's turn and the next roll land
-	}
-
-	// On a bundle that cannot apply moves this is the assertion that fires, so it carries the
-	// diagnosis: the console errors are the difference between "engine is broken" and "the test
-	// never got a turn".
-	expect(
-		played,
-		`no move was accepted in 60s; engine console errors: ${JSON.stringify(engineFailures)}`,
-	).toBe(true);
+	await expect
+		.poll(async () => tryPlayOneMove(page), {
+			timeout: 60_000,
+			intervals: [500],
+			message: `no move was accepted in 60s; engine console errors: ${JSON.stringify(engineFailures)}`,
+		})
+		.toBe(true);
 	expect(await piecesOnBoard(page)).not.toEqual(before);
 	expect(engineFailures, 'engine reported failures in the console').toEqual([]);
 });

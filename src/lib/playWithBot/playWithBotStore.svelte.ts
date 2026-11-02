@@ -1,10 +1,14 @@
 // src/lib/playWithBot/playWithBotStore.svelte.ts
 
 import { logger } from '../utils/logger';
-import { getPieceFromFen, deriveChessgroundDests, buildDfen } from '../../utils/fenUtils';
+import {
+	getPieceFromFen,
+	deriveChessgroundDests,
+	buildDfen,
+	getDieValue,
+} from '../../utils/fenUtils';
 import * as DiceChessEngine from '@fortemate/dicechess-engine';
 import type { Key } from '@lichess-org/chessground/types';
-import { getDieValue } from '../../utils/fenUtils';
 import { walkMoveTree, type MoveTree } from '../moveTreeWalker';
 import { toastStore } from '../toastStore.svelte';
 import { m } from '#lib/paraglide/messages.js';
@@ -12,6 +16,7 @@ import {
 	PlayWithBotBot,
 	setBotDiceChessInstance,
 	resetBotDiceChessInstance,
+	type BotMove,
 } from './playWithBotBot';
 import { authStore } from '../authStore.svelte';
 import { playCue } from '../sound';
@@ -86,6 +91,18 @@ export type GameStatus =
 
 // The player's side of each ending, for its jingle.
 const OUTCOME = { victory: 'won', defeat: 'lost', draw: 'draw' } as const;
+
+export function generateFallbackGameId(): string {
+	if (typeof crypto !== 'undefined' && typeof crypto.randomUUID === 'function') {
+		return crypto.randomUUID();
+	}
+	if (typeof crypto !== 'undefined' && typeof crypto.getRandomValues === 'function') {
+		const array = new Uint32Array(2);
+		crypto.getRandomValues(array);
+		return `${Date.now()}-${array[0].toString(36)}-${array[1].toString(36)}`;
+	}
+	return `${Date.now()}-local`;
+}
 
 export class PlayWithBotStore {
 	gameStatus = $state<GameStatus>('idle');
@@ -178,7 +195,7 @@ export class PlayWithBotStore {
 		const lastPart = parts[parts.length - 1];
 		if (parts.length >= 5 && /^[pnbrqkPNBRQK]{1,3}$/.test(lastPart)) {
 			return {
-				fen: parts.slice(0, parts.length - 1).join(' '),
+				fen: parts.slice(0, -1).join(' '),
 				dice: lastPart,
 			};
 		}
@@ -365,7 +382,7 @@ export class PlayWithBotStore {
 		if (this.liveActiveColor === this.botColor) {
 			this.gameStatus = 'bot_thinking';
 			setTimeout(() => {
-				this.botTurn();
+				void this.botTurn();
 			}, 500);
 		} else {
 			this.gameStatus = 'rolling';
@@ -377,7 +394,7 @@ export class PlayWithBotStore {
 		if (preferencesStore.autoRollDice && this.mode !== 'x2') {
 			setTimeout(() => {
 				if (preferencesStore.autoRollDice && this.mode !== 'x2' && this.canUserRoll) {
-					this.rollDice();
+					void this.rollDice();
 				}
 			}, 500);
 		}
@@ -464,7 +481,7 @@ export class PlayWithBotStore {
 		// Result is white-POV (1 = White won, -1 = Black won), like every other end path: the
 		// timed-out color loses. The old player-POV value inverted records whenever the player
 		// was Black — and with stakes it paid the player who lost on time.
-		this.saveGameRecord(color === 'w' ? -1 : 1);
+		void this.saveGameRecord(color === 'w' ? -1 : 1);
 	}
 
 	private getInitialDice(activeColor: 'w' | 'b'): DieState[] {
@@ -585,6 +602,68 @@ export class PlayWithBotStore {
 			authStore.user.balance >= this.bet,
 	);
 
+	private computeLegalTurnTree(dfen: string): { tree: MoveTree | null; hasLegalMoves: boolean } {
+		try {
+			if (typeof DiceChess?.getLegalTurnTree === 'function') {
+				const tree = DiceChess.getLegalTurnTree(dfen);
+				return { tree, hasLegalMoves: tree ? Object.keys(tree).length > 0 : false };
+			}
+			const uciMoves = DiceChess?.getLegalUciMoves?.(dfen) || [];
+			return { tree: null, hasLegalMoves: uciMoves.length > 0 };
+		} catch (e) {
+			logger.error('Error calculating legal turn tree for initial roll', e as Error);
+			try {
+				const uciMoves = DiceChess?.getLegalUciMoves?.(dfen) || [];
+				return { tree: null, hasLegalMoves: uciMoves.length > 0 };
+			} catch {
+				return { tree: null, hasLegalMoves: false };
+			}
+		}
+	}
+
+	private recordRollInHistory(rolled: DieState[]): void {
+		if (
+			this.maxMoveIndex === 0 &&
+			this.historyMap['0'] &&
+			this.historyMap['0'].dices?.length === 0
+		) {
+			this.updateStateInHistory({
+				dices: structuredClone(rolled),
+			});
+		} else {
+			const rollIndex = this.maxMoveIndex + 1;
+			const rollState: BotMoveHistoryState = {
+				fen: this.liveBoardFen,
+				active_color: this.playerColor,
+				dices: structuredClone(rolled),
+				gameMoveHistoryMove: null,
+				leftTime: this.getLeftTimeMap(),
+			};
+			this.historyMap[String(rollIndex)] = rollState;
+			this.maxMoveIndex = rollIndex;
+		}
+	}
+
+	private handleUserNoLegalMoves(gameId: string): void {
+		playCue('no_move'); // after the roll's spin: the dice have landed
+		toastStore.info(m.game_toast_no_legal_moves_forfeited());
+		this.gameStatus = 'bot_thinking';
+		if (this.toggleActiveColorInFen()) {
+			this.updateStateInHistory({ fen: this.liveBoardFen });
+			// The forced pass that motivates the standing flag: nothing was played this turn, but
+			// the turn is over, so an armed offer goes out with it.
+			this.completeTurnForDraw('player');
+			setTimeout(() => {
+				if (this.startTime !== gameId) return; // session ended/restarted during the dwell
+				this.liveActiveColor = this.botColor;
+				void this.botTurn();
+			}, PASS_DWELL_MS);
+		} else {
+			toastStore.error(m.game_toast_turn_transition_failed());
+			this.endSession();
+		}
+	}
+
 	async rollDice() {
 		if (!this.canUserRoll) return;
 
@@ -609,27 +688,8 @@ export class PlayWithBotStore {
 		const allVals = rolled.map((d) => getDieValue(d));
 		const dfen = buildDfen(this.liveBoardFen, allVals, this.liveActiveColor);
 		this.turnMoves = [];
-		let hasAtLeastOneLegalMove: boolean;
-		try {
-			if (typeof DiceChess?.getLegalTurnTree === 'function') {
-				const tree = DiceChess.getLegalTurnTree(dfen);
-				this.turnTree = tree;
-				hasAtLeastOneLegalMove = tree ? Object.keys(tree).length > 0 : false;
-			} else {
-				this.turnTree = null;
-				const uciMoves = DiceChess?.getLegalUciMoves?.(dfen) || [];
-				hasAtLeastOneLegalMove = uciMoves.length > 0;
-			}
-		} catch (e) {
-			logger.error('Error calculating legal turn tree for initial roll', e as Error);
-			this.turnTree = null;
-			try {
-				const uciMoves = DiceChess?.getLegalUciMoves?.(dfen) || [];
-				hasAtLeastOneLegalMove = uciMoves.length > 0;
-			} catch {
-				hasAtLeastOneLegalMove = false;
-			}
-		}
+		const { tree, hasLegalMoves } = this.computeLegalTurnTree(dfen);
+		this.turnTree = tree;
 
 		this.dice.currentDice = rolled;
 
@@ -640,45 +700,10 @@ export class PlayWithBotStore {
 			moves: [],
 		};
 
-		if (
-			this.maxMoveIndex === 0 &&
-			this.historyMap['0'] &&
-			this.historyMap['0'].dices?.length === 0
-		) {
-			this.updateStateInHistory({
-				dices: structuredClone(rolled),
-			});
-		} else {
-			const rollIndex = this.maxMoveIndex + 1;
-			const rollState: BotMoveHistoryState = {
-				fen: this.liveBoardFen,
-				active_color: this.playerColor,
-				dices: structuredClone(rolled),
-				gameMoveHistoryMove: null,
-				leftTime: this.getLeftTimeMap(),
-			};
-			this.historyMap[String(rollIndex)] = rollState;
-			this.maxMoveIndex = rollIndex;
-		}
+		this.recordRollInHistory(rolled);
 
-		if (!hasAtLeastOneLegalMove) {
-			playCue('no_move'); // after the roll's spin: the dice have landed
-			toastStore.info(m.game_toast_no_legal_moves_forfeited());
-			this.gameStatus = 'bot_thinking';
-			if (this.toggleActiveColorInFen()) {
-				this.updateStateInHistory({ fen: this.liveBoardFen });
-				// The forced pass that motivates the standing flag: nothing was played this turn, but
-				// the turn is over, so an armed offer goes out with it.
-				this.completeTurnForDraw('player');
-				setTimeout(() => {
-					if (this.startTime !== gameId) return; // session ended/restarted during the dwell
-					this.liveActiveColor = this.botColor;
-					this.botTurn();
-				}, PASS_DWELL_MS);
-			} else {
-				toastStore.error(m.game_toast_turn_transition_failed());
-				this.endSession();
-			}
+		if (!hasLegalMoves) {
+			this.handleUserNoLegalMoves(gameId);
 		} else {
 			this.gameStatus = 'playing';
 		}
@@ -716,13 +741,43 @@ export class PlayWithBotStore {
 		}
 	});
 
+	private determineAvailablePromotions(orig: string, dest: string, dieIndex: number): string[] {
+		if (this.turnTree !== null) {
+			const promos = walkMoveTree(this.turnTree, this.turnMoves).getPromotions(orig, dest);
+			if (promos.length > 0) return promos;
+		}
+		const availableDice = this.dice.currentDice
+			.filter((d, i) => d.allowed && (!d.used || i === dieIndex))
+			.map((d) => getDieValue(d));
+		try {
+			if (typeof DiceChess?.getLegalUciMoves === 'function') {
+				const legalMoves: string[] =
+					DiceChess.getLegalUciMoves(
+						buildDfen(this.liveBoardFen, availableDice, this.liveActiveColor),
+					) || [];
+				const movePrefix = orig + dest;
+				const apiPromos = legalMoves
+					.filter((m) => m.startsWith(movePrefix) && m.length === 5)
+					.map((m) => m[4].toLowerCase());
+
+				if (apiPromos.length > 0) {
+					// eslint-disable-next-line svelte/prefer-svelte-reactivity
+					return Array.from(new Set(apiPromos));
+				}
+			}
+		} catch (e) {
+			logger.error('Error getting promotions from legal moves', e as Error);
+		}
+		return ['q', 'r', 'b', 'n'];
+	}
+
 	/** Human Move Handler */
 	handleBoardMove(orig: string, dest: string, _fenAfterMove?: string) {
 		if (this.isViewingHistory) return;
 		if (this.gameStatus !== 'playing' || this.liveActiveColor !== this.playerColor) return;
 
 		const dests = this.legalMovesDests.get(orig as Key);
-		if (!dests || !dests.includes(dest as Key)) return;
+		if (!dests?.includes(dest as Key)) return;
 
 		const piece = getPieceFromFen(this.liveBoardFen, orig);
 		if (!piece) return;
@@ -749,43 +804,12 @@ export class PlayWithBotStore {
 			// on the recorded UCI. A suffix here survives locally (`applyMove` ignores it) but makes
 			// the analytics replay reject the whole game, which quarantines it forever (#177).
 			const targetPiece = getPieceFromFen(this.liveBoardFen, dest);
-			if (targetPiece && targetPiece.toLowerCase() === 'k') {
+			if (targetPiece?.toLowerCase() === 'k') {
 				this.completeMoveLogic(orig, dest, undefined, dieIndex);
 				return;
 			}
 
-			const availableDice = this.dice.currentDice
-				.filter((d, i) => d.allowed && (!d.used || i === dieIndex))
-				.map((d) => getDieValue(d));
-
-			let availablePieces = ['q', 'r', 'b', 'n'];
-			if (this.turnTree !== null) {
-				const promos = walkMoveTree(this.turnTree, this.turnMoves).getPromotions(orig, dest);
-				if (promos.length > 0) {
-					availablePieces = promos;
-				}
-			} else {
-				try {
-					if (typeof DiceChess?.getLegalUciMoves === 'function') {
-						const legalMoves: string[] =
-							DiceChess.getLegalUciMoves(
-								buildDfen(this.liveBoardFen, availableDice, this.liveActiveColor),
-							) || [];
-						const movePrefix = orig + dest;
-						const apiPromos = legalMoves
-							.filter((m) => m.startsWith(movePrefix) && m.length === 5)
-							.map((m) => m[4].toLowerCase());
-
-						if (apiPromos.length > 0) {
-							// eslint-disable-next-line svelte/prefer-svelte-reactivity
-							availablePieces = Array.from(new Set(apiPromos));
-						}
-					}
-				} catch (e) {
-					logger.error('Error getting promotions from legal moves', e as Error);
-				}
-			}
-
+			const availablePieces = this.determineAvailablePromotions(orig, dest, dieIndex);
 			this.pendingPromotion = { orig, dest, color: this.playerColor, availablePieces, dieIndex };
 			return;
 		}
@@ -813,12 +837,10 @@ export class PlayWithBotStore {
 	 */
 	private handleCastlingDieConsumption(orig: string, dest: string, piece: string): void {
 		// Check if this is a castling move (king moves 2 squares horizontally)
-		if (
-			piece.toLowerCase() === 'k' &&
-			orig &&
-			dest &&
-			Math.abs(orig.charCodeAt(0) - dest.charCodeAt(0)) === 2
-		) {
+		if (piece.toLowerCase() !== 'k' || !orig || !dest) return;
+		const origCol = orig.codePointAt(0) ?? 0;
+		const destCol = dest.codePointAt(0) ?? 0;
+		if (Math.abs(origCol - destCol) === 2) {
 			const rookDieVal = getDieValue('r'); // Rook die value
 			const rookDieIndex = this.dice.currentDice.findIndex(
 				(d) => d.allowed && !d.used && getDieValue(d) === rookDieVal,
@@ -921,7 +943,7 @@ export class PlayWithBotStore {
 				this.finish('victory');
 				botStatsStore.recordResult(this.botAlgorithm, 'win');
 				toastStore.success(m.game_toast_victory_king_captured());
-				this.saveGameRecord(this.playerColor === 'w' ? 1 : -1);
+				void this.saveGameRecord(this.playerColor === 'w' ? 1 : -1);
 			}, 800);
 			return;
 		}
@@ -943,7 +965,7 @@ export class PlayWithBotStore {
 				setTimeout(() => {
 					if (this.startTime !== gameId || this.gameStatus !== 'bot_thinking') return;
 					this.liveActiveColor = this.botColor;
-					this.botTurn();
+					void this.botTurn();
 				}, 800);
 			} else {
 				toastStore.error(m.game_toast_turn_transition_failed());
@@ -952,75 +974,67 @@ export class PlayWithBotStore {
 		}
 	}
 
-	/** Greedy Bot Turn logic */
-	async botTurn(bypassDoubleCheck = false) {
-		if (this.gameStatus !== 'bot_thinking' || this.liveActiveColor === this.playerColor) return;
-
-		// The player's offer — delivered when their turn completed, forced pass included — is answered
-		// here, at the bot's own pre-roll gate, which is where a live responder answers one.
-		if (this.activeDrawOffer === 'player') {
-			const answered = await this.answerPlayerDrawOffer();
-			if (!answered) return; // game ended in a draw, or the session moved on beneath us
-		}
-
-		// Bot Doubling Check
+	private checkBotDoubling(bypassDoubleCheck: boolean): boolean {
 		if (
-			!bypassDoubleCheck &&
-			this.mode === 'x2' &&
-			(this.cubeOwner === null || this.cubeOwner === this.botColor) &&
-			this.bet < this.baseBet * 64
+			bypassDoubleCheck ||
+			this.mode !== 'x2' ||
+			(this.cubeOwner !== null && this.cubeOwner !== this.botColor) ||
+			this.bet >= this.baseBet * 64
 		) {
-			const currentDfen = buildDfen(this.liveBoardFen, [], this.botColor);
-			let botWantsToDouble = false;
-			try {
-				if (typeof DiceChess?.shouldBotOfferDouble === 'function') {
-					botWantsToDouble = DiceChess.shouldBotOfferDouble(currentDfen, this.bet, {
-						algorithm: this.botAlgorithm,
-					});
-				}
-			} catch (e) {
-				logger.error('Error checking bot offer double', e as Error);
-			}
-
-			if (botWantsToDouble) {
-				const proposedBet = 2 * this.bet;
-				this.recordDoubleEvent('DOUBLE_OFFER', this.botColor, proposedBet);
-				if (authStore.user && authStore.user.balance < this.bet) {
-					// Not a cube decision: the client forfeits because the player cannot cover the
-					// increment, and the player never saw the offer. Tag the event so analytics can
-					// keep it out of decline-rate and cube-quality stats.
-					this.recordDoubleEvent('DOUBLE_DECLINE', this.playerColor, proposedBet, {
-						reason: 'insufficient_funds',
-					});
-					this.triggerInsufficientFundsForfeit();
-					return;
-				} else {
-					this.activeDoubleOffer = 'bot';
-					this.stopTimer();
-					return;
-				}
-			}
+			return false;
 		}
 
-		// The bot arms its standing offer before its roll; like the player's, it is delivered only when
-		// this turn completes, so the player meets it at their own pre-roll gate and never mid-turn.
-		if (mayOffer(this.drawState, 'bot', this.drawRules) && !isArmed(this.drawState, 'bot')) {
-			const currentDfen = buildDfen(this.liveBoardFen, [], this.botColor);
-			try {
-				const wantsDraw =
-					typeof DiceChess?.shouldBotOfferDraw === 'function'
-						? DiceChess.shouldBotOfferDraw(currentDfen, { algorithm: this.botAlgorithm })
-						: false;
-				if (wantsDraw) {
-					this.drawState = armDrawOffer(this.drawState, 'bot', this.drawRules).state;
-				}
-			} catch (e) {
-				logger.error('Error checking bot draw offer', e as Error);
+		const currentDfen = buildDfen(this.liveBoardFen, [], this.botColor);
+		let botWantsToDouble = false;
+		try {
+			if (typeof DiceChess?.shouldBotOfferDouble === 'function') {
+				botWantsToDouble = DiceChess.shouldBotOfferDouble(currentDfen, this.bet, {
+					algorithm: this.botAlgorithm,
+				});
 			}
+		} catch (e) {
+			logger.error('Error checking bot offer double', e as Error);
 		}
 
+		if (!botWantsToDouble) return false;
+
+		const proposedBet = 2 * this.bet;
+		this.recordDoubleEvent('DOUBLE_OFFER', this.botColor, proposedBet);
+		if (authStore.user && authStore.user.balance < this.bet) {
+			// Not a cube decision: the client forfeits because the player cannot cover the
+			// increment, and the player never saw the offer. Tag the event so analytics can
+			// keep it out of decline-rate and cube-quality stats.
+			this.recordDoubleEvent('DOUBLE_DECLINE', this.playerColor, proposedBet, {
+				reason: 'insufficient_funds',
+			});
+			this.triggerInsufficientFundsForfeit();
+		} else {
+			this.activeDoubleOffer = 'bot';
+			this.stopTimer();
+		}
+		return true;
+	}
+
+	private checkBotDrawOffer(): void {
+		if (!mayOffer(this.drawState, 'bot', this.drawRules) || isArmed(this.drawState, 'bot')) {
+			return;
+		}
+		const currentDfen = buildDfen(this.liveBoardFen, [], this.botColor);
+		try {
+			const wantsDraw =
+				typeof DiceChess?.shouldBotOfferDraw === 'function'
+					? DiceChess.shouldBotOfferDraw(currentDfen, { algorithm: this.botAlgorithm })
+					: false;
+			if (wantsDraw) {
+				this.drawState = armDrawOffer(this.drawState, 'bot', this.drawRules).state;
+			}
+		} catch (e) {
+			logger.error('Error checking bot draw offer', e as Error);
+		}
+	}
+
+	private async rollBotDice(gameId: string): Promise<boolean> {
 		playCue('dice_roll');
-
 		this.isAnimatingRoll = true;
 
 		let rolled: DieState[];
@@ -1030,16 +1044,15 @@ export class PlayWithBotStore {
 			rolled = this.dice.generateRandomDice(this.liveActiveColor);
 		}
 
-		const gameId = this.startTime;
 		this.dice.currentDice = rolled;
 		await new Promise((resolve) => setTimeout(resolve, ROLL_ANIMATION_MS));
-		if (this.startTime !== gameId) return;
+		if (this.startTime !== gameId) return false;
 		this.isAnimatingRoll = false;
 
 		// Ensure timer is running after dice animation
 		this.startTimer();
 
-		if (this.liveActiveColor === this.playerColor) return;
+		if (this.liveActiveColor === this.playerColor) return false;
 
 		const allVals = rolled.map((d) => getDieValue(d));
 		let botHasMoves = false;
@@ -1079,7 +1092,7 @@ export class PlayWithBotStore {
 			playCue('no_move');
 			toastStore.info(m.game_toast_bot_no_legal_moves_forfeited());
 			await new Promise((resolve) => setTimeout(resolve, PASS_DWELL_MS));
-			if (this.startTime !== gameId) return; // session ended/restarted during the dwell
+			if (this.startTime !== gameId) return false; // session ended/restarted during the dwell
 			this.gameStatus = 'rolling';
 			if (this.toggleActiveColorInFen()) {
 				this.liveActiveColor = this.playerColor;
@@ -1092,15 +1105,15 @@ export class PlayWithBotStore {
 				toastStore.error(m.game_toast_turn_transition_failed());
 				this.endSession();
 			}
-			return;
+			return false;
 		}
+		return true;
+	}
 
+	private async fetchBotMovesWithTimeout(): Promise<BotMove[] | null> {
 		const availableDice = this.availableDiceValues;
+		if (availableDice.length === 0) return null;
 
-		if (availableDice.length === 0) return;
-
-		// Race bot thinking against timeout using Promise.race
-		// Check timeout every 500ms during bot thinking
 		const clock =
 			this.timeLimit !== null
 				? { remainingMs: this.botTimeLeft, incrementMs: (this.timeBonus ?? 0) * 1000 }
@@ -1124,7 +1137,6 @@ export class PlayWithBotStore {
 				}
 			}, 500);
 
-			// Also reject if game status changes
 			statusCheckInterval = setInterval(() => {
 				if (this.gameStatus !== 'bot_thinking') {
 					if (checkInterval) clearInterval(checkInterval);
@@ -1134,125 +1146,144 @@ export class PlayWithBotStore {
 			}, 100);
 		});
 
-		let botMoves;
 		try {
-			botMoves = await Promise.race([botMovePromise, timeoutCheckPromise]);
+			return await Promise.race([botMovePromise, timeoutCheckPromise]);
 		} catch (e) {
-			// Timeout or game status changed - abort bot turn
 			logger.info('Bot turn aborted:', (e as Error).message);
-			if (checkInterval) clearInterval(checkInterval);
-			if (statusCheckInterval) clearInterval(statusCheckInterval);
-			return;
+			return null;
 		} finally {
 			if (checkInterval) clearInterval(checkInterval);
 			if (statusCheckInterval) clearInterval(statusCheckInterval);
 		}
+	}
+
+	private async executeSingleBotMove(
+		move: BotMove,
+		gameId: string,
+	): Promise<'stop' | 'king_captured' | 'continue'> {
+		await new Promise((resolve) => setTimeout(resolve, 1000));
+		if (
+			this.startTime !== gameId ||
+			(this.gameStatus as GameStatus) === 'defeat' ||
+			(this.gameStatus as GameStatus) === 'victory'
+		) {
+			return 'stop';
+		}
+
+		if (this.checkTimeout()) return 'stop';
+
+		const movingPiece = getPieceFromFen(this.liveBoardFen, move.from);
+		if (!movingPiece) return 'continue';
+
+		const dieVal = getDieValue(movingPiece);
+		const botDieIndex = this.dice.currentDice.findIndex(
+			(d) => d.allowed && !d.used && getDieValue(d) === dieVal,
+		);
+
+		if (botDieIndex !== -1) {
+			this.dice.markUsed(botDieIndex);
+		}
+
+		const prevBoard = this.liveBoardFen;
+		const dfenBefore = buildDfen(
+			this.liveBoardFen,
+			this.dice.currentDice
+				.filter((d, i) => d.allowed && (!d.used || i === botDieIndex))
+				.map((d) => getDieValue(d)),
+			this.liveActiveColor,
+		);
+		const nextBoardFenRaw = DiceChess.applyMove(
+			dfenBefore,
+			move.from,
+			move.to,
+			move.promotion || undefined,
+		);
+		if (!nextBoardFenRaw) {
+			logger.error(`Engine rejected bot move ${move.from}-${move.to}`);
+			if (botDieIndex !== -1) {
+				this.dice.revertUse(botDieIndex);
+			}
+			return 'stop';
+		}
+
+		const nextBoardFen = nextBoardFenRaw.split(/\s+/).slice(0, 6).join(' ');
+		this.liveBoardFen = nextBoardFen;
+		playCue(moveCue(prevBoard, move.from + move.to + (move.promotion || '')));
+		this.handleCastlingDieConsumption(move.from, move.to, movingPiece);
+
+		if (this.currentTurnRecord) {
+			const isCapture = getPieceFromFen(prevBoard, move.to) !== null;
+			this.currentTurnRecord.moves?.push({
+				uci: move.from + move.to + (move.promotion || ''),
+				piece: movingPiece.toUpperCase(),
+				is_capture: isCapture,
+				fen_after: nextBoardFen,
+			});
+		}
+
+		const destPiece = getPieceFromFen(prevBoard, move.to);
+		const isKingCaptured = destPiece?.toLowerCase() === 'k';
+
+		const moveIndex = this.maxMoveIndex + 1;
+		const newState: BotMoveHistoryState = {
+			fen: nextBoardFen,
+			active_color: this.botColor,
+			dices: $state.snapshot(this.dice.currentDice),
+			gameMoveHistoryMove: {
+				from: move.from,
+				to: move.to,
+				promotion: move.promotion || 'NONE',
+			},
+			leftTime: this.getLeftTimeMap(),
+		};
+		this.historyMap[String(moveIndex)] = newState;
+		this.maxMoveIndex = moveIndex;
+
+		if (isKingCaptured) {
+			this.stopTimer();
+			this.gameEndReason = 'mate';
+			if (this.currentTurnRecord) {
+				this.currentTurnRecord.end_dfen = this.liveBoardFen;
+				this.turnHistory.push(this.currentTurnRecord as DiceChessTurnHistory);
+				this.currentTurnRecord = null;
+			}
+			await new Promise((resolve) => setTimeout(resolve, 800));
+			if (this.startTime !== gameId || this.gameStatus !== 'bot_thinking') return 'stop';
+			this.finish('defeat');
+			botStatsStore.recordResult(this.botAlgorithm, 'loss');
+			toastStore.error(m.game_toast_defeat_king_captured());
+			void this.saveGameRecord(this.playerColor === 'w' ? -1 : 1);
+			return 'king_captured';
+		}
+
+		return 'continue';
+	}
+
+	/** Greedy Bot Turn logic */
+	async botTurn(bypassDoubleCheck = false) {
+		if (this.gameStatus !== 'bot_thinking' || this.liveActiveColor === this.playerColor) return;
+
+		// The player's offer — delivered when their turn completed, forced pass included — is answered
+		// here, at the bot's own pre-roll gate, which is where a live responder answers one.
+		if (this.activeDrawOffer === 'player') {
+			const answered = await this.answerPlayerDrawOffer();
+			if (!answered) return; // game ended in a draw, or the session moved on beneath us
+		}
+
+		if (this.checkBotDoubling(bypassDoubleCheck)) return;
+
+		this.checkBotDrawOffer();
+
+		const gameId = this.startTime;
+		const rolledOk = await this.rollBotDice(gameId);
+		if (!rolledOk) return;
+
+		const botMoves = await this.fetchBotMovesWithTimeout();
+		if (!botMoves) return;
 
 		for (const move of botMoves) {
-			await new Promise((resolve) => setTimeout(resolve, 1000));
-			// startTime guard: a new game started during the pacing sleep must not receive the
-			// previous game's bot moves.
-			if (
-				this.startTime !== gameId ||
-				(this.gameStatus as GameStatus) === 'defeat' ||
-				(this.gameStatus as GameStatus) === 'victory'
-			)
-				return;
-
-			// Check for timeout during bot move execution
-			if (this.checkTimeout()) return;
-
-			const movingPiece = getPieceFromFen(this.liveBoardFen, move.from);
-			if (!movingPiece) continue;
-
-			const dieVal = getDieValue(movingPiece);
-			const botDieIndex = this.dice.currentDice.findIndex(
-				(d) => d.allowed && !d.used && getDieValue(d) === dieVal,
-			);
-
-			if (botDieIndex !== -1) {
-				this.dice.markUsed(botDieIndex);
-			}
-
-			const prevBoard = this.liveBoardFen;
-			const dfenBefore = buildDfen(
-				this.liveBoardFen,
-				this.dice.currentDice
-					.filter((d, i) => d.allowed && (!d.used || i === botDieIndex))
-					.map((d) => getDieValue(d)),
-				this.liveActiveColor,
-			);
-			const nextBoardFenRaw = DiceChess.applyMove(
-				dfenBefore,
-				move.from,
-				move.to,
-				move.promotion || undefined,
-			);
-			if (!nextBoardFenRaw) {
-				logger.error(`Engine rejected bot move ${move.from}-${move.to}`);
-				if (botDieIndex !== -1) {
-					this.dice.revertUse(botDieIndex); // Revert die usage
-				}
-				break; // Terminate bot move loop on error
-			}
-
-			// The engine's applyMove now naturally preserves the active color and fullmove.
-			// We just drop the 7th field (dice pool) if it exists, as the UI tracks dice independently.
-			const nextBoardFen = nextBoardFenRaw.split(/\s+/).slice(0, 6).join(' ');
-
-			this.liveBoardFen = nextBoardFen;
-			playCue(moveCue(prevBoard, move.from + move.to + (move.promotion || '')));
-
-			// Handle castling die consumption for bot moves
-			this.handleCastlingDieConsumption(move.from, move.to, movingPiece);
-
-			if (this.currentTurnRecord) {
-				const pieceChar = movingPiece;
-				const isCapture = getPieceFromFen(prevBoard, move.to) !== null;
-				this.currentTurnRecord.moves?.push({
-					uci: move.from + move.to + (move.promotion || ''),
-					piece: pieceChar?.toUpperCase() || '',
-					is_capture: isCapture,
-					fen_after: nextBoardFen,
-				});
-			}
-
-			const destPiece = getPieceFromFen(prevBoard, move.to);
-			const isKingCaptured = destPiece?.toLowerCase() === 'k';
-
-			const moveIndex = this.maxMoveIndex + 1;
-
-			const newState: BotMoveHistoryState = {
-				fen: nextBoardFen,
-				active_color: this.botColor,
-				dices: $state.snapshot(this.dice.currentDice),
-				gameMoveHistoryMove: {
-					from: move.from,
-					to: move.to,
-					promotion: move.promotion || 'NONE',
-				},
-				leftTime: this.getLeftTimeMap(),
-			};
-
-			this.historyMap[String(moveIndex)] = newState;
-			this.maxMoveIndex = moveIndex;
-
-			if (isKingCaptured) {
-				this.stopTimer();
-				this.gameEndReason = 'mate';
-				if (this.currentTurnRecord) {
-					this.currentTurnRecord.end_dfen = this.liveBoardFen;
-					this.turnHistory.push(this.currentTurnRecord as DiceChessTurnHistory);
-					this.currentTurnRecord = null;
-				}
-				await new Promise((resolve) => setTimeout(resolve, 800));
-				if (this.startTime !== gameId || this.gameStatus !== 'bot_thinking') return;
-				this.finish('defeat');
-				botStatsStore.recordResult(this.botAlgorithm, 'loss');
-				toastStore.error(m.game_toast_defeat_king_captured());
-				this.saveGameRecord(this.playerColor === 'w' ? -1 : 1);
-				return;
-			}
+			const outcome = await this.executeSingleBotMove(move, gameId);
+			if (outcome === 'stop' || outcome === 'king_captured') return;
 		}
 
 		if (this.startTime !== gameId || this.gameStatus !== 'bot_thinking') return;
@@ -1261,6 +1292,7 @@ export class PlayWithBotStore {
 			this.liveActiveColor = this.playerColor;
 			this.updateStateInHistory({ fen: this.liveBoardFen });
 			this.dice.currentDice = [];
+			// A completed turn delivers any armed offer.
 			this.completeTurnForDraw('bot');
 			this.tryAutoRoll();
 		} else {
@@ -1298,7 +1330,7 @@ export class PlayWithBotStore {
 			this.turnHistory.push(this.currentTurnRecord as DiceChessTurnHistory);
 			this.currentTurnRecord = null;
 		}
-		this.saveGameRecord(this.playerColor === 'w' ? -1 : 1);
+		void this.saveGameRecord(this.playerColor === 'w' ? -1 : 1);
 	}
 
 	/** Arm or withdraw the player's standing offer. Withdrawing is always allowed. */
@@ -1436,7 +1468,7 @@ export class PlayWithBotStore {
 		this.cubeOwner = this.playerColor;
 		this.activeDoubleOffer = null;
 		this.startTimer();
-		this.botTurn(true);
+		void this.botTurn(true);
 	}
 
 	declineBotDouble() {
@@ -1468,7 +1500,7 @@ export class PlayWithBotStore {
 			this.currentTurnRecord = null;
 		}
 
-		this.saveGameRecord(this.playerColor === 'w' ? 1 : -1);
+		void this.saveGameRecord(this.playerColor === 'w' ? 1 : -1);
 	}
 
 	private triggerDoubleDeclinedDefeat() {
@@ -1483,7 +1515,7 @@ export class PlayWithBotStore {
 			this.currentTurnRecord = null;
 		}
 
-		this.saveGameRecord(this.playerColor === 'w' ? -1 : 1);
+		void this.saveGameRecord(this.playerColor === 'w' ? -1 : 1);
 	}
 
 	private triggerInsufficientFundsForfeit() {
@@ -1500,7 +1532,7 @@ export class PlayWithBotStore {
 			this.currentTurnRecord = null;
 		}
 
-		this.saveGameRecord(this.playerColor === 'w' ? -1 : 1);
+		void this.saveGameRecord(this.playerColor === 'w' ? -1 : 1);
 	}
 
 	/**
@@ -1575,7 +1607,7 @@ export class PlayWithBotStore {
 			this.currentTurnRecord = null;
 		}
 
-		this.saveGameRecord(0);
+		void this.saveGameRecord(0);
 	}
 
 	private getLeftTimeMap(): { [playerId: string]: number } {
@@ -1641,10 +1673,7 @@ export class PlayWithBotStore {
 		}
 		try {
 			const gameRecord: LocalGameRecord = {
-				id:
-					typeof crypto !== 'undefined' && typeof crypto.randomUUID === 'function'
-						? crypto.randomUUID()
-						: `${Date.now()}-${Math.random().toString(36).slice(2, 11)}`,
+				id: generateFallbackGameId(),
 				bot_id: `bot:${this.botAlgorithm}`,
 				player_color: this.playerColor === 'w' ? 'WHITE' : 'BLACK',
 				result,

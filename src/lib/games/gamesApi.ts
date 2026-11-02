@@ -66,8 +66,9 @@ export async function fetchPlayerGames(
 	if (filters.result) params.set('result', filters.result);
 	if (filters.before) params.set('before', filters.before);
 	const query = params.toString();
+	const queryString = query ? `?${query}` : '';
 	const res = await fetch(
-		`${apiBase()}/players/${encodeURIComponent(guestId)}/games${query ? `?${query}` : ''}`,
+		`${apiBase()}/players/${encodeURIComponent(guestId)}/games${queryString}`,
 	);
 	if (!res.ok) throw new Error(`fetchPlayerGames failed: ${res.status}`);
 	return (await res.json()) as PlayerGamesPage;
@@ -85,7 +86,8 @@ export async function fetchMyGames(filters: PlayerGamesFilters = {}): Promise<Pl
 	if (filters.result) params.set('result', filters.result);
 	if (filters.before) params.set('before', filters.before);
 	const query = params.toString();
-	const res = await fetch(`${apiBase()}/me/games${query ? `?${query}` : ''}`, {
+	const queryString = query ? `?${query}` : '';
+	const res = await fetch(`${apiBase()}/me/games${queryString}`, {
 		credentials: 'include',
 	});
 	if (!res.ok) throw new Error(`fetchMyGames failed: ${res.status}`);

@@ -29,6 +29,37 @@ export interface TurnMoveEntry {
 	move: { from: string; to: string; promotion: string };
 }
 
+function markDieUsed(diceState: DieState[], targetValue: number): void {
+	const idx = diceState.findIndex((d) => d.allowed && !d.used && getDieValue(d) === targetValue);
+	if (idx !== -1) {
+		diceState[idx].used = true;
+	}
+}
+
+function isCastlingKingMove(piece: string, from: string, dest: string): boolean {
+	if (piece.toLowerCase() !== 'k') return false;
+	const fromCol = from.codePointAt(0) ?? 0;
+	const destCol = dest.codePointAt(0) ?? 0;
+	return Math.abs(fromCol - destCol) === 2;
+}
+
+function consumePieceDice(
+	tempDiceState: DieState[],
+	boardFen: string,
+	from: string,
+	dest: string,
+): void {
+	const piece = getPieceFromFen(boardFen, from);
+	if (!piece) return;
+
+	markDieUsed(tempDiceState, getDieValue(piece));
+
+	// Handle castling rook die consumption
+	if (isCastlingKingMove(piece, from, dest)) {
+		markDieUsed(tempDiceState, getDieValue('r'));
+	}
+}
+
 /** Walks a turn's UCI micro-moves through the engine, producing one entry per move — or one PASS
  * entry (the `{from:'',to:'',promotion:''}` convention `buildTurnBlocks` expects) when `moves` is
  * empty. Pure: takes the turn's starting board fen/color/dice, returns the per-move sequence plus
@@ -83,26 +114,7 @@ export function expandTurn(
 			break;
 		}
 
-		const piece = getPieceFromFen(nextBoardFen, from);
-		if (piece) {
-			const dieVal = getDieValue(piece);
-			const dieIndex = tempDiceState.findIndex(
-				(d) => d.allowed && !d.used && getDieValue(d) === dieVal,
-			);
-			if (dieIndex !== -1) {
-				tempDiceState[dieIndex].used = true;
-			}
-			// Handle castling rook die consumption
-			if (piece.toLowerCase() === 'k' && Math.abs(from.charCodeAt(0) - dest.charCodeAt(0)) === 2) {
-				const rookDie = getDieValue('r');
-				const rIdx = tempDiceState.findIndex(
-					(d) => d.allowed && !d.used && getDieValue(d) === rookDie,
-				);
-				if (rIdx !== -1) {
-					tempDiceState[rIdx].used = true;
-				}
-			}
-		}
+		consumePieceDice(tempDiceState, nextBoardFen, from, dest);
 
 		const applied = DiceChess.applyMove(currentDfen, from, dest, promo);
 		if (!applied) {

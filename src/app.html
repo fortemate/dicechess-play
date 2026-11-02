@@ -52,9 +52,8 @@
 					var systemTheme = window.matchMedia('(prefers-color-scheme: light)').matches
 						? 'light'
 						: 'dark';
-					var theme =
-						storedTheme && allowed.indexOf(storedTheme) !== -1 ? storedTheme : systemTheme;
-					document.documentElement.setAttribute('data-theme', theme);
+					var theme = storedTheme && allowed.includes(storedTheme) ? storedTheme : systemTheme;
+					document.documentElement.dataset.theme = theme;
 					var metaColors = {
 						dark: '#020617',
 						light: '#f8fafc',
@@ -68,7 +67,9 @@
 					if (metaTag && metaColors[theme]) {
 						metaTag.setAttribute('content', metaColors[theme]);
 					}
-				} catch (e) {}
+				} catch {
+					// LocalStorage or media query unavailable
+				}
 			})();
 		</script>
 		<!-- boot-watchdog (#223): self-heal a client wedged by a poisoned service worker or
@@ -92,7 +93,7 @@
 						var last = Number(w.sessionStorage.getItem(KEY) || '0');
 						if (Date.now() - last < 60000) return false;
 						w.sessionStorage.setItem(KEY, String(Date.now()));
-					} catch (e) {
+					} catch {
 						return false; // no storage means no loop guard, so never auto-reload
 					}
 					return true;

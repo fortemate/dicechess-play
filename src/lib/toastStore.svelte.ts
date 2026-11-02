@@ -9,7 +9,7 @@ export interface ToastMessage {
 class ToastStore {
 	toasts: ToastMessage[] = $state([]);
 	// Per-toast dismissal timers, so a coalesced repeat can refresh instead of stacking.
-	private timers = new Map<string, ReturnType<typeof setTimeout>>();
+	private readonly timers = new Map<string, ReturnType<typeof setTimeout>>();
 
 	private add(text: string, type: ToastType, duration: number = 3000) {
 		// Coalesce: an identical toast already on screen just gets its timer refreshed rather than

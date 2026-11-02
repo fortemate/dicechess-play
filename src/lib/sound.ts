@@ -100,8 +100,8 @@ function unlockAll(): void {
 function unlock(audio: HTMLAudioElement): void {
 	if (!audio.paused) return; // a real play is already in flight — nothing to unlock
 	audio.muted = true;
-	const attempt = audio.play();
-	if (!attempt) {
+	const attempt = audio.play() as Promise<void> | undefined;
+	if (attempt === undefined) {
 		audio.muted = false;
 		return;
 	}
@@ -144,12 +144,9 @@ export function playCue(cue: Cue): void {
 		// The gesture carrying this cue may have just fired the muted unlock probe.
 		audio.muted = false;
 		audio.currentTime = 0;
-		const attempt = audio.play();
-		if (attempt) {
-			attempt.catch(() => {
-				// Autoplay blocked before the first user gesture — drop this one silently.
-			});
-		}
+		audio.play()?.catch(() => {
+			// Autoplay blocked before the first user gesture — drop this one silently.
+		});
 	} catch (e) {
 		logger.error(`Failed to play the ${cue} sound`, e as Error);
 	}

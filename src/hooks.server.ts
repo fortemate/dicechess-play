@@ -14,13 +14,25 @@ import type { Handle } from '@sveltejs/kit/hooks';
 /** Routes that render a complete head of their own and must not inherit app.html defaults. */
 const OWNS_OWN_HEAD = new Set(['/rules', '/licenses']);
 
-const DEFAULT_HEAD_BLOCK = /[\t ]*<!-- default-head -->[\s\S]*?<!-- \/default-head -->\n?/;
+const START_TAG = '<!-- default-head -->';
+const END_TAG = '<!-- /default-head -->';
 
 export function stripDefaultHead(html: string): string {
-	return html.replace(DEFAULT_HEAD_BLOCK, '');
+	const start = html.indexOf(START_TAG);
+	if (start === -1) return html;
+	const end = html.indexOf(END_TAG, start + START_TAG.length);
+	if (end === -1) return html;
+	let lineStart = start;
+	while (lineStart > 0 && (html[lineStart - 1] === ' ' || html[lineStart - 1] === '\t')) {
+		lineStart--;
+	}
+	let afterEnd = end + END_TAG.length;
+	if (html[afterEnd] === '\r') afterEnd++;
+	if (html[afterEnd] === '\n') afterEnd++;
+	return html.slice(0, lineStart) + html.slice(afterEnd);
 }
 
-export const handle: Handle = async ({ event, resolve }) => {
+export const handle: Handle = ({ event, resolve }) => {
 	const ownsHead = event.route.id !== null && OWNS_OWN_HEAD.has(event.route.id);
 	return resolve(event, {
 		transformPageChunk: ({ html }) => (ownsHead ? stripDefaultHead(html) : html),
