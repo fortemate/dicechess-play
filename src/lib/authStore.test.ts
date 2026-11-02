@@ -1,6 +1,5 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import type { Me } from '#lib/auth/authApi.js';
-import { consumeLoginReturn } from '#lib/auth/loginReturn.js';
 
 // The store is a module-level singleton, so every test imports it fresh — otherwise state from one
 // case (a signed-in account, say) leaks into the next and the suite passes for the wrong reason.
@@ -174,29 +173,6 @@ describe('authStore', () => {
 	});
 
 	describe('signIn', () => {
-		it('returns the initiating tab to the game once and ignores ordinary visits', async () => {
-			const sessionStorage = window.sessionStorage;
-			vi.stubGlobal('window', { sessionStorage, location: { assign: vi.fn() } });
-			const store = await freshStore();
-			expect(consumeLoginReturn()).toBe(false);
-			store.signIn();
-			expect(consumeLoginReturn()).toBe(true);
-			expect(consumeLoginReturn()).toBe(false);
-		});
-
-		it('ignores an abandoned sign-in once its OAuth state expires', async () => {
-			const sessionStorage = window.sessionStorage;
-			vi.stubGlobal('window', { sessionStorage, location: { assign: vi.fn() } });
-			const store = await freshStore();
-			store.signIn();
-			const clock = vi.spyOn(Date, 'now').mockReturnValue(Date.now() + 10 * 60 * 1000);
-			try {
-				expect(consumeLoginReturn()).toBe(false);
-			} finally {
-				clock.mockRestore();
-			}
-		});
-
 		it('is a full-page navigation, because an XHR cannot carry the Google round-trip', async () => {
 			const assign = vi.fn();
 			vi.stubGlobal('window', { location: { assign } });

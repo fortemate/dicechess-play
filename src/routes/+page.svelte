@@ -1,9 +1,8 @@
 <script lang="ts">
 	import { onMount } from 'svelte';
-	import { goto } from '$app/navigation';
+	import { afterNavigate, goto } from '$app/navigation';
 	import { resolve } from '$app/paths';
 	import { m } from '#lib/paraglide/messages.js';
-	import { consumeLoginReturn } from '#lib/auth/loginReturn.js';
 	import ShowcaseMark from '../components/showcase/ShowcaseMark.svelte';
 
 	const storeUrl = 'https://www.amazon.com/dp/B0HL6K9N47/';
@@ -14,8 +13,15 @@
 		{ name: 'Rampage', portrait: 'rampage-badge-128', role: m.tv_rampage },
 	];
 
+	// Older installations can still launch at /. Following the brand link within the app
+	// is an intentional visit to the storefront, so only redirect an initial navigation.
+	afterNavigate(({ type }) => {
+		if (type === 'enter' && window.matchMedia('(display-mode: standalone)').matches) {
+			void goto(resolve('/play'), { replaceState: true });
+		}
+	});
+
 	onMount(() => {
-		if (consumeLoginReturn()) void goto(resolve('/play'), { replaceState: true });
 		const themeColor = document.querySelector<HTMLMetaElement>('#theme-color-meta');
 		const previousColor = themeColor?.content;
 		if (themeColor) themeColor.content = '#10251f';
@@ -62,7 +68,7 @@
 						fetchpriority="high"
 					/>
 				</div>
-				<figcaption><span>{m.tv_caption_label()}</span>{m.tv_caption()}</figcaption>
+				<figcaption><span>{m.tv_caption_label()}</span> {m.tv_caption()}</figcaption>
 			</figure>
 			<div class="action">
 				{@render storeButton()}
@@ -376,6 +382,12 @@
 			align-items: flex-start;
 			flex-wrap: wrap;
 			gap: 0.25rem 1rem;
+		}
+	}
+	@media (max-width: 22rem) {
+		.cast {
+			grid-template-columns: repeat(2, minmax(0, 1fr));
+			row-gap: 1.25rem;
 		}
 	}
 </style>

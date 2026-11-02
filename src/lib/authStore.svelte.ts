@@ -18,7 +18,6 @@
 // betting UI — it is not an account balance and no server knows about it.
 
 import { getGuestUuid } from '#lib/ingest/guestIdentity.js';
-import { markLoginStart } from '#lib/auth/loginReturn.js';
 import {
 	claimGuest,
 	deleteAccount,
@@ -117,7 +116,6 @@ function createAuthStore() {
 	 */
 	function signIn(): void {
 		if (!isAuthEnabled()) return;
-		markLoginStart();
 		window.location.assign(loginUrl());
 	}
 

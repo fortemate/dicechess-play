@@ -132,7 +132,6 @@ src/
 │   │                          edited by hand. See CONTRIBUTING.md "Internationalisation (i18n)"
 │   ├── auth/                  authApi — play-api /auth/* client (ADR-0017): session is an HttpOnly
 │   │                          cookie, so the SPA holds no token; login is a full-page navigation
-│   ├── auth/loginReturn.ts    hands the initiating browser tab back to Play after Google sign-in
 │   ├── authStore.svelte.ts    identity: guest by default, account once signed in (status/nickname/
 │   │                          externalId; `user:<uuid>` signed in, `guest:<uuid>` otherwise)
 │   ├── playWithBot/           bot-play core: store, engine worker, dice/history, opening book
