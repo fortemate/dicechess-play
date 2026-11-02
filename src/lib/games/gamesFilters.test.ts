@@ -12,7 +12,7 @@ import {
 	computeHeadToHead,
 	type GamesFilters,
 } from './gamesFilters';
-import type { LocalGameRecord } from '$lib/localGamesDB';
+import type { LocalGameRecord } from '#lib/localGamesDB.js';
 import type { PlayerGame, PlayerOpponent } from './gamesApi';
 
 function localGame(overrides: Partial<LocalGameRecord> = {}): LocalGameRecord {

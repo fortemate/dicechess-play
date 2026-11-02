@@ -1,5 +1,5 @@
-import type { LocalGameRecord } from '$lib/localGamesDB';
-import type { PlayerGame } from '$lib/games/gamesApi';
+import type { LocalGameRecord } from '#lib/localGamesDB.js';
+import type { PlayerGame } from '#lib/games/gamesApi.js';
 
 // Combines the two "My Games" sources — local IndexedDB bot games and play-api's server-recorded
 // lobby/live games — into one newest-first list for /games. Kept as a discriminated union rather

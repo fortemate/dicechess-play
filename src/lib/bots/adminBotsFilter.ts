@@ -76,11 +76,14 @@ export function normalizeForSearch(s: string): string {
 	return s.normalize('NFC').toLowerCase();
 }
 
-export function parseAdminBotsQuery(input: URLSearchParams | URL | string): AdminBotsQuery {
+export function parseAdminBotsQuery(
+	input:
+		Pick<URLSearchParams, 'get'> | { readonly searchParams: Pick<URLSearchParams, 'get'> } | string,
+): AdminBotsQuery {
 	const params =
 		typeof input === 'string'
 			? new URLSearchParams(input.startsWith('?') ? input.slice(1) : input)
-			: input instanceof URL
+			: 'searchParams' in input
 				? input.searchParams
 				: input;
 

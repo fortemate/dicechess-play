@@ -1,7 +1,7 @@
 import { describe, expect, it, vi } from 'vitest';
 import { fireEvent, render } from '@testing-library/svelte';
 import RematchControl from './RematchControl.svelte';
-import type { RematchStore } from '$lib/live/rematchStore.svelte';
+import type { RematchStore } from '#lib/live/rematchStore.svelte.js';
 
 vi.mock('$app/paths', () => ({
 	resolve: (p: string) => p,

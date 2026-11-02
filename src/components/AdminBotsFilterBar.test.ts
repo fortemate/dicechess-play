@@ -1,7 +1,7 @@
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import { cleanup, fireEvent, render } from '@testing-library/svelte';
 import AdminBotsFilterBar from './AdminBotsFilterBar.svelte';
-import { DEFAULT_ADMIN_BOTS_QUERY, type AdminBotsQuery } from '$lib/bots/adminBotsFilter';
+import { DEFAULT_ADMIN_BOTS_QUERY, type AdminBotsQuery } from '#lib/bots/adminBotsFilter.js';
 
 describe('AdminBotsFilterBar', () => {
 	afterEach(() => cleanup());

@@ -1,6 +1,6 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { cleanup, fireEvent, render, waitFor } from '@testing-library/svelte';
-import type { MyBot } from '$lib/bots/ownerApi';
+import type { MyBot } from '#lib/bots/ownerApi.js';
 
 const api = vi.hoisted(() => ({
 	fetchCapacity: vi.fn(),
@@ -11,13 +11,13 @@ const api = vi.hoisted(() => ({
 	rotateToken: vi.fn(),
 	releaseBot: vi.fn(),
 }));
-vi.mock('$lib/bots/ownerApi', async (importOriginal) => {
-	const actual = await importOriginal<typeof import('$lib/bots/ownerApi')>();
+vi.mock('#lib/bots/ownerApi.js', async (importOriginal) => {
+	const actual = await importOriginal<typeof import('#lib/bots/ownerApi.js')>();
 	return { ...actual, ...api };
 });
 
 const toasts = vi.hoisted(() => ({ toastStore: { success: vi.fn() } }));
-vi.mock('$lib/toastStore.svelte', () => toasts);
+vi.mock('#lib/toastStore.svelte.js', () => toasts);
 
 import OwnedBotCard from './OwnedBotCard.svelte';
 

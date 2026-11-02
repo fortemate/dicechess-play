@@ -1,8 +1,8 @@
 <script lang="ts">
 	/* eslint-disable local/no-untranslated-text -- i18n debt: not yet migrated (#8) */
 	import { resolve } from '$app/paths';
-	import { isLiveEnabled } from '$lib/live/liveApi';
-	import { fetchCatalog, type CatalogBot } from '$lib/catalog/catalogApi';
+	import { isLiveEnabled } from '#lib/live/liveApi.js';
+	import { fetchCatalog, type CatalogBot } from '#lib/catalog/catalogApi.js';
 	import BotCatalogCard from '../../components/BotCatalogCard.svelte';
 
 	// The human-play bot catalog (ADR-0014): a read-only list over play-api's public GET
@@ -55,7 +55,7 @@
 		</div>
 		<div class="flex flex-wrap gap-x-4 gap-y-1">
 			<a
-				href={resolve('/leaderboard')}
+				href={resolve('leaderboard')}
 				class="w-fit text-sm font-semibold text-content-muted transition-colors hover:text-content"
 			>
 				Leaderboard →

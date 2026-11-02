@@ -1,8 +1,8 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { cleanup, fireEvent, render } from '@testing-library/svelte';
 import BotChallengePanel from './BotChallengePanel.svelte';
-import { PlayBotError } from '$lib/catalog/catalogApi';
-import { preferencesStore } from '$lib/preferencesStore.svelte';
+import { PlayBotError } from '#lib/catalog/catalogApi.js';
+import { preferencesStore } from '#lib/preferencesStore.svelte.js';
 
 // wakeBot and playBot are faked — click→wake→panel and the start() config flow are the parts
 // worth unit testing here. Asserting *where* window.location.href ends up isn't (no component in
@@ -12,8 +12,8 @@ import { preferencesStore } from '$lib/preferencesStore.svelte';
 // no real navigation target.
 const wakeBotMock = vi.fn();
 const playBotMock = vi.fn();
-vi.mock('$lib/catalog/catalogApi', async (importOriginal) => {
-	const actual = await importOriginal<typeof import('$lib/catalog/catalogApi')>();
+vi.mock('#lib/catalog/catalogApi.js', async (importOriginal) => {
+	const actual = await importOriginal<typeof import('#lib/catalog/catalogApi.js')>();
 	return {
 		...actual,
 		wakeBot: (team: string, name: string) => wakeBotMock(team, name),
@@ -31,7 +31,7 @@ const auth = vi.hoisted(() => ({
 		signIn: vi.fn(),
 	},
 }));
-vi.mock('$lib/authStore.svelte', () => auth);
+vi.mock('#lib/authStore.svelte.js', () => auth);
 
 describe('BotChallengePanel', () => {
 	beforeEach(() => {

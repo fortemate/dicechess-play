@@ -2,7 +2,9 @@ import { afterEach, describe, expect, it, vi } from 'vitest';
 import { cleanup, render } from '@testing-library/svelte';
 import GameHub from './GameHub.svelte';
 
-vi.mock('$app/paths', () => ({ resolve: (path: string) => path }));
+vi.mock('$app/paths', () => ({
+	resolve: (path: string) => (path.startsWith('/') ? path : `/${path}`),
+}));
 
 // The hub is shared by the landing page and /play precisely so the set of entry points
 // cannot drift between them — this pins that set. Card hrefs ARE asserted here (unlike the

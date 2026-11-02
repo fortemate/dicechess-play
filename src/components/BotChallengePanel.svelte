@@ -1,13 +1,13 @@
 <script lang="ts">
 	/* eslint-disable local/no-untranslated-text -- i18n debt: not yet migrated (#8) */
 	import { onDestroy } from 'svelte';
-	import { authStore } from '$lib/authStore.svelte';
-	import { getGuestUuid } from '$lib/ingest/guestIdentity';
-	import { wakeBot } from '$lib/catalog/catalogApi';
-	import { describeStartFailure, startBotGame } from '$lib/catalog/botChallenge';
-	import { rememberBotGame } from '$lib/catalog/lastBotGame';
-	import { botTimeControlPresets, defaultBotTimeControlIndex } from '$lib/live/timeControls';
-	import { preferencesStore } from '$lib/preferencesStore.svelte';
+	import { authStore } from '#lib/authStore.svelte.js';
+	import { getGuestUuid } from '#lib/ingest/guestIdentity.js';
+	import { wakeBot } from '#lib/catalog/catalogApi.js';
+	import { describeStartFailure, startBotGame } from '#lib/catalog/botChallenge.js';
+	import { rememberBotGame } from '#lib/catalog/lastBotGame.js';
+	import { botTimeControlPresets, defaultBotTimeControlIndex } from '#lib/live/timeControls.js';
+	import { preferencesStore } from '#lib/preferencesStore.svelte.js';
 	import BotTimeControlPicker from './BotTimeControlPicker.svelte';
 	import RatedChoice from './RatedChoice.svelte';
 	import Spinner from './Spinner.svelte';

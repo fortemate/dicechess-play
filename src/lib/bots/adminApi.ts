@@ -6,8 +6,8 @@
 // is no client-side authority here: `GET /auth/me` merely decides whether to offer the route; every
 // request still relies on play-api's live administrator check and exposes a server 403 honestly.
 
-import { isAuthEnabled } from '$lib/auth/authApi';
-import { apiBase } from '$lib/live/liveApi';
+import { isAuthEnabled } from '#lib/auth/authApi.js';
+import { apiBase } from '#lib/live/liveApi.js';
 
 export interface AdminWebhookFailure {
 	at: string;

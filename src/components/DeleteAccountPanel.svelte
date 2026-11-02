@@ -11,9 +11,9 @@
 	// guest links cascade away, so the `user:<uuid>` left in past games stops resolving to anyone —
 	// history is anonymised, not rewritten. The nickname becomes reusable, and signing in again with
 	// the same Google account mints a FRESH account with no history.
-	import { authStore } from '$lib/authStore.svelte';
-	import { toastStore } from '$lib/toastStore.svelte';
-	import { m } from '$lib/paraglide/messages.js';
+	import { authStore } from '#lib/authStore.svelte.js';
+	import { toastStore } from '#lib/toastStore.svelte.js';
+	import { m } from '#lib/paraglide/messages.js';
 
 	let open = $state(false);
 	let confirmInput = $state('');

@@ -1,4 +1,4 @@
-import type { PlayerOpponent } from '$lib/games/gamesApi';
+import type { PlayerOpponent } from '#lib/games/gamesApi.js';
 import { emptyCounts, type OutcomeCounts } from './playerRecord';
 
 // Aggregation + display helpers for /me's "Online" section (#149) — the play-api-backed
@@ -30,7 +30,7 @@ export function opponentLabel(opponent: PlayerOpponent): string {
  * building the actual `/games?vs=…` URL needs `resolve()` called directly at the template use
  * site (svelte's `no-navigation-without-resolve` lint can't see through a function call to
  * verify that), so callers combine this with `resolve('/games')` themselves; see `/me`'s usage.
- * Matches `vsParamValue` (`$lib/games/gamesFilters`) for the same opponent — kept as its own
+ * Matches `vsParamValue` (`#lib/games/gamesFilters.js`) for the same opponent — kept as its own
  * function since it takes a `PlayerOpponent` directly rather than an already-parsed `VsFilter`.
  */
 export function opponentVsQuery(opponent: PlayerOpponent): string {

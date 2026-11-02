@@ -4,7 +4,7 @@
 	// Displays bot identity, rating, ladder/catalog/ownership state, load utilization,
 	// webhook status, and capabilities, with row selection opening the detail drawer.
 
-	import type { AdminBot } from '$lib/bots/adminApi';
+	import type { AdminBot } from '#lib/bots/adminApi.js';
 
 	interface Props {
 		bots: AdminBot[];

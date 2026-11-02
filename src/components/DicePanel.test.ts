@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import { render } from '@testing-library/svelte';
 import DicePanel from './DicePanel.svelte';
-import { DICE_STAGGER_MS } from '$lib/timings';
+import { DICE_STAGGER_MS } from '#lib/timings.js';
 
 /*
  * DicePanel is one of the two reference implementations for the i18n pattern (#24), so these

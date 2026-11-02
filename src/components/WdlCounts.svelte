@@ -1,5 +1,5 @@
 <script lang="ts">
-	import type { OutcomeCounts } from '$lib/stats/playerRecord';
+	import type { OutcomeCounts } from '#lib/stats/playerRecord.js';
 
 	interface Props {
 		counts: OutcomeCounts;

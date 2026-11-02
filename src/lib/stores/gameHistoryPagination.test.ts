@@ -1,8 +1,8 @@
 import { describe, it, expect } from 'vitest';
 import { liveBoundary, paginateGameHistory } from './gameHistoryPagination';
 import { mergeGameHistory, type GameHistoryItem } from './gameHistoryMerge';
-import type { LocalGameRecord } from '$lib/localGamesDB';
-import type { PlayerGame } from '$lib/games/gamesApi';
+import type { LocalGameRecord } from '#lib/localGamesDB.js';
+import type { PlayerGame } from '#lib/games/gamesApi.js';
 
 function localGame(id: string, start_time: string): LocalGameRecord {
 	return {

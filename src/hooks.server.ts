@@ -1,3 +1,5 @@
+import type { Handle } from '@sveltejs/kit/hooks';
+
 // Build-time head hygiene for the prerendered static pages (#254).
 //
 // The SPA fallback (app.html) carries a site-wide default <title> + description/OG block so
@@ -9,9 +11,6 @@
 //
 // This file only ever runs at build time (adapter-static, ssr=false everywhere except the
 // prerendered routes) — there is no server at runtime.
-
-import type { Handle } from '@sveltejs/kit';
-
 /** Routes that render a complete head of their own and must not inherit app.html defaults. */
 const OWNS_OWN_HEAD = new Set(['/rules', '/licenses']);
 

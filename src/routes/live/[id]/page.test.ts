@@ -3,7 +3,7 @@ import { cleanup, fireEvent, render, waitFor } from '@testing-library/svelte';
 
 /*
  * The live board's finished-game actions (#216): which of them a given ending offers, and what
- * "Copy link" actually puts on the clipboard. The rule itself lives in `$lib/live/replayLink` and
+ * "Copy link" actually puts on the clipboard. The rule itself lives in `#lib/live/replayLink.js` and
  * is tested there; this suite covers what only the page can answer — that the rule is wired to the
  * right store fields, and that the copy button's feedback and failure path behave.
  *
@@ -38,21 +38,21 @@ vi.mock('../../../components/PlayerStrip.svelte', stub);
 vi.mock('../../../components/PawnPromotionSelector.svelte', stub);
 vi.mock('../../../components/BotRematchButton.svelte', stub);
 
-vi.mock('$lib/sound', () => ({ preloadSounds: vi.fn(), playSound: vi.fn() }));
-vi.mock('$lib/catalog/lastBotGame', () => ({ recallBotGame: () => null }));
-vi.mock('$lib/leaderboard/leaderboardApi', () => ({ fetchPlayerProfile: vi.fn() }));
+vi.mock('#lib/sound.js', () => ({ preloadSounds: vi.fn(), playSound: vi.fn() }));
+vi.mock('#lib/catalog/lastBotGame.js', () => ({ recallBotGame: () => null }));
+vi.mock('#lib/leaderboard/leaderboardApi.js', () => ({ fetchPlayerProfile: vi.fn() }));
 // The spectator's public continuation read (#106). Default answer: an ordinary game still being
 // played — `waiting` with no deadline — so existing cases see no follow activity.
 const continuation = vi.hoisted(() => ({
 	getContinuation: vi.fn(),
 }));
-vi.mock('$lib/live/continuationApi', async () => {
-	const actual = await vi.importActual<typeof import('$lib/live/continuationApi')>(
-		'$lib/live/continuationApi',
+vi.mock('#lib/live/continuationApi.js', async () => {
+	const actual = await vi.importActual<typeof import('#lib/live/continuationApi.js')>(
+		'#lib/live/continuationApi.js',
 	);
 	return { ...actual, getContinuation: continuation.getContinuation };
 });
-vi.mock('$lib/live/rematchApi', () => ({
+vi.mock('#lib/live/rematchApi.js', () => ({
 	getRematch: vi.fn().mockResolvedValue({
 		sourceGameId: 'game-1',
 		phase: 'available',
@@ -71,12 +71,12 @@ vi.mock('$lib/live/rematchApi', () => ({
 }));
 
 const toastStore = vi.hoisted(() => ({ error: vi.fn(), success: vi.fn(), info: vi.fn() }));
-vi.mock('$lib/toastStore.svelte', () => ({ toastStore }));
+vi.mock('#lib/toastStore.svelte.js', () => ({ toastStore }));
 
 const state = vi.hoisted(() => ({
 	current: {} as Record<string, unknown>,
 }));
-vi.mock('$lib/live/liveGameStore.svelte', () => ({
+vi.mock('#lib/live/liveGameStore.svelte.js', () => ({
 	LiveGameStore: class {
 		constructor() {
 			Object.assign(this, state.current);

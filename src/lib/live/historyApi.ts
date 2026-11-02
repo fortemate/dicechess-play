@@ -4,7 +4,7 @@ import type { Players, TimeControl } from './liveTypes';
 // REST client for the public replay endpoint (play-api #178, `GET /games/{id}/history`). The wire
 // mirrors play-api's `HistoryRoutes.scala` verbatim (camelCase) — do NOT reshape it here.
 //
-// Unlike `PlayerGame` (`$lib/games/gamesApi`, POV-reframed for the requesting guest), this endpoint
+// Unlike `PlayerGame` (`#lib/games/gamesApi.js`, POV-reframed for the requesting guest), this endpoint
 // is public and unauthenticated: `result`/`termination` are white-POV/neutral, and `termination` is
 // play-api's raw snake_case `game_termination_enum` string (the SAME convention `PlayerGame` already
 // uses) — humanize it the same way `LiveGameHistoryCard` does, not via `liveTypes.ts`'s PascalCase

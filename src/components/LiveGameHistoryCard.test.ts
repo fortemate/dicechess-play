@@ -1,7 +1,7 @@
 import { describe, expect, it, vi } from 'vitest';
 import { render } from '@testing-library/svelte';
 import LiveGameHistoryCard from './LiveGameHistoryCard.svelte';
-import type { PlayerGame } from '$lib/games/gamesApi';
+import type { PlayerGame } from '#lib/games/gamesApi.js';
 
 // The card links out via resolve(); stub it so the component renders without the SvelteKit runtime,
 // substituting [id] the same way the real router would (same pattern as GameHistoryCard.test.ts).

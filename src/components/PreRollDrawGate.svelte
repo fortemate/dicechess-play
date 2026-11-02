@@ -9,7 +9,7 @@
 	// control, Escape does it, and so does a tap on the board — in bullet the responder should be able
 	// to carry on playing without aiming at a button. Accepting ends the game, so it is deliberately
 	// the awkward one: placed away from the board and confirmed twice, the same gesture as resigning.
-	import { RESIGN_CONFIRM_MS } from '$lib/timings';
+	import { RESIGN_CONFIRM_MS } from '#lib/timings.js';
 
 	interface Props {
 		isResponder: boolean;

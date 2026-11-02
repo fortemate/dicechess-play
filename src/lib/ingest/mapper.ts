@@ -8,7 +8,7 @@
 // extension, disambiguated by source). Free games keep all stake fields NULL.
 
 import { v5 as uuidv5 } from 'uuid';
-import type { LocalGameRecord, DiceChessTurnHistory, GameEndReason } from '$lib/localGamesDB';
+import type { LocalGameRecord, DiceChessTurnHistory, GameEndReason } from '#lib/localGamesDB.js';
 import type { Color, GameIngestWire, PlayerInputWire, TurnInputWire } from './types';
 
 // RFC 4122 URL namespace — same namespace beturanga uses for deterministic game ids.

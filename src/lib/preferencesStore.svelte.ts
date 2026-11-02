@@ -17,7 +17,7 @@ function setStoredValue(key: string, value: string): void {
 	}
 }
 
-import { botTimeControlPresets, defaultBotTimeControlIndex } from '$lib/live/timeControls';
+import { botTimeControlPresets, defaultBotTimeControlIndex } from '#lib/live/timeControls.js';
 
 /** Translate a stored botChallengeTimeControl value to a stable preset id.
  * Before issue #20 the label string (e.g. '5 + 5') was persisted directly. Now we persist the

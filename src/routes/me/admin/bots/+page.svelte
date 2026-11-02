@@ -7,8 +7,8 @@
 	import { goto } from '$app/navigation';
 	import { page } from '$app/state';
 	import { resolve } from '$app/paths';
-	import { authStore } from '$lib/authStore.svelte';
-	import { adminBotsStore } from '$lib/bots/adminBotsStore.svelte';
+	import { authStore } from '#lib/authStore.svelte.js';
+	import { adminBotsStore } from '#lib/bots/adminBotsStore.svelte.js';
 	import {
 		applyAdminBotsQuery,
 		DEFAULT_ADMIN_BOTS_QUERY,
@@ -16,8 +16,8 @@
 		parseAdminBotsQuery,
 		serializeAdminBotsQuery,
 		type AdminBotsQuery,
-	} from '$lib/bots/adminBotsFilter';
-	import type { AdminBot } from '$lib/bots/adminApi';
+	} from '#lib/bots/adminBotsFilter.js';
+	import type { AdminBot } from '#lib/bots/adminApi.js';
 	import AdminBotsFilterBar from '../../../../components/AdminBotsFilterBar.svelte';
 	import AdminBotsInventory from '../../../../components/AdminBotsInventory.svelte';
 	import AdminBotDetailDrawer from '../../../../components/AdminBotDetailDrawer.svelte';
@@ -57,11 +57,10 @@
 
 	function updateQuery(next: AdminBotsQuery) {
 		const serialized = serializeAdminBotsQuery(next).toString();
-		const target = serialized ? resolve(`/me/admin/bots?${serialized}`) : resolve('/me/admin/bots');
-		void goto(target, {
-			noScroll: true,
-			keepFocus: true,
-		});
+
+		const target = serialized ? resolve(`me/admin/bots?${serialized}`) : resolve('me/admin/bots');
+
+		void goto(target, { reset: false });
 	}
 
 	function clearFilters() {
@@ -84,7 +83,7 @@
 <section class="flex flex-col gap-6">
 	<div class="flex flex-col gap-2">
 		<a
-			href={resolve('/me')}
+			href={resolve('me')}
 			class="w-fit text-xs font-bold text-content-muted underline transition-colors hover:text-content"
 		>
 			← Back to profile

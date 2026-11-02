@@ -1,7 +1,7 @@
 <script lang="ts">
 	/* eslint-disable local/no-untranslated-text -- i18n debt: not yet migrated (#8) */
 	import { onMount } from 'svelte';
-	import { playWithBotStore as store } from '$lib/playWithBot';
+	import { playWithBotStore as store } from '#lib/playWithBot/index.js';
 	import Board from '../../components/Board.svelte';
 	import MoveHistory from '../../components/MoveHistory.svelte';
 	import PawnPromotionSelector from '../../components/PawnPromotionSelector.svelte';
@@ -9,13 +9,13 @@
 	import GameEndModal from '../../components/GameEndModal.svelte';
 	import DicePanel from '../../components/DicePanel.svelte';
 	import PreRollDrawGate from '../../components/PreRollDrawGate.svelte';
-	import { chromeStore } from '$lib/stores/chromeStore.svelte';
-	import { preferencesStore } from '$lib/preferencesStore.svelte';
-	import { preloadSounds } from '$lib/sound';
-	import { endReasonLabel } from '$lib/gameOutcome';
-	import { flushOutbox } from '$lib/ingest/outbox';
-	import { BOTS, PLAYABLE_BOTS } from '$lib/bots';
-	import { RESIGN_CONFIRM_MS } from '$lib/timings';
+	import { chromeStore } from '#lib/stores/chromeStore.svelte.js';
+	import { preferencesStore } from '#lib/preferencesStore.svelte.js';
+	import { preloadSounds } from '#lib/sound.js';
+	import { endReasonLabel } from '#lib/gameOutcome.js';
+	import { flushOutbox } from '#lib/ingest/outbox.js';
+	import { BOTS, PLAYABLE_BOTS } from '#lib/bots.js';
+	import { RESIGN_CONFIRM_MS } from '#lib/timings.js';
 
 	const COLORS = ['white', 'black', 'random'] as const;
 

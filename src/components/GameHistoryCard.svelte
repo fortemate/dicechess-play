@@ -1,9 +1,14 @@
 <script lang="ts">
 	/* eslint-disable local/no-untranslated-text -- i18n debt: not yet migrated (#8) */
 	import { resolve } from '$app/paths';
-	import type { LocalGameRecord } from '$lib/localGamesDB';
-	import { botLabel } from '$lib/bots';
-	import { playerOutcome, outcomeLabel, endReasonLabel, type GameOutcome } from '$lib/gameOutcome';
+	import type { LocalGameRecord } from '#lib/localGamesDB.js';
+	import { botLabel } from '#lib/bots.js';
+	import {
+		playerOutcome,
+		outcomeLabel,
+		endReasonLabel,
+		type GameOutcome,
+	} from '#lib/gameOutcome.js';
 	import { formatDate } from '../utils/formatters';
 	import BotBadge from './BotBadge.svelte';
 	import MiniBoard from './MiniBoard.svelte';

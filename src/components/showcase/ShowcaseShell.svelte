@@ -1,8 +1,8 @@
 <script lang="ts">
 	import { resolve } from '$app/paths';
 	import type { Key } from '@lichess-org/chessground/types';
-	import type { BoardStore } from '$lib/boardStore';
-	import { m } from '$lib/paraglide/messages.js';
+	import type { BoardStore } from '#lib/boardStore.js';
+	import { m } from '#lib/paraglide/messages.js';
 	import Board from '../Board.svelte';
 	import PawnPromotionSelector from '../PawnPromotionSelector.svelte';
 	import PlayerStrip from '../PlayerStrip.svelte';
@@ -193,11 +193,12 @@
 				     action (claim, retry, reset…) wrap onto rows of their own. ShowcaseStatus renders as
 				     `contents` on phones so its badge (order 2) and message (order 3) join this flow
 				     directly. On md+ the wrapper dissolves and the rail is a column: status, dice, action. -->
+
 				<div class="flex flex-wrap items-center gap-2 md:contents">
-					<div class="order-1 min-w-0 flex-1 md:order-2 md:flex-none">
-						<ShowcaseDice {state} />
-					</div>
+					<div class="order-1 min-w-0 flex-1 md:order-2 md:flex-none"><ShowcaseDice {state} /></div>
+
 					<ShowcaseStatus {state} />
+
 					<div class="{actionInline ? 'order-2 shrink-0' : 'order-4 w-full'} md:order-3 md:w-full">
 						<ShowcaseAction {state} {onIntent} />
 					</div>
@@ -211,7 +212,7 @@
 						{m.home_spectator_play_alt()}
 					</span>
 					<a
-						href={resolve('/play')}
+						href={resolve('play')}
 						class="shrink-0 font-bold text-primary hover:text-primary-hover hover:underline ml-2 text-xs"
 					>
 						{m.home_nav_play_bots()} →
@@ -228,17 +229,18 @@
 		<div
 			class="max-w-5xl mx-auto px-4 flex flex-col sm:flex-row items-center justify-between gap-1 sm:gap-2"
 		>
-			<p class="hidden text-[11px] text-content-muted/80 sm:block">
-				{m.home_footer_summary()}
-			</p>
+			<p class="hidden text-[11px] text-content-muted/80 sm:block">{m.home_footer_summary()}</p>
+
 			<p class="text-[11px] text-content-muted/60 flex items-center gap-2">
-				<a href={resolve('/rules')} class="hover:text-content hover:underline">
-					{m.home_nav_how_to_play()}
-				</a>
+				<a href={resolve('rules')} class="hover:text-content hover:underline"
+					>{m.home_nav_how_to_play()}</a
+				>
+
 				<span>·</span>
-				<a href={resolve('/licenses')} class="hover:text-content hover:underline">
-					{m.home_nav_licenses()}
-				</a>
+
+				<a href={resolve('licenses')} class="hover:text-content hover:underline"
+					>{m.home_nav_licenses()}</a
+				>
 			</p>
 		</div>
 	</footer>

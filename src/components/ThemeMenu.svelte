@@ -6,7 +6,7 @@
 	// the <ul> holds focus while arrow keys / Home / End move the highlighted option,
 	// Enter selects, Escape closes and returns focus to the trigger.
 	import { tick } from 'svelte';
-	import { themeStore, type Theme } from '$lib/stores/themeStore.svelte';
+	import { themeStore, type Theme } from '#lib/stores/themeStore.svelte.js';
 
 	const themes: { value: Theme; label: string }[] = [
 		{ value: 'dark', label: 'Dark' },

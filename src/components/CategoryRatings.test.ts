@@ -1,6 +1,6 @@
 import { afterEach, describe, expect, it } from 'vitest';
 import { cleanup, render } from '@testing-library/svelte';
-import type { CategoryRating } from '$lib/leaderboard/leaderboardApi';
+import type { CategoryRating } from '#lib/leaderboard/leaderboardApi.js';
 import CategoryRatings from './CategoryRatings.svelte';
 
 /*

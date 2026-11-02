@@ -1,8 +1,8 @@
 <script lang="ts">
 	/* eslint-disable local/no-untranslated-text -- i18n debt: not yet migrated (#8) */
-	import { showcaseStore } from '$lib/live/showcaseStore.svelte';
+	import { showcaseStore } from '#lib/live/showcaseStore.svelte.js';
 	import ShowcaseShell from '../../components/showcase/ShowcaseShell.svelte';
-	import { chromeStore } from '$lib/stores/chromeStore.svelte';
+	import { chromeStore } from '#lib/stores/chromeStore.svelte.js';
 
 	$effect(() => {
 		chromeStore.zen = true;

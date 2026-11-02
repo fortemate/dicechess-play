@@ -1,7 +1,7 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { cleanup, fireEvent, render, waitFor } from '@testing-library/svelte';
 import AdminBotDetailDrawer from './AdminBotDetailDrawer.svelte';
-import type { AdminBot } from '$lib/bots/adminApi';
+import type { AdminBot } from '#lib/bots/adminApi.js';
 
 const api = vi.hoisted(() => ({
 	setAdminLadder: vi.fn(),
@@ -12,13 +12,13 @@ const api = vi.hoisted(() => ({
 	rotateAdminToken: vi.fn(),
 }));
 
-vi.mock('$lib/bots/adminApi', async (importOriginal) => {
-	const actual = await importOriginal<typeof import('$lib/bots/adminApi')>();
+vi.mock('#lib/bots/adminApi.js', async (importOriginal) => {
+	const actual = await importOriginal<typeof import('#lib/bots/adminApi.js')>();
 	return { ...actual, ...api };
 });
 
 const toasts = vi.hoisted(() => ({ toastStore: { success: vi.fn() } }));
-vi.mock('$lib/toastStore.svelte', () => toasts);
+vi.mock('#lib/toastStore.svelte.js', () => toasts);
 
 // Every rendered drawer mounts BotWebhookPanel, which reads its own authoritative webhook slot.
 // Without a play-api base the transport short-circuits before `fetch`, so this suite issues no
@@ -34,7 +34,7 @@ const webhookApi = vi.hoisted(() => ({
 	deleteWebhook: vi.fn(),
 	fetchWebhookCapabilityCatalog: vi.fn(),
 }));
-vi.mock('$lib/bots/webhookApi', () => webhookApi);
+vi.mock('#lib/bots/webhookApi.js', () => webhookApi);
 
 function makeBot(overrides: Partial<AdminBot> = {}): AdminBot {
 	return {

@@ -15,13 +15,16 @@
 	// The claim step is skipped when there is demonstrably nothing to adopt — an offer to link zero games
 	// is noise, and it would teach people to dismiss this dialog without reading it. "Demonstrably" is
 	// load-bearing: an unread count means offer, never skip (see hasSomethingToClaim).
-	import { authStore } from '$lib/authStore.svelte';
-	import { toastStore } from '$lib/toastStore.svelte';
-	import { m } from '$lib/paraglide/messages.js';
-	import { isOnboarded, markOnboarded } from '$lib/auth/onboarding';
-	import { myOpponentsStore, playerOpponentsStore } from '$lib/stores/playerOpponentsStore.svelte';
-	import { aggregateOpponents } from '$lib/stats/lobbyRecord';
-	import { totalGames } from '$lib/stats/playerRecord';
+	import { authStore } from '#lib/authStore.svelte.js';
+	import { toastStore } from '#lib/toastStore.svelte.js';
+	import { m } from '#lib/paraglide/messages.js';
+	import { isOnboarded, markOnboarded } from '#lib/auth/onboarding.js';
+	import {
+		myOpponentsStore,
+		playerOpponentsStore,
+	} from '#lib/stores/playerOpponentsStore.svelte.js';
+	import { aggregateOpponents } from '#lib/stats/lobbyRecord.js';
+	import { totalGames } from '#lib/stats/playerRecord.js';
 
 	type Step = 'nickname' | 'claim';
 

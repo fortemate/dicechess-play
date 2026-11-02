@@ -102,7 +102,7 @@ export interface BotProfile {
 	 * both null). Counts every game, rated and casual alike — unlike `wins`/`draws`/`losses` above
 	 * (the ladder record: rated, decided only), so games against site visitors — always casual —
 	 * are visible here even though they don't count above. Same `PlayerOpponent` shape
-	 * `GET /players/{guestId}/opponents` uses (`$lib/games/gamesApi`) — the aggregate is symmetric
+	 * `GET /players/{guestId}/opponents` uses (`#lib/games/gamesApi.js`) — the aggregate is symmetric
 	 * in whose external id is queried, so one wire type serves both.
 	 */
 	opponents: PlayerOpponent[];

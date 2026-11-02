@@ -1,4 +1,4 @@
-import { m } from '$lib/paraglide/messages.js';
+import { m } from '#lib/paraglide/messages.js';
 import type { GameEndReason, PlayerColor } from './localGamesDB';
 
 export type GameOutcome = 'win' | 'loss' | 'draw';

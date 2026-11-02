@@ -2,8 +2,8 @@
 	/* eslint-disable local/no-untranslated-text -- i18n debt: not yet migrated (#8) */
 	import { onDestroy } from 'svelte';
 	import { resolve } from '$app/paths';
-	import { getGuestUuid } from '$lib/ingest/guestIdentity';
-	import { isLiveEnabled } from '$lib/live/liveApi';
+	import { getGuestUuid } from '#lib/ingest/guestIdentity.js';
+	import { isLiveEnabled } from '#lib/live/liveApi.js';
 	import {
 		listSeeks,
 		listGames,
@@ -12,18 +12,18 @@
 		acceptSeek,
 		cancelSeek,
 		SeekAcceptError,
-	} from '$lib/live/lobbyApi';
-	import { buildJoinUrl } from '$lib/live/seatLink';
-	import { fullmoveOf } from '$lib/live/boardGrid';
-	import { formatClock } from '$lib/live/clockFormat';
-	import { seekOffer } from '$lib/live/playerLabel';
-	import { timeControlLabel, timeControlPresets } from '$lib/live/timeControls';
+	} from '#lib/live/lobbyApi.js';
+	import { buildJoinUrl } from '#lib/live/seatLink.js';
+	import { fullmoveOf } from '#lib/live/boardGrid.js';
+	import { formatClock } from '#lib/live/clockFormat.js';
+	import { seekOffer } from '#lib/live/playerLabel.js';
+	import { timeControlLabel, timeControlPresets } from '#lib/live/timeControls.js';
 	import BotBadge from '../../components/BotBadge.svelte';
 	import MiniBoard from '../../components/MiniBoard.svelte';
 	import RatedBadge from '../../components/RatedBadge.svelte';
 	import RatedChoice from '../../components/RatedChoice.svelte';
 	import TimeControlPicker from '../../components/TimeControlPicker.svelte';
-	import type { LiveGame, PublicPlayer, Seek } from '$lib/live/liveTypes';
+	import type { LiveGame, PublicPlayer, Seek } from '#lib/live/liveTypes.js';
 
 	const LIST_POLL_MS = 3000;
 	const STATUS_POLL_MS = 1500;
@@ -221,19 +221,19 @@
 				</button>
 				<div class="flex flex-wrap items-center gap-2 sm:gap-4">
 					<a
-						href={resolve('/live')}
+						href={resolve('live')}
 						class="rounded-xl px-2 py-2 text-sm font-bold text-content-muted transition-colors hover:bg-surface hover:text-content sm:px-4 sm:text-base"
 					>
 						Play a friend by link →
 					</a>
 					<a
-						href={resolve('/bots')}
+						href={resolve('bots')}
 						class="rounded-xl px-2 py-2 text-sm font-bold text-content-muted transition-colors hover:bg-surface hover:text-content sm:px-4 sm:text-base"
 					>
 						Challenge a rated bot →
 					</a>
 					<a
-						href={resolve('/leaderboard')}
+						href={resolve('leaderboard')}
 						class="rounded-xl px-2 py-2 text-sm font-bold text-content-muted transition-colors hover:bg-surface hover:text-content sm:px-4 sm:text-base"
 					>
 						Leaderboard →

@@ -1,5 +1,5 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
-import type { Me } from '$lib/auth/authApi';
+import type { Me } from '#lib/auth/authApi.js';
 
 // The store is a module-level singleton, so every test imports it fresh — otherwise state from one
 // case (a signed-in account, say) leaks into the next and the suite passes for the wrong reason.
@@ -25,8 +25,8 @@ const authApi = vi.hoisted(() => ({
 	deleteAccount: vi.fn(),
 }));
 
-vi.mock('$lib/auth/authApi', () => authApi);
-vi.mock('$lib/ingest/guestIdentity', () => ({ getGuestUuid: () => 'guest-uuid' }));
+vi.mock('#lib/auth/authApi.js', () => authApi);
+vi.mock('#lib/ingest/guestIdentity', () => ({ getGuestUuid: () => 'guest-uuid' }));
 
 async function freshStore() {
 	vi.resetModules();

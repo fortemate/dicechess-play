@@ -17,9 +17,9 @@ import {
 	fixtureFinishingDraw,
 	fixtureReset,
 } from './fixtures';
-import { m } from '$lib/paraglide/messages.js';
+import { m } from '#lib/paraglide/messages.js';
 import { tick } from 'svelte';
-import { DICE_STAGGER_MS, RESIGN_CONFIRM_MS } from '$lib/timings';
+import { DICE_STAGGER_MS, RESIGN_CONFIRM_MS } from '#lib/timings.js';
 
 describe('ShowcaseShell', () => {
 	it('renders open state with initial board, 5+3, bot opponent, and single accessible claim action (White)', () => {

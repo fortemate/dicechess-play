@@ -1,16 +1,16 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { cleanup, fireEvent, render, waitFor } from '@testing-library/svelte';
 import BotRematchButton from './BotRematchButton.svelte';
-import { PlayBotError } from '$lib/catalog/catalogApi';
-import type { BotGameSetup } from '$lib/catalog/lastBotGame';
+import { PlayBotError } from '#lib/catalog/catalogApi.js';
+import type { BotGameSetup } from '#lib/catalog/lastBotGame.js';
 
 // wakeBot/playBot are faked, matching BotChallengePanel.test.ts: the wake→start handshake and what
 // lands in the request are what matter here. Navigation targets are verified in the browser, per
 // the project's UI-flow-change convention, not asserted from a component test.
 const wakeBotMock = vi.fn();
 const playBotMock = vi.fn();
-vi.mock('$lib/catalog/catalogApi', async (importOriginal) => {
-	const actual = await importOriginal<typeof import('$lib/catalog/catalogApi')>();
+vi.mock('#lib/catalog/catalogApi.js', async (importOriginal) => {
+	const actual = await importOriginal<typeof import('#lib/catalog/catalogApi.js')>();
 	return {
 		...actual,
 		wakeBot: (team: string, name: string) => wakeBotMock(team, name),

@@ -51,7 +51,7 @@ Import `m` and replace each user-facing string. `src/components/DicePanel.svelte
 
 ```svelte
 <script lang="ts">
-	import { m } from '$lib/paraglide/messages.js';
+	import { m } from '#lib/paraglide/messages.js';
 	let { total = 0 }: { total?: number } = $props();
 </script>
 
@@ -131,7 +131,7 @@ Add the file `messages/<name>.en.json` and one `pathPattern` entry in
 - `project.inlang/settings.json` — add the code to `locales`.
 - `messages/*.<code>.json` — new files, content only.
 - A language switcher — none exists yet; it should read the locale list from
-  `$lib/paraglide/runtime.js` rather than hardcoding one.
+  `#lib/paraglide/runtime.js` rather than hardcoding one.
 - `src/app.html` — an inline `<html lang>` bootstrap (mirroring the existing theme script) plus
   an `$effect` in the root layout, so first paint has the right `lang`.
 
@@ -149,4 +149,4 @@ Add the file `messages/<name>.en.json` and one `pathPattern` entry in
   `isServer` is true, so every browser-side strategy is skipped and the chain falls to
   `baseLocale`. A crawlable non-English `/rules` later needs the `url` strategy, locale-prefixed
   `urlPatterns`, per-locale prerender `entries()`, and `paths: { relative: false }` in
-  `svelte.config.js`. Not needed now; not free later.
+  the `sveltekit()` options in `vite.config.ts`. Not needed now; not free later.

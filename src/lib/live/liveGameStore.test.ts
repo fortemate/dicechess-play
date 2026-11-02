@@ -7,7 +7,7 @@ import { getPieceFromFen } from '../../utils/fenUtils';
 import { playCue, playDrawOfferSound } from '../sound';
 import { toastStore } from '../toastStore.svelte';
 import { preferencesStore } from '../preferencesStore.svelte';
-import { m } from '$lib/paraglide/messages.js';
+import { m } from '#lib/paraglide/messages.js';
 import { DiceChess } from '@fortemate/dicechess-engine';
 import type { MoveTree } from '../moveTreeWalker';
 import { getMoves } from './liveApi';

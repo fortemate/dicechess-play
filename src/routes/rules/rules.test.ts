@@ -7,7 +7,9 @@ import { cleanup, render } from '@testing-library/svelte';
  * the whole point of prerendering it). Wording is deliberately NOT pinned: the owner edits copy
  * without touching tests.
  */
-vi.mock('$app/paths', () => ({ resolve: (path: string) => path }));
+vi.mock('$app/paths', () => ({
+	resolve: (path: string) => (path.startsWith('/') ? path : `/${path}`),
+}));
 
 import RulesEn from './+page.svelte';
 

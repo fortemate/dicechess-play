@@ -1,10 +1,10 @@
 <script lang="ts">
 	/* eslint-disable local/no-untranslated-text -- i18n debt: not yet migrated (#8) */
 	import { onDestroy } from 'svelte';
-	import { wakeBot } from '$lib/catalog/catalogApi';
-	import { describeStartFailure, startBotGame } from '$lib/catalog/botChallenge';
-	import { rememberBotGame, rematchSetup, type BotGameSetup } from '$lib/catalog/lastBotGame';
-	import { getGuestUuid } from '$lib/ingest/guestIdentity';
+	import { wakeBot } from '#lib/catalog/catalogApi.js';
+	import { describeStartFailure, startBotGame } from '#lib/catalog/botChallenge.js';
+	import { rememberBotGame, rematchSetup, type BotGameSetup } from '#lib/catalog/lastBotGame.js';
+	import { getGuestUuid } from '#lib/ingest/guestIdentity.js';
 
 	// One-click rematch against the bot from the game that just finished (#215), shown on the live
 	// board's end-of-game surfaces. `setup` is the FINISHED game's setup as recorded by the challenge

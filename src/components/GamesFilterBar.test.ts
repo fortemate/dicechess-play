@@ -1,7 +1,7 @@
 import { describe, expect, it, vi } from 'vitest';
 import { fireEvent, render } from '@testing-library/svelte';
 import GamesFilterBar from './GamesFilterBar.svelte';
-import type { GamesFilters, OpponentOption } from '$lib/games/gamesFilters';
+import type { GamesFilters, OpponentOption } from '#lib/games/gamesFilters.js';
 
 const noFilters: GamesFilters = { vs: null, result: null, source: null };
 

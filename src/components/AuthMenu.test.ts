@@ -2,7 +2,9 @@ import { describe, expect, it, vi, beforeEach } from 'vitest';
 import { fireEvent, render } from '@testing-library/svelte';
 
 // The menu links out via resolve(); stub it so the component renders without the SvelteKit runtime.
-vi.mock('$app/paths', () => ({ resolve: (path: string) => path }));
+vi.mock('$app/paths', () => ({
+	resolve: (path: string) => (path.startsWith('/') ? path : `/${path}`),
+}));
 
 // A mutable stand-in for the store singleton: these tests are entirely about which of the four auth
 // states renders what, and the real store can only reach them by talking to play-api.
@@ -15,7 +17,7 @@ const auth = vi.hoisted(() => ({
 		signIn: vi.fn(),
 	},
 }));
-vi.mock('$lib/authStore.svelte', () => auth);
+vi.mock('#lib/authStore.svelte.js', () => auth);
 
 import AuthMenu from './AuthMenu.svelte';
 

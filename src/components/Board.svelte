@@ -7,7 +7,7 @@
 	import '@lichess-org/chessground/assets/chessground.brown.css';
 	import '@lichess-org/chessground/assets/chessground.cburnett.css';
 	import type { Key } from '@lichess-org/chessground/types';
-	import type { BoardStore } from '$lib/boardStore';
+	import type { BoardStore } from '#lib/boardStore.js';
 
 	let { store }: { store: BoardStore } = $props();
 

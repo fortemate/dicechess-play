@@ -2,10 +2,10 @@
 	// The dice card on the game screen. Used dice dim — that alone communicates progress,
 	// so there is deliberately no "N dice left" text. Shared by vs-bot (with a Roll
 	// button) and live (dice arrive from the server; `emptyText` shows waiting states).
-	import { m } from '$lib/paraglide/messages.js';
-	import { getPieceImage } from '$lib/utils/getPieceImage';
-	import { DICE_STAGGER_MS } from '$lib/timings';
-	import type { DieState } from '$lib/playWithBot/playWithBotDice.svelte';
+	import { m } from '#lib/paraglide/messages.js';
+	import { getPieceImage } from '#lib/utils/getPieceImage.js';
+	import { DICE_STAGGER_MS } from '#lib/timings.js';
+	import type { DieState } from '#lib/playWithBot/playWithBotDice.svelte.js';
 
 	interface Props {
 		dice: DieState[];

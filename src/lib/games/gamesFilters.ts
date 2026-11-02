@@ -1,9 +1,9 @@
-import type { LocalGameRecord } from '$lib/localGamesDB';
+import type { LocalGameRecord } from '#lib/localGamesDB.js';
 import type { PlayerGame, PlayerOpponent } from './gamesApi';
-import { botAlgorithm, botLabel } from '$lib/bots';
-import { playerOutcome } from '$lib/gameOutcome';
-import { opponentVsQuery, opponentLabel, findOpponentByVs } from '$lib/stats/lobbyRecord';
-import { buildPlayerRecord, emptyCounts, type OutcomeCounts } from '$lib/stats/playerRecord';
+import { botAlgorithm, botLabel } from '#lib/bots.js';
+import { playerOutcome } from '#lib/gameOutcome.js';
+import { opponentVsQuery, opponentLabel, findOpponentByVs } from '#lib/stats/lobbyRecord.js';
+import { buildPlayerRecord, emptyCounts, type OutcomeCounts } from '#lib/stats/playerRecord.js';
 
 /**
  * `?vs=`/`?result=`/`?source=` filter state for `/games` (#151) — the query string is the source
@@ -72,7 +72,9 @@ export function serverVsParam(vs: VsFilter | null): string | undefined {
 	return vs && vs.kind !== 'local' ? vsParamValue(vs) : undefined;
 }
 
-export function parseGamesFilters(url: URL): GamesFilters {
+export function parseGamesFilters(url: {
+	readonly searchParams: Pick<URLSearchParams, 'get'>;
+}): GamesFilters {
 	const params = url.searchParams;
 	const vs = params.get('vs');
 	const result = params.get('result');

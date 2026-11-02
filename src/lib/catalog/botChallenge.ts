@@ -1,5 +1,5 @@
 import { PlayBotError, playBot, type PlayBotMatch, type PlayBotRequest } from './catalogApi';
-import { buildJoinUrl } from '$lib/live/seatLink';
+import { buildJoinUrl } from '#lib/live/seatLink.js';
 
 // The parts of "challenge a bot" that both entry points share (#215): the catalog/profile panel
 // (`BotChallengePanel`) and the rematch button on a finished board. Rune-free on purpose, like

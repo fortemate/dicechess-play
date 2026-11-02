@@ -40,7 +40,7 @@ import { ROLL_ANIMATION_MS, MOVE_STEP_MS, PASS_DWELL_MS, GAME_END_SUSPENSE_MS } 
 import { lastMoveKeys } from '../lastMove';
 import { toastStore } from '../toastStore.svelte';
 import { preferencesStore } from '../preferencesStore.svelte';
-import { m } from '$lib/paraglide/messages.js';
+import { m } from '#lib/paraglide/messages.js';
 import { settlementLine } from './stakeSettlement';
 import { fetchGameHistory } from './historyApi';
 import { finishedFromHistory } from './finishedFromHistory';

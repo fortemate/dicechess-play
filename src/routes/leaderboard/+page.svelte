@@ -1,17 +1,18 @@
 <script lang="ts">
 	/* eslint-disable local/no-untranslated-text -- i18n debt: not yet migrated (#8) */
 	import { resolve } from '$app/paths';
-	import { isLiveEnabled } from '$lib/live/liveApi';
+	import { isLiveEnabled } from '#lib/live/liveApi.js';
 	import {
 		fetchLeaderboard,
 		type BoardScope,
 		type LeaderRow,
-	} from '$lib/leaderboard/leaderboardApi';
+	} from '#lib/leaderboard/leaderboardApi.js';
+
 	import {
 		RATING_CATEGORY_LABELS,
 		RATING_CATEGORY_ORDER,
 		type RatingCategory,
-	} from '$lib/live/ratingCategory';
+	} from '#lib/live/ratingCategory.js';
 	import LeaderboardRow from '../../components/LeaderboardRow.svelte';
 
 	// The rating board (D.3, #249): a read-only view over play-api's public GET /leaderboard.
@@ -188,9 +189,13 @@
 			Ratings update about once a minute. Want a rating of your own? Sign in and pick
 			<b>Rated</b>
 			when you
-			<a class="text-primary hover:underline" href={resolve('/bots')}>challenge a bot</a>. Want your
-			own bot here? Register it via the
-			<a class="text-primary hover:underline" href="https://bots.fortemate.com/"> Bot API </a>
+
+			<a class="text-primary hover:underline" href={resolve('bots')}>challenge a bot</a>
+
+			. Want your own bot here? Register it via the
+
+			<a class="text-primary hover:underline" href="https://bots.fortemate.com/">Bot API</a>
+
 			and join the ladder — every game runs on the same
 			<a class="text-primary hover:underline" href="https://github.com/fortemate/dicechess-engine">
 				dice chess engine

@@ -2,10 +2,10 @@
 	/* eslint-disable local/no-untranslated-text -- i18n debt: not yet migrated (#8) */
 	import { page } from '$app/state';
 	import { resolve } from '$app/paths';
-	import { isLiveEnabled } from '$lib/live/liveApi';
-	import { fetchBotProfile, type BotProfile } from '$lib/leaderboard/leaderboardApi';
-	import type { PlayerOpponent } from '$lib/games/gamesApi';
-	import { emptyCounts, winRate } from '$lib/stats/playerRecord';
+	import { isLiveEnabled } from '#lib/live/liveApi.js';
+	import { fetchBotProfile, type BotProfile } from '#lib/leaderboard/leaderboardApi.js';
+	import type { PlayerOpponent } from '#lib/games/gamesApi.js';
+	import { emptyCounts, winRate } from '#lib/stats/playerRecord.js';
 	import CategoryRatings from '../../../../components/CategoryRatings.svelte';
 	import WdlSummaryCard from '../../../../components/WdlSummaryCard.svelte';
 	import WdlCounts from '../../../../components/WdlCounts.svelte';

@@ -1,7 +1,7 @@
 import { afterEach, beforeEach, describe, expect, it } from 'vitest';
 import { fireEvent, render, within } from '@testing-library/svelte';
 import ThemeMenu from './ThemeMenu.svelte';
-import { themeStore } from '$lib/stores/themeStore.svelte';
+import { themeStore } from '#lib/stores/themeStore.svelte.js';
 
 // The store is a singleton shared with the component; pin it to a known theme around each test.
 beforeEach(() => themeStore.setTheme('dark'));

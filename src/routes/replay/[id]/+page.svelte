@@ -2,14 +2,14 @@
 	/* eslint-disable local/no-untranslated-text -- i18n debt: not yet migrated (#8) */
 	import { page } from '$app/state';
 	import { resolve } from '$app/paths';
-	import { isLiveEnabled } from '$lib/live/liveApi';
-	import { fetchGameHistory, type GameHistory } from '$lib/live/historyApi';
-	import { getContinuation } from '$lib/live/continuationApi';
-	import { resolveChainHead } from '$lib/live/continuationChain';
-	import { SPECTATE_PARAM } from '$lib/live/seatLink';
-	import { reconstructServerHistory } from '$lib/history/reconstructServerHistory';
-	import { buildTurnBlocks } from '$lib/playWithBot/turnBlocks';
-	import { terminationLabel as getTerminationLabel } from '$lib/gameOutcome';
+	import { isLiveEnabled } from '#lib/live/liveApi.js';
+	import { fetchGameHistory, type GameHistory } from '#lib/live/historyApi.js';
+	import { getContinuation } from '#lib/live/continuationApi.js';
+	import { resolveChainHead } from '#lib/live/continuationChain.js';
+	import { SPECTATE_PARAM } from '#lib/live/seatLink.js';
+	import { reconstructServerHistory } from '#lib/history/reconstructServerHistory.js';
+	import { buildTurnBlocks } from '#lib/playWithBot/turnBlocks.js';
+	import { terminationLabel as getTerminationLabel } from '#lib/gameOutcome.js';
 	import BotBadge from '../../../components/BotBadge.svelte';
 	import { formatDate } from '../../../utils/formatters';
 	import MoveHistory from '../../../components/MoveHistory.svelte';
@@ -106,6 +106,7 @@
 
 	const currentState = $derived(historyMap[String(currentMoveIndex)] ?? null);
 	const currentFen = $derived(currentState?.fen ?? '');
+
 	const lastMove = $derived(
 		currentState?.gameMoveHistoryMove?.from
 			? ([currentState.gameMoveHistoryMove.from, currentState.gameMoveHistoryMove.to] as Key[])
@@ -189,7 +190,7 @@
 
 <section class="flex flex-col gap-6">
 	<a
-		href={resolve('/games')}
+		href={resolve('games')}
 		class="text-sm text-content-muted hover:text-content transition-colors w-fit"
 	>
 		← Back to games
@@ -216,7 +217,7 @@
 				Either the game hasn't been archived yet, or it was played before replay existed.
 			</p>
 			<a
-				href={resolve('/games')}
+				href={resolve('games')}
 				class="px-6 py-3 rounded-xl bg-primary text-primary-content font-bold shadow-lg shadow-primary/30 hover:bg-primary-hover transition-colors"
 			>
 				Back to your games

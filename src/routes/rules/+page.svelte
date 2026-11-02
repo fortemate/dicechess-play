@@ -2,10 +2,10 @@
 	// The rules of the Dice Chess dialect this site plays (#254). Every rule stated here is
 	// verified against the engine's actual behavior (dicechess-engine-scala) and play-api's
 	// server rules — when in doubt, the engine is the source of truth, not other sites' docs.
-	import { m } from '$lib/paraglide/messages.js';
+	import { m } from '#lib/paraglide/messages.js';
 	import { ParaglideMessage } from '@inlang/paraglide-js-svelte';
 	import { resolve } from '$app/paths';
-	import { CANONICAL_ORIGIN, SITE_ORIGIN } from '$lib/rules/seo';
+	import { CANONICAL_ORIGIN, SITE_ORIGIN } from '#lib/rules/seo.js';
 
 	const sections = [
 		{ id: 'glance', title: m.rules_section_glance_title },
@@ -45,9 +45,9 @@
 		<p class="leading-relaxed text-content-muted">
 			<ParaglideMessage message={m.rules_intro_p1}>
 				{#snippet link({ children })}
-					<a class="font-semibold text-primary hover:underline" href={resolve('/play')}>
-						{@render children?.()}
-					</a>
+					<a class="font-semibold text-primary hover:underline" href={resolve('play')}
+						>{@render children?.()}</a
+					>
 				{/snippet}
 			</ParaglideMessage>
 		</p>
@@ -69,10 +69,10 @@
 
 	<section id="glance" class="flex flex-col gap-3">
 		<h2 class="text-xl font-bold text-content sm:text-2xl">{m.rules_section_glance_title()}</h2>
+
 		<ul class="flex list-disc flex-col gap-2 pl-5 leading-relaxed text-content-muted">
-			<li>
-				{m.rules_glance_li1()}
-			</li>
+			<li>{m.rules_glance_li1()}</li>
+
 			<li>
 				<ParaglideMessage message={m.rules_glance_li2}>
 					{#snippet b({ children })}
@@ -315,9 +315,8 @@
 
 	<section id="fair-dice" class="flex flex-col gap-3">
 		<h2 class="text-xl font-bold text-content sm:text-2xl">{m.rules_section_fair_dice_title()}</h2>
-		<p class="leading-relaxed text-content-muted">
-			{m.rules_fair_dice_p1()}
-		</p>
+		<p class="leading-relaxed text-content-muted">{m.rules_fair_dice_p1()}</p>
+
 		<p class="leading-relaxed text-content-muted">
 			<ParaglideMessage message={m.rules_fair_dice_p2}>
 				{#snippet link({ children })}
@@ -395,13 +394,13 @@
 		</p>
 		<div class="flex flex-wrap items-center justify-center gap-3">
 			<a
-				href={resolve('/play')}
+				href={resolve('play')}
 				class="rounded-xl bg-primary px-5 py-2.5 text-sm font-bold text-primary-content transition-colors hover:bg-primary-hover"
 			>
 				{m.rules_cta_play_now()}
 			</a>
 			<a
-				href={resolve('/lobby')}
+				href={resolve('lobby')}
 				class="rounded-xl border border-border px-5 py-2.5 text-sm font-bold text-content-muted transition-colors hover:border-primary hover:text-content"
 			>
 				{m.rules_cta_play_human()}

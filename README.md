@@ -22,7 +22,7 @@ account for a rating.
 
 ## Stack
 
-SvelteKit 2 · Svelte 5 (runes) · Tailwind 4 · `adapter-static` (SPA, `ssr=false`) · PWA
+SvelteKit 3 · Svelte 5 (runes) · Tailwind 4 · `adapter-static` (SPA, `ssr=false`) · PWA
 (`@vite-pwa/sveltekit`). Game rules come from one place — the `@fortemate/dicechess-engine`
 (Scala.js) artifact, pinned in `package.json`. Theme system (7 themes) is shared with
 `dicechess-analytics-ui`.

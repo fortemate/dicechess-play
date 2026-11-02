@@ -1,3 +1,6 @@
+import adapter from '@sveltejs/adapter-static';
+import { vitePreprocess } from '@sveltejs/vite-plugin-svelte';
+
 /// <reference types="vitest/config" />
 import { paraglideVitePlugin } from '@inlang/paraglide-js';
 import { sentrySvelteKit } from '@sentry/sveltekit/vite';
@@ -5,7 +8,7 @@ import { sveltekit } from '@sveltejs/kit/vite';
 import tailwindcss from '@tailwindcss/vite';
 import { svelteTesting } from '@testing-library/svelte/vite';
 import { SvelteKitPWA } from '@vite-pwa/sveltekit';
-import { defineConfig } from 'vite';
+import { defineConfig } from 'vitest/config';
 
 // Both halves of "Sentry is on". A token without a DSN would upload source maps for a bundle
 // that contains no SDK and mint a release nothing can ever report against. Both are read from
@@ -51,7 +54,6 @@ export default defineConfig({
 		// exactly this reason; the Paraglide runtime does not. With a single locale the strategy buys
 		// nothing anyway — every branch resolves to `en`. When a language switcher lands it will need
 		// a persistence strategy, and that is the moment to solve the guarding properly.
-		//
 		// Deliberately NOT setting `isServer: 'import.meta.env.SSR'` (which the Paraglide docs
 		// suggest for Vite): the bot engine runs in a Web Worker (playWithBot.worker.ts), where
 		// import.meta.env.SSR is false while `window` is undefined — the runtime would then take a
@@ -61,7 +63,19 @@ export default defineConfig({
 			outdir: './src/lib/paraglide',
 			strategy: ['preferredLanguage', 'baseLocale'],
 		}),
-		sveltekit(),
+
+		sveltekit({
+			preprocess: vitePreprocess(),
+			// SPA mode: every unknown path falls back to index.html. Output to dist/.
+			adapter: adapter({ pages: 'dist', assets: 'dist', fallback: 'index.html' }),
+
+			// Every push to main deploys, replacing the hash-named chunks a long-lived tab will
+			// lazy-load on its next navigation. Polling version.json lets SvelteKit spot the new
+			// deployment and turn that navigation into a full-page load instead of a broken dynamic
+			// import (src/lib/staleBundleRecovery.ts covers the non-navigation imports).
+			version: { pollInterval: 60_000 },
+		}),
+
 		// Test-mode only: points Svelte imports at the client build so component
 		// tests can mount (vitest otherwise resolves the SSR build and mount() throws).
 		svelteTesting(),
@@ -108,7 +122,6 @@ export default defineConfig({
 			exclude: [
 				'**/*.test.ts',
 				'eslint.config.js',
-				'svelte.config.js',
 				'vite.config.ts',
 				'vitest-setup.ts',
 				'dist/**',

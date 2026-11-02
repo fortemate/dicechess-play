@@ -1,7 +1,7 @@
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import { cleanup, fireEvent, render } from '@testing-library/svelte';
 import AdminBotsInventory from './AdminBotsInventory.svelte';
-import type { AdminBot } from '$lib/bots/adminApi';
+import type { AdminBot } from '#lib/bots/adminApi.js';
 
 const bot1: AdminBot = {
 	team: 'acme',

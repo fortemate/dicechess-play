@@ -14,9 +14,9 @@
 		setAdminLadder,
 		type AdminBot,
 		type AdminBotFailure,
-	} from '$lib/bots/adminApi';
-	import { toastStore } from '$lib/toastStore.svelte';
-	import { m } from '$lib/paraglide/messages.js';
+	} from '#lib/bots/adminApi.js';
+	import { toastStore } from '#lib/toastStore.svelte.js';
+	import { m } from '#lib/paraglide/messages.js';
 	import BotWebhookPanel from './BotWebhookPanel.svelte';
 
 	interface Props {

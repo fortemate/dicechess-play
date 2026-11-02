@@ -1,7 +1,7 @@
 import { describe, expect, it, vi, beforeEach, afterEach } from 'vitest';
 import { cleanup, render, waitFor } from '@testing-library/svelte';
-import type { GameHistory } from '$lib/live/historyApi';
-import type { PublicContinuation } from '$lib/live/rematchTypes';
+import type { GameHistory } from '#lib/live/historyApi.js';
+import type { PublicContinuation } from '#lib/live/rematchTypes.js';
 
 /*
  * The archive's side of spectator continuation (#106). A replay URL is EXACT by contract: it shows
@@ -19,7 +19,7 @@ const pageState = vi.hoisted(() => ({ params: { id: 'game-1' } as Record<string,
 vi.mock('$app/state', () => ({ page: pageState }));
 const goto = vi.hoisted(() => vi.fn());
 vi.mock('$app/navigation', () => ({ goto }));
-vi.mock('$lib/live/liveApi', () => ({ isLiveEnabled: () => true, apiBase: () => 'http://api' }));
+vi.mock('#lib/live/liveApi', () => ({ isLiveEnabled: () => true, apiBase: () => 'http://api' }));
 
 const stub = vi.hoisted(() => async () => ({
 	default: (await import('../../live/[id]/ChildStub.test.svelte')).default,
@@ -28,9 +28,9 @@ vi.mock('../../../components/MoveHistory.svelte', stub);
 vi.mock('../../../components/lib/Chessground.svelte', stub);
 
 const historyApi = vi.hoisted(() => ({ fetchGameHistory: vi.fn() }));
-vi.mock('$lib/live/historyApi', () => historyApi);
+vi.mock('#lib/live/historyApi.js', () => historyApi);
 const continuation = vi.hoisted(() => ({ getContinuation: vi.fn() }));
-vi.mock('$lib/live/continuationApi', () => continuation);
+vi.mock('#lib/live/continuationApi.js', () => continuation);
 
 import ReplayPage from './+page.svelte';
 

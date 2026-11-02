@@ -7,8 +7,8 @@ import {
 	totalGames,
 	emptyCounts,
 } from './playerRecord';
-import type { LocalGameRecord } from '$lib/localGamesDB';
-import type { PlayerColor } from '$lib/localGamesDB';
+import type { LocalGameRecord } from '#lib/localGamesDB.js';
+import type { PlayerColor } from '#lib/localGamesDB.js';
 
 function game(bot_id: string, player_color: PlayerColor, result: number): LocalGameRecord {
 	return {

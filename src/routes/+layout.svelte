@@ -2,16 +2,16 @@
 	/* eslint-disable local/no-untranslated-text -- i18n debt: not yet migrated (#8) */
 	import '../app.css';
 	import type { Snippet } from 'svelte';
-	import { chromeStore } from '$lib/stores/chromeStore.svelte';
-	import { authStore } from '$lib/authStore.svelte';
-	import { attachStaleBundleRecovery } from '$lib/staleBundleRecovery';
+	import { chromeStore } from '#lib/stores/chromeStore.svelte.js';
+	import { authStore } from '#lib/authStore.svelte.js';
+	import { attachStaleBundleRecovery } from '#lib/staleBundleRecovery.js';
 	import AuthMenu from '../components/AuthMenu.svelte';
 	import FirstLoginOnboarding from '../components/FirstLoginOnboarding.svelte';
 	import ThemeMenu from '../components/ThemeMenu.svelte';
 	import ToastContainer from '../components/ToastContainer.svelte';
 	import ShowcaseMark from '../components/showcase/ShowcaseMark.svelte';
-	import { m } from '$lib/paraglide/messages.js';
-	import { browser } from '$app/environment';
+	import { m } from '#lib/paraglide/messages.js';
+	import { browser } from '$app/env';
 	import { resolve } from '$app/paths';
 	import { page } from '$app/state';
 	import { pwaInfo } from 'virtual:pwa-info';
@@ -98,27 +98,21 @@
 		aria-hidden="true"
 	>
 		{#if path === '/play'}
-			<path d="M4 11l8-6.5 8 6.5" /><path d="M6 10v9h12v-9" />
+			<path d="M4 11l8-6.5 8 6.5"></path>
+			<path d="M6 10v9h12v-9"></path>
 		{:else if path === '/lobby'}
-			<circle cx="9" cy="8" r="3" /><path d="M3.5 19c0-3 2.5-5 5.5-5s5.5 2 5.5 5" /><path
-				d="M16 6.4a3 3 0 0 1 0 5.4M17 14.3c2.4.5 4 2.3 4 4.7"
-			/>
+			<circle cx="9" cy="8" r="3"></circle>
+			<path d="M3.5 19c0-3 2.5-5 5.5-5s5.5 2 5.5 5"></path>
+
+			<path d="M16 6.4a3 3 0 0 1 0 5.4M17 14.3c2.4.5 4 2.3 4 4.7"></path>
 		{:else if path === '/games'}
-			<rect x="4" y="4" width="7" height="7" rx="1.5" /><rect
-				x="13"
-				y="4"
-				width="7"
-				height="7"
-				rx="1.5"
-			/><rect x="4" y="13" width="7" height="7" rx="1.5" /><rect
-				x="13"
-				y="13"
-				width="7"
-				height="7"
-				rx="1.5"
-			/>
+			<rect x="4" y="4" width="7" height="7" rx="1.5"></rect>
+			<rect x="13" y="4" width="7" height="7" rx="1.5"></rect>
+			<rect x="4" y="13" width="7" height="7" rx="1.5"></rect>
+			<rect x="13" y="13" width="7" height="7" rx="1.5"></rect>
 		{:else}
-			<circle cx="12" cy="8" r="3.4" /><path d="M5 19.5c0-3.4 3-6 7-6s7 2.6 7 6" />
+			<circle cx="12" cy="8" r="3.4"></circle>
+			<path d="M5 19.5c0-3.4 3-6 7-6s7 2.6 7 6"></path>
 		{/if}
 	</svg>
 {/snippet}
@@ -206,11 +200,14 @@
 						Technical Docs
 					</a>
 					·
-					<a class="hover:text-content hover:underline" href={resolve('/rules')}>How to play</a>
+
+					<a class="hover:text-content hover:underline" href={resolve('rules')}>How to play</a>
+
 					·
-					<a class="hover:text-content hover:underline" href={resolve('/licenses')}>
-						Open source licenses
-					</a>
+
+					<a class="hover:text-content hover:underline" href={resolve('licenses')}
+						>Open source licenses</a
+					>
 				</p>
 				<p class="text-[10px] text-content-muted/60">
 					<a

@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import { render } from '@testing-library/svelte';
 import ProfileGameCard from './ProfileGameCard.svelte';
-import type { ProfileRecentGame } from '$lib/leaderboard/leaderboardApi';
+import type { ProfileRecentGame } from '#lib/leaderboard/leaderboardApi.js';
 
 function game(overrides: Partial<ProfileRecentGame> = {}): ProfileRecentGame {
 	return {

@@ -1,6 +1,6 @@
 <script lang="ts">
-	import { m } from '$lib/paraglide/messages.js';
-	import { totalGames, winRate, type OutcomeCounts } from '$lib/stats/playerRecord';
+	import { m } from '#lib/paraglide/messages.js';
+	import { totalGames, winRate, type OutcomeCounts } from '#lib/stats/playerRecord.js';
 	import WdlBar from './WdlBar.svelte';
 	import WdlCounts from './WdlCounts.svelte';
 

@@ -16,8 +16,8 @@
 // classification idiom: a 401 is the normal "not signed in" answer on a public site, not an error,
 // and a nickname 409 is a routine outcome the UI must render inline.
 
-import { apiBase } from '$lib/live/liveApi';
-import type { CategoryRating } from '$lib/leaderboard/leaderboardApi';
+import { apiBase } from '#lib/live/liveApi.js';
+import type { CategoryRating } from '#lib/leaderboard/leaderboardApi.js';
 
 /** play-api's `MeResponse` (per-category since play-api #280 phase 2). */
 export interface Me {

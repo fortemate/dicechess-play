@@ -14,32 +14,32 @@
 	import BotRematchButton from '../../../components/BotRematchButton.svelte';
 	import RematchControl from '../../../components/RematchControl.svelte';
 	import SpectatorFollowPanel from '../../../components/SpectatorFollowPanel.svelte';
-	import { recallBotGame } from '$lib/catalog/lastBotGame';
+	import { recallBotGame } from '#lib/catalog/lastBotGame.js';
 	import RatedBadge from '../../../components/RatedBadge.svelte';
 	import RatingDeltaLine from '../../../components/RatingDeltaLine.svelte';
-	import { chromeStore } from '$lib/stores/chromeStore.svelte';
-	import { LiveGameStore } from '$lib/live/liveGameStore.svelte';
-	import { RematchStore } from '$lib/live/rematchStore.svelte';
-	import { SpectatorFollowStore } from '$lib/live/spectatorFollowStore.svelte';
-	import { isLiveEnabled } from '$lib/live/liveApi';
-	import { buildJoinUrl, buildSpectateUrl, parseSeat } from '$lib/live/seatLink';
-	import { buildReplayUrl, hasReplay } from '$lib/live/replayLink';
+	import { chromeStore } from '#lib/stores/chromeStore.svelte.js';
+	import { LiveGameStore } from '#lib/live/liveGameStore.svelte.js';
+	import { RematchStore } from '#lib/live/rematchStore.svelte.js';
+	import { SpectatorFollowStore } from '#lib/live/spectatorFollowStore.svelte.js';
+	import { isLiveEnabled } from '#lib/live/liveApi.js';
+	import { buildJoinUrl, buildSpectateUrl, parseSeat } from '#lib/live/seatLink.js';
+	import { buildReplayUrl, hasReplay } from '#lib/live/replayLink.js';
 	import {
 		SEAT_LABELS,
 		publicPlayer,
 		seatDisplayName,
 		seatDisplaySub,
 		seatRating,
-	} from '$lib/live/playerLabel';
-	import { preferencesStore } from '$lib/preferencesStore.svelte';
-	import { preloadSounds } from '$lib/sound';
-	import { endReasonLabel } from '$lib/gameOutcome';
-	import { toastStore } from '$lib/toastStore.svelte';
-	import { m } from '$lib/paraglide/messages.js';
-	import { fetchGameRatingChange } from '$lib/live/ratingApi';
-	import { ratingPollStep, type RatingOutcome } from '$lib/live/ratingDelta';
-	import type { Seat } from '$lib/live/liveTypes';
-	import { RESIGN_CONFIRM_MS } from '$lib/timings';
+	} from '#lib/live/playerLabel.js';
+	import { preferencesStore } from '#lib/preferencesStore.svelte.js';
+	import { preloadSounds } from '#lib/sound.js';
+	import { endReasonLabel } from '#lib/gameOutcome.js';
+	import { toastStore } from '#lib/toastStore.svelte.js';
+	import { m } from '#lib/paraglide/messages.js';
+	import { fetchGameRatingChange } from '#lib/live/ratingApi.js';
+	import { ratingPollStep, type RatingOutcome } from '#lib/live/ratingDelta.js';
+	import type { Seat } from '#lib/live/liveTypes.js';
+	import { RESIGN_CONFIRM_MS } from '#lib/timings.js';
 
 	// Rating-change poll (play-api #296): GameEnded carries no delta — rating application is an
 	// asynchronous batch job — so the client asks the game's own rating endpoint until the batch
@@ -52,8 +52,8 @@
 	// the first CHANGED profile rating — which is exactly what made it report the previous game's
 	// change instead of this one's (#235).
 	const RATING_POLL_MS = 5000;
-	const RATING_POLL_ATTEMPTS = 36;
 
+	const RATING_POLL_ATTEMPTS = 36;
 	const wideScreen = () =>
 		typeof window !== 'undefined' && window.matchMedia('(min-width: 1024px)').matches;
 
@@ -111,8 +111,10 @@
 	// Board is shown from the player's side (white for spectators), so the opponent's clock sits on top.
 	const bottomSeat = $derived<Seat>(live.playerColor === 'b' ? 'Black' : 'White');
 	const topSeat = $derived<Seat>(bottomSeat === 'White' ? 'Black' : 'White');
+
 	const clockMs = (seat: Seat): number | undefined =>
 		live.hasClocks ? (seat === 'White' ? live.whiteClockMs : live.blackClockMs) : undefined;
+
 	// Turn highlight follows the PRESENTED position (consistent with board/dice pacing) and is
 	// deliberately independent of clocks: tickingClockSeat is null in unlimited games and nulled
 	// between turns, which used to leave the highlight dark or blinking.
@@ -150,6 +152,7 @@
 	const showEndModal = $derived(
 		live.gameStatus === 'over' && !endModalDismissed && !live.finishedFromArchive,
 	);
+
 	const endTone = $derived(
 		live.outcome === 'won'
 			? ('win' as const)
@@ -437,8 +440,9 @@
 				return endReasonLabel('double_declined');
 			case 'Aborted':
 			case null:
-				return ''; // Aborted gets its own headline
+				return '';
 			default:
+				// Aborted gets its own headline
 				// A termination this build does not know (the server may add members): say something
 				// neutral rather than a blank or a debug dump, and never throw.
 				return 'Game over';
@@ -543,45 +547,43 @@
 		aria-hidden="true"
 	>
 		{#if kind === 'back'}
-			<path d="M19 12H6M11 6l-6 6 6 6" />
+			<path d="M19 12H6M11 6l-6 6 6 6"></path>
 		{:else if kind === 'list'}
-			<path d="M9 6h11M9 12h11M9 18h11" /><circle
-				cx="5"
-				cy="6"
-				r="1.2"
-				fill="currentColor"
-				stroke="none"
-			/><circle cx="5" cy="12" r="1.2" fill="currentColor" stroke="none" /><circle
-				cx="5"
-				cy="18"
-				r="1.2"
-				fill="currentColor"
-				stroke="none"
-			/>
+			<path d="M9 6h11M9 12h11M9 18h11"></path>
+
+			<circle cx="5" cy="6" r="1.2" fill="currentColor" stroke="none"></circle>
+
+			<circle cx="5" cy="12" r="1.2" fill="currentColor" stroke="none"></circle>
+
+			<circle cx="5" cy="18" r="1.2" fill="currentColor" stroke="none"></circle>
 		{:else if kind === 'sound-on'}
-			<path d="M11 5.5 6.5 9H3.5v6h3l4.5 3.5z" /><path d="M14.5 9.5a3.6 3.6 0 0 1 0 5" /><path
-				d="M17 7.5a6.5 6.5 0 0 1 0 9"
-			/>
+			<path d="M11 5.5 6.5 9H3.5v6h3l4.5 3.5z"></path>
+			<path d="M14.5 9.5a3.6 3.6 0 0 1 0 5"></path>
+			<path d="M17 7.5a6.5 6.5 0 0 1 0 9"></path>
 		{:else if kind === 'sound-off'}
-			<path d="M11 5.5 6.5 9H3.5v6h3l4.5 3.5z" /><path d="m15.5 9.5 5 5M20.5 9.5l-5 5" />
+			<path d="M11 5.5 6.5 9H3.5v6h3l4.5 3.5z"></path>
+			<path d="m15.5 9.5 5 5M20.5 9.5l-5 5"></path>
 		{:else if kind === 'handshake'}
-			<path
-				d="m11 17 2 2a1 1 0 0 0 1.4 0l4.3-4.3a1 1 0 0 0 0-1.4l-2.4-2.4a1 1 0 0 0-1.4 0L13.5 12"
-			/>
-			<path d="m13 7-2-2a1 1 0 0 0-1.4 0L5.3 9.3a1 1 0 0 0 0 1.4l2.4 2.4a1 1 0 0 0 1.4 0L10.5 12" />
-			<path d="m16 8 2-2a2.83 2.83 0 0 1 4 0 2.83 2.83 0 0 1 0 4l-2 2" />
-			<path d="m8 16-2 2a2.83 2.83 0 0 1-4 0 2.83 2.83 0 0 1 0-4l2-2" />
+			<path d="m11 17 2 2a1 1 0 0 0 1.4 0l4.3-4.3a1 1 0 0 0 0-1.4l-2.4-2.4a1 1 0 0 0-1.4 0L13.5 12"
+			></path>
+
+			<path d="m13 7-2-2a1 1 0 0 0-1.4 0L5.3 9.3a1 1 0 0 0 0 1.4l2.4 2.4a1 1 0 0 0 1.4 0L10.5 12"
+			></path>
+
+			<path d="m16 8 2-2a2.83 2.83 0 0 1 4 0 2.83 2.83 0 0 1 0 4l-2 2"></path>
+
+			<path d="m8 16-2 2a2.83 2.83 0 0 1-4 0 2.83 2.83 0 0 1 0-4l2-2"></path>
 		{:else}
 			{#if kind === 'first'}
-				<path d="M11 6l-6 6 6 6M18 6l-6 6 6 6" />
+				<path d="M11 6l-6 6 6 6M18 6l-6 6 6 6"></path>
 			{:else if kind === 'prev'}
-				<path d="M15 6l-6 6 6 6" />
+				<path d="M15 6l-6 6 6 6"></path>
 			{:else if kind === 'next'}
-				<path d="M9 6l6 6-6 6" />
+				<path d="M9 6l6 6-6 6"></path>
 			{:else if kind === 'last'}
-				<path d="M6 6l6 6-6 6M13 6l6 6-6 6" />
+				<path d="M6 6l6 6-6 6M13 6l6 6-6 6"></path>
 			{:else}
-				<path d="M6 20V4M6 5h11l-2 3 2 3H6" />
+				<path d="M6 20V4M6 5h11l-2 3 2 3H6"></path>
 			{/if}
 		{/if}
 	</svg>
@@ -591,7 +593,7 @@
 	{#if rematchOffer}
 		<BotRematchButton setup={rematchOffer} />
 		<a
-			href={resolve('/bots')}
+			href={resolve('bots')}
 			class="text-sm font-semibold text-content-muted transition-colors hover:text-content"
 		>
 			Play another bot →
@@ -626,7 +628,7 @@
 		</div>
 	{/if}
 	<a
-		href={resolve('/lobby')}
+		href={resolve('lobby')}
 		class="text-sm font-semibold text-content-muted transition-colors hover:text-content"
 	>
 		← Back to the lobby
@@ -797,7 +799,7 @@
 		>
 			<div class="order-1 flex items-center gap-1.5 md:order-none">
 				<a
-					href={resolve('/lobby')}
+					href={resolve('lobby')}
 					aria-label="Leave game"
 					title="Leave"
 					class="flex h-8 w-8 items-center justify-center rounded-lg border border-border bg-surface text-content-muted transition-colors hover:border-border-strong hover:text-content"
@@ -846,9 +848,12 @@
 							: 'w-8 border-border bg-surface text-content-muted hover:border-danger/50 hover:text-danger'}"
 					>
 						{@render iconBtn('flag')}
-						{#if confirmResign}Resign?{#if live.doubling}
-								&nbsp;−{live.doubling.currentStake}
-							{/if}{/if}
+
+						{#if confirmResign}
+							Resign?{#if live.doubling}
+								−{live.doubling.currentStake}
+							{/if}
+						{/if}
 					</button>
 
 					<!-- Standing draw offer. Available in every phase, including the opponent's turn: arming

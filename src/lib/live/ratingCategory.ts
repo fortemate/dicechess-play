@@ -8,7 +8,7 @@
 // The category names are the server's `wireName` form (lowercase), so the values here can ride a
 // `?category=` query parameter as-is once the server's phase 2 (play-api#280) ships it.
 
-import { m } from '$lib/paraglide/messages.js';
+import { m } from '#lib/paraglide/messages.js';
 import type { TimeControl } from './liveTypes';
 
 export type RatingCategory = 'bullet' | 'blitz' | 'rapid';

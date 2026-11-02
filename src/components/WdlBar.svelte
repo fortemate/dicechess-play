@@ -1,5 +1,5 @@
 <script lang="ts">
-	import { outcomeShares, type OutcomeCounts } from '$lib/stats/playerRecord';
+	import { outcomeShares, type OutcomeCounts } from '#lib/stats/playerRecord.js';
 
 	interface Props {
 		counts: OutcomeCounts;

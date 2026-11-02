@@ -1,7 +1,7 @@
 <script lang="ts">
 	import { resolve } from '$app/paths';
-	import { m } from '$lib/paraglide/messages.js';
-	import { RESIGN_CONFIRM_MS } from '$lib/timings';
+	import { m } from '#lib/paraglide/messages.js';
+	import { RESIGN_CONFIRM_MS } from '#lib/timings.js';
 	import Spinner from '../Spinner.svelte';
 	import type { ShowcaseIntent, ShowcaseState } from './types';
 
@@ -99,10 +99,9 @@
 				stroke-width="1.8"
 				stroke-linecap="round"
 				stroke-linejoin="round"
-				aria-hidden="true"
+				aria-hidden="true"><path d="M6 20V4M6 5h11l-2 3 2 3H6"></path></svg
 			>
-				<path d="M6 20V4M6 5h11l-2 3 2 3H6" />
-			</svg>
+
 			{#if confirmResign}
 				<span>{m.home_action_resign_confirm()}</span>
 			{:else}
@@ -111,7 +110,7 @@
 		</button>
 	{:else if showcase.kind === 'live-spectator'}
 		<a
-			href={resolve('/play')}
+			href={resolve('play')}
 			class="flex h-12 w-full items-center justify-center rounded-xl border border-border bg-surface px-4 py-3 text-sm font-bold tracking-wider text-content transition-all hover:border-border-strong hover:bg-surface-hover"
 		>
 			{m.home_action_play_alt()}
@@ -146,7 +145,7 @@
 		</button>
 	{:else if showcase.kind === 'unavailable'}
 		<a
-			href={resolve('/play')}
+			href={resolve('play')}
 			class="flex h-12 w-full items-center justify-center rounded-xl border border-border bg-surface px-4 py-3 text-sm font-bold tracking-wider text-content transition-all hover:border-border-strong hover:bg-surface-hover"
 		>
 			{m.home_action_play_alt()}

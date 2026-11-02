@@ -1,6 +1,6 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { cleanup, fireEvent, render, waitFor } from '@testing-library/svelte';
-import type { AdminBot } from '$lib/bots/adminApi';
+import type { AdminBot } from '#lib/bots/adminApi.js';
 
 const nav = vi.hoisted(() => ({
 	goto: vi.fn(),
@@ -88,8 +88,8 @@ const state = vi.hoisted(() => {
 	};
 });
 
-vi.mock('$lib/authStore.svelte', () => ({ authStore: state.authStore }));
-vi.mock('$lib/bots/adminBotsStore.svelte', () => ({ adminBotsStore: state.adminBotsStore }));
+vi.mock('#lib/authStore.svelte.js', () => ({ authStore: state.authStore }));
+vi.mock('#lib/bots/adminBotsStore.svelte.js', () => ({ adminBotsStore: state.adminBotsStore }));
 
 import AdminBotsPage from './+page.svelte';
 
@@ -176,7 +176,7 @@ describe('/me/admin/bots', () => {
 
 		expect(nav.goto).toHaveBeenCalledWith(
 			expect.stringContaining('q=alice'),
-			expect.objectContaining({ noScroll: true, keepFocus: true }),
+			expect.objectContaining({ reset: false }),
 		);
 	});
 
@@ -189,11 +189,11 @@ describe('/me/admin/bots', () => {
 
 		expect(nav.goto).toHaveBeenCalledWith(
 			expect.stringContaining('sort=rating&dir=desc'),
-			expect.objectContaining({ noScroll: true, keepFocus: true }),
+			expect.objectContaining({ reset: false }),
 		);
 		expect(nav.goto).toHaveBeenCalledWith(
 			expect.not.stringContaining('ladder=on'),
-			expect.objectContaining({ noScroll: true, keepFocus: true }),
+			expect.objectContaining({ reset: false }),
 		);
 	});
 });

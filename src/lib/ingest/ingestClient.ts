@@ -11,7 +11,7 @@
 // The endpoint lives on the same base URL as live play (VITE_PLAY_API_URL); when empty,
 // recording is disabled along with the live surface.
 
-import { apiBase } from '$lib/live/liveApi';
+import { apiBase } from '#lib/live/liveApi.js';
 import type { GameIngestWire } from './types';
 
 export type IngestOutcome = 'created' | 'exists' | 'rejected' | 'error';

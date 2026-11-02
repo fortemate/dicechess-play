@@ -11,13 +11,13 @@
 	//                  gate in front of anything.
 	//   - `signed-in`   — the nickname plus a locally derived initial. There is no Google avatar to
 	//                  show: play-api's `/auth/me` returns no picture and no email by design.
-	import { authStore } from '$lib/authStore.svelte';
+	import { authStore } from '#lib/authStore.svelte.js';
 	import { resolve } from '$app/paths';
 </script>
 
 {#if authStore.status === 'signed-in'}
 	<a
-		href={resolve('/me')}
+		href={resolve('me')}
 		class="flex items-center gap-2 rounded-lg px-1.5 py-1 transition-colors hover:bg-surface-hover"
 		title="Your profile"
 	>

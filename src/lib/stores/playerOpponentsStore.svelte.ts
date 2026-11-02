@@ -1,6 +1,10 @@
-import { fetchMyOpponents, fetchPlayerOpponents, type PlayerOpponent } from '$lib/games/gamesApi';
-import { getGuestUuid } from '$lib/ingest/guestIdentity';
-import { isLiveEnabled } from '$lib/live/liveApi';
+import {
+	fetchMyOpponents,
+	fetchPlayerOpponents,
+	type PlayerOpponent,
+} from '#lib/games/gamesApi.js';
+import { getGuestUuid } from '#lib/ingest/guestIdentity.js';
+import { isLiveEnabled } from '#lib/live/liveApi.js';
 
 /**
  * Loads and holds an aggregate W-D-L record against every lobby opponent from play-api (#174) —

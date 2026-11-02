@@ -1,6 +1,6 @@
 <script lang="ts">
 	/* eslint-disable local/no-untranslated-text -- i18n debt: not yet migrated (#8) */
-	import { authStore } from '$lib/authStore.svelte';
+	import { authStore } from '#lib/authStore.svelte.js';
 
 	// The Rated/Casual choice for a game about to be started, shared by the catalog-bot panel and the
 	// lobby's open-a-table panel (play-api #279). Rated is the player's own call now, for any

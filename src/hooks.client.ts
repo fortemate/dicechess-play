@@ -1,3 +1,5 @@
+import type { HandleClientError } from '@sveltejs/kit/hooks';
+
 // Sentry wiring for the browser — the only place the SDK is initialised.
 //
 // There is deliberately no server-side counterpart: `adapter-static` plus `ssr = false`
@@ -17,10 +19,8 @@
 // tracing is compiled out (`__SENTRY_TRACING__` in vite.config.ts) and Replay loads as its own
 // chunk after the page is idle ($lib/sentryReplay), leaving errors — the reason for the
 // integration — as the only thing on the critical path.
-
-import type { HandleClientError } from '@sveltejs/kit';
 import * as Sentry from '@sentry/sveltekit';
-import { dropSelfHealingChunkErrors } from '$lib/sentryFilters';
+import { dropSelfHealingChunkErrors } from '#lib/sentryFilters.js';
 
 const dsn = (import.meta.env.VITE_SENTRY_DSN as string | undefined) ?? '';
 
@@ -35,6 +35,7 @@ if (dsn) {
 		// happily file events under.
 		environment:
 			(import.meta.env.VITE_SENTRY_ENVIRONMENT as string | undefined) || import.meta.env.MODE,
+
 		// A replay of the session that ended in an error is the whole point on a board game: which
 		// square, which drag, which dice. Sessions that end fine are never recorded.
 		replaysSessionSampleRate: 0,
@@ -45,7 +46,7 @@ if (dsn) {
 	// Replay is the heaviest part of the SDK by far, so it arrives as its own chunk once the
 	// browser has nothing better to do rather than delaying the first board. `timeout` keeps a
 	// permanently busy tab from never recording at all.
-	const startReplay = (): void => void import('$lib/sentryReplay').then((m) => m.startReplay());
+	const startReplay = (): void => void import('#lib/sentryReplay.js').then((m) => m.startReplay());
 	// `typeof`, not `'requestIdleCallback' in window`: lib.dom declares the method as always
 	// present, so the `in` form narrows the else branch to `never` and stops compiling.
 	if (typeof window.requestIdleCallback === 'function') {
