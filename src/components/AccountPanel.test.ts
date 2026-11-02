@@ -9,7 +9,7 @@ vi.mock('$app/paths', () => ({
 const toasts = vi.hoisted(() => ({
 	toastStore: { success: vi.fn(), error: vi.fn(), info: vi.fn() },
 }));
-vi.mock('$lib/toastStore.svelte', () => toasts);
+vi.mock('#lib/toastStore.svelte.js', () => toasts);
 
 // A mutable stand-in for the store: these tests are about how each rename outcome is surfaced, and
 // the real store can only produce those outcomes by talking to play-api.
@@ -41,7 +41,7 @@ const auth = vi.hoisted(() => ({
 		signOut: vi.fn(),
 	},
 }));
-vi.mock('$lib/authStore.svelte', () => auth);
+vi.mock('#lib/authStore.svelte.js', () => auth);
 
 import AccountPanel from './AccountPanel.svelte';
 

@@ -1,7 +1,7 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { cleanup, fireEvent, render, waitFor } from '@testing-library/svelte';
 import BotWebhookPanel from './BotWebhookPanel.svelte';
-import type { ManagedWebhookSlot } from '$lib/bots/webhookApi';
+import type { ManagedWebhookSlot } from '#lib/bots/webhookApi.js';
 
 const api = vi.hoisted(() => ({
 	readWebhook: vi.fn(),
@@ -12,7 +12,7 @@ const api = vi.hoisted(() => ({
 	deleteWebhook: vi.fn(),
 	fetchWebhookCapabilityCatalog: vi.fn(),
 }));
-vi.mock('$lib/bots/webhookApi', () => api);
+vi.mock('#lib/bots/webhookApi.js', () => api);
 
 const SECRET = 'd'.repeat(64);
 

@@ -13,11 +13,11 @@
 	// Privacy note that shapes the copy: linking does NOT make the guest id public. The public profile
 	// counts `user:` games only — otherwise signing up would retroactively deanonymise every anonymous
 	// game that browser ever played.
-	import { authStore } from '$lib/authStore.svelte';
-	import { toastStore } from '$lib/toastStore.svelte';
-	import { m } from '$lib/paraglide/messages.js';
-	import { getGuestUuid } from '$lib/ingest/guestIdentity';
-	import { myOpponentsStore } from '$lib/stores/playerOpponentsStore.svelte';
+	import { authStore } from '#lib/authStore.svelte.js';
+	import { toastStore } from '#lib/toastStore.svelte.js';
+	import { m } from '#lib/paraglide/messages.js';
+	import { getGuestUuid } from '#lib/ingest/guestIdentity.js';
+	import { myOpponentsStore } from '#lib/stores/playerOpponentsStore.svelte.js';
 
 	// Read once: this is the identity of the browser the page is open in, and it does not change while
 	// the page is mounted (resetting it happens further down the page and reloads the section).

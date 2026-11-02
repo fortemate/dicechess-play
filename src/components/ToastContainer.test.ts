@@ -3,7 +3,7 @@ import { flushSync } from 'svelte';
 import { render } from '@testing-library/svelte';
 import ToastContainer from './ToastContainer.svelte';
 import { toastStore } from '../lib/toastStore.svelte';
-import { m } from '$lib/paraglide/messages.js';
+import { m } from '#lib/paraglide/messages.js';
 
 afterEach(() => {
 	toastStore.toasts = [];

@@ -23,8 +23,8 @@
 // from "this bot has no webhook" from "your revision is stale", and an exception collapses all
 // three. Branch on `code`, never on `detail` — `detail` is prose and may be reworded.
 
-import { isAuthEnabled } from '$lib/auth/authApi';
-import { apiBase } from '$lib/live/liveApi';
+import { isAuthEnabled } from '#lib/auth/authApi.js';
+import { apiBase } from '#lib/live/liveApi.js';
 
 export type WebhookRoot = 'owner' | 'admin';
 

@@ -7,7 +7,7 @@ import type { Key } from '@lichess-org/chessground/types';
 import { getDieValue } from '../../utils/fenUtils';
 import { walkMoveTree, type MoveTree } from '../moveTreeWalker';
 import { toastStore } from '../toastStore.svelte';
-import { m } from '$lib/paraglide/messages.js';
+import { m } from '#lib/paraglide/messages.js';
 import {
 	PlayWithBotBot,
 	setBotDiceChessInstance,
@@ -114,7 +114,7 @@ export class PlayWithBotStore {
 
 	// ── Draw offers (ADR 006 §4.6, this repo #74) ────────────────────────────
 	// The same lifecycle /live plays out against play-api, kept locally here and driven entirely
-	// through the shared pure rules in `$lib/draw/drawRules`: arm at any time, delivery at the
+	// through the shared pure rules in `#lib/draw/drawRules.js`: arm at any time, delivery at the
 	// armer's completed turn (a forced pass included), the responder answers at their pre-roll gate,
 	// and the right to offer passes to the opponent on delivery.
 	drawState = $state<DrawOfferState<DrawSide>>(initialDrawOfferState<DrawSide>());

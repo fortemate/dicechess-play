@@ -6,7 +6,7 @@
 		type OpponentOption,
 		type ResultFilter,
 		type SourceFilter,
-	} from '$lib/games/gamesFilters';
+	} from '#lib/games/gamesFilters.js';
 
 	// The filter bar for /games (#151): source/result pills plus an opponent search that resolves
 	// to a `vs=` value. URL is the source of truth for all of it — this component only ever reads

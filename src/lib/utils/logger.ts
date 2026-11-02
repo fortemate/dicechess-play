@@ -7,7 +7,7 @@
  *
  * Usage:
  * ```typescript
- * import { logger } from '$lib/utils/logger';
+ * import { logger } from '#lib/utils/logger.js';
  *
  * logger.debug('Loading game...', { gameId: '123' });
  * logger.info('User authenticated', userProfile);

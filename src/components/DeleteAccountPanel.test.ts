@@ -4,7 +4,7 @@ import { fireEvent, render, waitFor } from '@testing-library/svelte';
 const toasts = vi.hoisted(() => ({
 	toastStore: { success: vi.fn(), error: vi.fn(), info: vi.fn() },
 }));
-vi.mock('$lib/toastStore.svelte', () => toasts);
+vi.mock('#lib/toastStore.svelte.js', () => toasts);
 
 const auth = vi.hoisted(() => ({
 	authStore: {
@@ -13,7 +13,7 @@ const auth = vi.hoisted(() => ({
 		remove: vi.fn(),
 	},
 }));
-vi.mock('$lib/authStore.svelte', () => auth);
+vi.mock('#lib/authStore.svelte.js', () => auth);
 
 import DeleteAccountPanel from './DeleteAccountPanel.svelte';
 

@@ -1,6 +1,6 @@
 import { describe, it, expect } from 'vitest';
 import { toGameIngest } from './mapper';
-import type { LocalGameRecord } from '$lib/localGamesDB';
+import type { LocalGameRecord } from '#lib/localGamesDB.js';
 
 const START = 'rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w - - 0 1';
 const E4 = 'rnbqkbnr/pppppppp/8/8/4P3/8/PPPP1PPP/RNBQKBNR b - - 0 1';

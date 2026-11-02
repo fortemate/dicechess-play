@@ -1,8 +1,8 @@
 <script lang="ts">
 	/* eslint-disable local/no-untranslated-text -- i18n debt: not yet migrated (#8) */
-	import type { ProfileRecentGame } from '$lib/leaderboard/leaderboardApi';
-	import { SEAT_LABELS } from '$lib/live/playerLabel';
-	import { RESULT_CLASS, RESULT_LABEL, terminationLabel } from '$lib/gameOutcome';
+	import type { ProfileRecentGame } from '#lib/leaderboard/leaderboardApi.js';
+	import { SEAT_LABELS } from '#lib/live/playerLabel.js';
+	import { RESULT_CLASS, RESULT_LABEL, terminationLabel } from '#lib/gameOutcome.js';
 	import { formatDate } from '../utils/formatters';
 	import BotBadge from './BotBadge.svelte';
 

@@ -1,8 +1,8 @@
 <script lang="ts">
-	import { m } from '$lib/paraglide/messages.js';
-	import { getPieceImage } from '$lib/utils/getPieceImage';
-	import { DICE_STAGGER_MS } from '$lib/timings';
-	import type { DieState } from '$lib/playWithBot/playWithBotDice.svelte';
+	import { m } from '#lib/paraglide/messages.js';
+	import { getPieceImage } from '#lib/utils/getPieceImage.js';
+	import { DICE_STAGGER_MS } from '#lib/timings.js';
+	import type { DieState } from '#lib/playWithBot/playWithBotDice.svelte.js';
 	import type { ShowcaseState } from './types';
 
 	interface Props {

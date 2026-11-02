@@ -1,14 +1,14 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { cleanup, fireEvent, render } from '@testing-library/svelte';
 import BotCatalogCard from './BotCatalogCard.svelte';
-import type { CatalogBot } from '$lib/catalog/catalogApi';
+import type { CatalogBot } from '#lib/catalog/catalogApi.js';
 
 // Only wakeBot is faked — click→wake is enough to prove BotChallengePanel is wired with this
 // card's team/name. The full phase-transition behavior (ready/dead states, config panel) is
 // BotChallengePanel's own concern and is tested there instead of duplicated here.
 const wakeBotMock = vi.fn();
-vi.mock('$lib/catalog/catalogApi', async (importOriginal) => {
-	const actual = await importOriginal<typeof import('$lib/catalog/catalogApi')>();
+vi.mock('#lib/catalog/catalogApi.js', async (importOriginal) => {
+	const actual = await importOriginal<typeof import('#lib/catalog/catalogApi.js')>();
 	return { ...actual, wakeBot: (team: string, name: string) => wakeBotMock(team, name) };
 });
 

@@ -14,7 +14,7 @@
 		type ProvisionalFilter,
 		type SortDirection,
 		type WebhookFilter,
-	} from '$lib/bots/adminBotsFilter';
+	} from '#lib/bots/adminBotsFilter.js';
 
 	interface Props {
 		query: AdminBotsQuery;

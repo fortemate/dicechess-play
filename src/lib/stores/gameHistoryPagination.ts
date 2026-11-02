@@ -1,4 +1,4 @@
-import type { PlayerGame } from '$lib/games/gamesApi';
+import type { PlayerGame } from '#lib/games/gamesApi.js';
 import { sortTimestamp, type GameHistoryItem } from './gameHistoryMerge';
 
 // "Show more" over mergeGameHistory's output (#150). Local games are always fully loaded

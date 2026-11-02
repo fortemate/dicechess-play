@@ -39,7 +39,7 @@ import {
 } from './playerLabel';
 import { toastStore } from '../toastStore.svelte';
 import { authStore } from '../authStore.svelte';
-import { m } from '$lib/paraglide/messages.js';
+import { m } from '#lib/paraglide/messages.js';
 import { createSeatStore, type SeatStore } from './showcaseSeat';
 
 const START_FEN = 'rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1';

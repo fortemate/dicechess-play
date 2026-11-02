@@ -46,32 +46,28 @@
 		aria-hidden="true"
 	>
 		{#if icon === 'bot'}
-			<rect x="4.5" y="8" width="15" height="11" rx="3" /><path d="M12 4.5v3.5" /><circle
-				cx="12"
-				cy="4"
-				r="1.3"
-				fill="currentColor"
-				stroke="none"
-			/><circle cx="9.3" cy="13" r="1.25" fill="currentColor" stroke="none" /><circle
-				cx="14.7"
-				cy="13"
-				r="1.25"
-				fill="currentColor"
-				stroke="none"
-			/>
+			<rect x="4.5" y="8" width="15" height="11" rx="3"></rect>
+			<path d="M12 4.5v3.5"></path>
+
+			<circle cx="12" cy="4" r="1.3" fill="currentColor" stroke="none"></circle>
+
+			<circle cx="9.3" cy="13" r="1.25" fill="currentColor" stroke="none"></circle>
+
+			<circle cx="14.7" cy="13" r="1.25" fill="currentColor" stroke="none"></circle>
 		{:else if icon === 'rated'}
 			<path
 				d="M12 3.5l2.5 5.4 5.8.6-4.4 4 1.3 5.8L12 16.6l-5.2 2.7 1.3-5.8-4.4-4 5.8-.6L12 3.5Z"
 				stroke-linejoin="round"
-			/>
+			></path>
 		{:else if icon === 'link'}
-			<path d="M10.5 13.5a4.2 4.2 0 0 0 6 0l2.3-2.3a4.24 4.24 0 0 0-6-6l-1.3 1.3" /><path
-				d="M13.5 10.5a4.2 4.2 0 0 0-6 0l-2.3 2.3a4.24 4.24 0 0 0 6 6l1.3-1.3"
-			/>
+			<path d="M10.5 13.5a4.2 4.2 0 0 0 6 0l2.3-2.3a4.24 4.24 0 0 0-6-6l-1.3 1.3"></path>
+
+			<path d="M13.5 10.5a4.2 4.2 0 0 0-6 0l-2.3 2.3a4.24 4.24 0 0 0 6 6l1.3-1.3"></path>
 		{:else}
-			<circle cx="9" cy="8" r="3" /><path d="M3.5 19c0-3 2.5-5 5.5-5s5.5 2 5.5 5" /><path
-				d="M16 6.4a3 3 0 0 1 0 5.4M17 14.3c2.4.5 4 2.3 4 4.7"
-			/>
+			<circle cx="9" cy="8" r="3"></circle>
+			<path d="M3.5 19c0-3 2.5-5 5.5-5s5.5 2 5.5 5"></path>
+
+			<path d="M16 6.4a3 3 0 0 1 0 5.4M17 14.3c2.4.5 4 2.3 4 4.7"></path>
 		{/if}
 	</svg>
 {/snippet}
@@ -98,25 +94,25 @@
 
 	<div class="flex flex-wrap items-center justify-center gap-x-6 gap-y-2 text-sm">
 		<a
-			href={resolve('/rules')}
+			href={resolve('rules')}
 			class="font-semibold text-content-muted transition-colors hover:text-content"
 		>
 			How to play →
 		</a>
 		<a
-			href={resolve('/licenses')}
+			href={resolve('licenses')}
 			class="font-semibold text-content-muted transition-colors hover:text-content"
 		>
 			Open source licenses →
 		</a>
 		<a
-			href={resolve('/lobby')}
+			href={resolve('lobby')}
 			class="font-semibold text-content-muted transition-colors hover:text-content"
 		>
 			Watch live games →
 		</a>
 		<a
-			href={resolve('/leaderboard')}
+			href={resolve('leaderboard')}
 			class="font-semibold text-content-muted transition-colors hover:text-content"
 		>
 			Leaderboard →

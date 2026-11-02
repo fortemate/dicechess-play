@@ -2,7 +2,7 @@
 	/* eslint-disable local/no-untranslated-text -- i18n debt: not yet migrated (#8) */
 	// One player's HUD row on the game screen: identity on the left, clock on the right.
 	// The clock is optional (bot games and unlimited live games have none).
-	import { formatClock, isLowTime } from '$lib/live/clockFormat';
+	import { formatClock, isLowTime } from '#lib/live/clockFormat.js';
 	import BotBadge from './BotBadge.svelte';
 
 	interface Props {

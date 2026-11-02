@@ -10,7 +10,7 @@
 // TODO(phase-1): retry with backoff for 'error' records instead of waiting for the
 // next visit, and surface quarantined records for review.
 
-import { getPendingGames, markGameAsSynced, markGameAsQuarantined } from '$lib/localGamesDB';
+import { getPendingGames, markGameAsSynced, markGameAsQuarantined } from '#lib/localGamesDB.js';
 import { getGuestId } from './guestIdentity';
 import { toGameIngest } from './mapper';
 import { postGame } from './ingestClient';

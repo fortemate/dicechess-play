@@ -9,10 +9,10 @@
 	// cheap stuff the browser can enforce for free (`minlength`/`maxlength`), because a form that only
 	// fails after a round-trip feels broken.
 	import { resolve } from '$app/paths';
-	import { authStore } from '$lib/authStore.svelte';
-	import { RATING_CATEGORY_LABELS } from '$lib/live/ratingCategory';
-	import { toastStore } from '$lib/toastStore.svelte';
-	import { m } from '$lib/paraglide/messages.js';
+	import { authStore } from '#lib/authStore.svelte.js';
+	import { RATING_CATEGORY_LABELS } from '#lib/live/ratingCategory.js';
+	import { toastStore } from '#lib/toastStore.svelte.js';
+	import { m } from '#lib/paraglide/messages.js';
 
 	// The speeds OTHER than the headline (blitz) the account has actually played — absent wire
 	// entries are unplayed speeds and stay invisible here (the compact block earns no dash rows;

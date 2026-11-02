@@ -1,4 +1,4 @@
-import { m } from '$lib/paraglide/messages.js';
+import { m } from '#lib/paraglide/messages.js';
 import type { Players, PublicPlayer, Seat, Seek } from './liveTypes';
 
 // Who the user is looking at: pure display helpers over the server's public player identities

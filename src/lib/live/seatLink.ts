@@ -36,7 +36,9 @@ export interface ParsedSeat {
 	spectate: boolean;
 }
 
-export function parseSeat(url: URL): ParsedSeat {
+export function parseSeat(url: {
+	readonly searchParams: Pick<URLSearchParams, 'get'>;
+}): ParsedSeat {
 	const spectate = url.searchParams.get(SPECTATE_PARAM) === '1';
 	const asRaw = url.searchParams.get('as');
 	const as = asRaw === 'white' || asRaw === 'black' ? asRaw : null;

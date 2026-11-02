@@ -2,11 +2,16 @@
 	/* eslint-disable local/no-untranslated-text -- i18n debt: not yet migrated (#8) */
 	import { page } from '$app/state';
 	import { resolve } from '$app/paths';
-	import { getLocalGame, type LocalGameRecord } from '$lib/localGamesDB';
-	import { reconstructHistoryMap } from '$lib/history/reconstructHistory';
-	import { buildTurnBlocks } from '$lib/playWithBot/turnBlocks';
-	import { botLabel } from '$lib/bots';
-	import { playerOutcome, outcomeLabel, endReasonLabel, type GameOutcome } from '$lib/gameOutcome';
+	import { getLocalGame, type LocalGameRecord } from '#lib/localGamesDB.js';
+	import { reconstructHistoryMap } from '#lib/history/reconstructHistory.js';
+	import { buildTurnBlocks } from '#lib/playWithBot/turnBlocks.js';
+	import { botLabel } from '#lib/bots.js';
+	import {
+		playerOutcome,
+		outcomeLabel,
+		endReasonLabel,
+		type GameOutcome,
+	} from '#lib/gameOutcome.js';
 	import { formatDate } from '../../../utils/formatters';
 	import MoveHistory from '../../../components/MoveHistory.svelte';
 	import Chessground from '../../../components/lib/Chessground.svelte';
@@ -51,6 +56,7 @@
 
 	const currentState = $derived(historyMap[String(currentMoveIndex)] ?? null);
 	const currentFen = $derived(currentState?.fen ?? '');
+
 	const lastMove = $derived(
 		currentState?.gameMoveHistoryMove?.from
 			? ([currentState.gameMoveHistoryMove.from, currentState.gameMoveHistoryMove.to] as Key[])
@@ -117,7 +123,7 @@
 
 <section class="flex flex-col gap-6">
 	<a
-		href={resolve('/games')}
+		href={resolve('games')}
 		class="text-sm text-content-muted hover:text-content transition-colors w-fit"
 	>
 		← Back to games
@@ -129,7 +135,7 @@
 		<div class="flex flex-col items-center gap-4 py-16 text-center">
 			<p class="text-content-muted">That game isn't on this device.</p>
 			<a
-				href={resolve('/games')}
+				href={resolve('games')}
 				class="px-6 py-3 rounded-xl bg-primary text-primary-content font-bold shadow-lg shadow-primary/30 hover:bg-primary-hover transition-colors"
 			>
 				Back to your games

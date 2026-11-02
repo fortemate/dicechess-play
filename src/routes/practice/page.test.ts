@@ -5,7 +5,7 @@ import { cleanup, fireEvent, render, screen } from '@testing-library/svelte';
  * What only the practice page can answer about the shared draw lifecycle (#74): that the ½ control
  * reads the store's five-state machine and reaches `toggleArmDrawOffer`, that the pre-roll gate
  * takes the dice panel's slot instead of opening a modal, and that a tap on the board declines.
- * The rules themselves are `$lib/draw/drawRules`' suite, and the lifecycle is the store's.
+ * The rules themselves are `#lib/draw/drawRules`' suite, and the lifecycle is the store's.
  *
  * Named `page.test.ts`, not `+page.test.ts`: a leading `+` marks a SvelteKit route file.
  *
@@ -21,11 +21,11 @@ vi.mock('../../components/PlayerStrip.svelte', stub);
 vi.mock('../../components/PawnPromotionSelector.svelte', stub);
 vi.mock('../../components/GameEndModal.svelte', stub);
 
-vi.mock('$lib/sound', () => ({ preloadSounds: vi.fn(), playCue: vi.fn() }));
-vi.mock('$lib/ingest/outbox', () => ({ flushOutbox: vi.fn() }));
+vi.mock('#lib/sound.js', () => ({ preloadSounds: vi.fn(), playCue: vi.fn() }));
+vi.mock('#lib/ingest/outbox.js', () => ({ flushOutbox: vi.fn() }));
 
 const state = vi.hoisted(() => ({ current: {} as Record<string, unknown> }));
-vi.mock('$lib/playWithBot', () => ({
+vi.mock('#lib/playWithBot/index.js', () => ({
 	get playWithBotStore() {
 		return state.current;
 	},

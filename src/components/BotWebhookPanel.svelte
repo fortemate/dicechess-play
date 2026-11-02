@@ -21,9 +21,9 @@
 	// Flow state, revision discipline, and secret scrubbing live in `BotWebhookController`; this
 	// file owns only markup, local form input, and focus.
 	import { untrack } from 'svelte';
-	import { isAuthEnabled } from '$lib/auth/authApi';
-	import { BotWebhookController } from '$lib/bots/webhookStore.svelte';
-	import type { WebhookRoot } from '$lib/bots/webhookApi';
+	import { isAuthEnabled } from '#lib/auth/authApi.js';
+	import { BotWebhookController } from '#lib/bots/webhookStore.svelte.js';
+	import type { WebhookRoot } from '#lib/bots/webhookApi.js';
 
 	interface Props {
 		root: WebhookRoot;

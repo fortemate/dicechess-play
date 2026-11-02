@@ -1,6 +1,6 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import { myOpponentsStore, playerOpponentsStore } from './playerOpponentsStore.svelte';
-import type { PlayerOpponent } from '$lib/games/gamesApi';
+import type { PlayerOpponent } from '#lib/games/gamesApi.js';
 
 function opponent(team: string, botName: string, games: number): PlayerOpponent {
 	return {

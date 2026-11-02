@@ -1,4 +1,4 @@
-import { getAllLocalGames, type LocalGameRecord } from '$lib/localGamesDB';
+import { getAllLocalGames, type LocalGameRecord } from '#lib/localGamesDB.js';
 
 /**
  * Loads and holds the guest's locally-stored games (newest first) for the

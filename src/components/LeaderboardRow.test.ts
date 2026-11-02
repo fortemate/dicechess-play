@@ -1,6 +1,6 @@
 import { describe, expect, it, vi, beforeEach, afterEach } from 'vitest';
 import { cleanup, render } from '@testing-library/svelte';
-import type { LeaderRow } from '$lib/leaderboard/leaderboardApi';
+import type { LeaderRow } from '#lib/leaderboard/leaderboardApi.js';
 
 // The row links out via resolve(); stub it so the component renders without the SvelteKit runtime.
 vi.mock('$app/paths', () => ({
@@ -14,7 +14,7 @@ vi.mock('$app/paths', () => ({
 // A mutable stand-in for the store singleton, same pattern as AuthMenu.test.ts: the only thing the
 // row asks the store is which nickname is ours.
 const auth = vi.hoisted(() => ({ authStore: { nickname: null as string | null } }));
-vi.mock('$lib/authStore.svelte', () => auth);
+vi.mock('#lib/authStore.svelte.js', () => auth);
 
 import LeaderboardRow from './LeaderboardRow.svelte';
 

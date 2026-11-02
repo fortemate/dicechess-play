@@ -1,6 +1,6 @@
 import { describe, expect, it, vi, beforeEach, afterEach } from 'vitest';
 import { cleanup, fireEvent, render } from '@testing-library/svelte';
-import type { Leaderboard } from '$lib/leaderboard/leaderboardApi';
+import type { Leaderboard } from '#lib/leaderboard/leaderboardApi.js';
 
 /*
  * The leaderboard page's own behaviour: which scope it asks for, and what it shows while a new one
@@ -14,11 +14,11 @@ vi.mock('$app/paths', () => ({
 	resolve: (path: string, params?: Record<string, string>) =>
 		params ? path.replace('[team]', params.team).replace('[name]', params.name) : path,
 }));
-vi.mock('$lib/live/liveApi', () => ({ isLiveEnabled: () => true }));
-vi.mock('$lib/authStore.svelte', () => ({ authStore: { nickname: null } }));
+vi.mock('#lib/live/liveApi.js', () => ({ isLiveEnabled: () => true }));
+vi.mock('#lib/authStore.svelte.js', () => ({ authStore: { nickname: null } }));
 
 const fetchLeaderboard = vi.hoisted(() => vi.fn());
-vi.mock('$lib/leaderboard/leaderboardApi', () => ({ fetchLeaderboard }));
+vi.mock('#lib/leaderboard/leaderboardApi.js', () => ({ fetchLeaderboard }));
 
 import LeaderboardPage from './+page.svelte';
 

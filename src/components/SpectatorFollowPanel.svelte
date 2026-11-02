@@ -1,6 +1,6 @@
 <script lang="ts">
 	/* eslint-disable local/no-untranslated-text -- i18n debt: not yet migrated (#8) */
-	import type { SpectatorFollowStore } from '$lib/live/spectatorFollowStore.svelte';
+	import type { SpectatorFollowStore } from '#lib/live/spectatorFollowStore.svelte.js';
 
 	// The spectator's side of a rematch (play-api ADR 007 / rematch-v1): what the follower is
 	// doing, and the two decisions the viewer owns — stop being carried along, or ask to be

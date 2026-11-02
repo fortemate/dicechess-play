@@ -11,7 +11,7 @@ import type { PublicPlayer, Seat } from '../live/liveTypes';
 // reshape any of them. The endpoints exist only when play-api runs with persistence, and on
 // this side only when VITE_PLAY_API_URL is configured (same gate as live play). `timeControl`
 // is a raw string (the server's `TimeControl` ADT toString, e.g. `Fischer(300,3)`) — parse it
-// with `parseGameResultsTimeControl` (`$lib/live/timeControls`) before displaying it; it is NOT
+// with `parseGameResultsTimeControl` (`#lib/live/timeControls.js`) before displaying it; it is NOT
 // the structured shape the live WebSocket wire uses.
 
 export type PlayerGameResult = GameResult;
@@ -38,7 +38,7 @@ export interface PlayerGamesPage {
 
 export interface PlayerGamesFilters {
 	/** `'human'` or `'<team>/<botName>'` — play-api's `OpponentFilter` wire values (#151/#173). Use
-	 * `serverVsParam` (`$lib/games/gamesFilters`) to derive this from a parsed `VsFilter`; never
+	 * `serverVsParam` (`#lib/games/gamesFilters`) to derive this from a parsed `VsFilter`; never
 	 * pass a `'local:...'` value here — the server has no such namespace and 400s it.
 	 */
 	vs?: string;
@@ -125,7 +125,7 @@ export async function fetchPlayerOpponents(guestId: string): Promise<PlayerOppon
 
 /** The signed-in account's aggregate: the union over the account itself AND every guest id it
  * has claimed (#226; merged at read time by play-api, #236). Session-scoped, hence
- * `credentials: 'include'` — the rule in `$lib/auth/authApi.ts` already names `/me/*` history
+ * `credentials: 'include'` — the rule in `#lib/auth/authApi.ts` already names `/me/*` history
  * as one of the calls that genuinely needs the session. A guest gets a 401 here, which the
  * caller must treat as "wrong endpoint for this visitor", not retry. The union is for the
  * owner's eyes only: public surfaces keep the guest/user-scoped endpoints on purpose.

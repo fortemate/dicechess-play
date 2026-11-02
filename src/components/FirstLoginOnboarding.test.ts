@@ -4,7 +4,7 @@ import { fireEvent, render, waitFor } from '@testing-library/svelte';
 const toasts = vi.hoisted(() => ({
 	toastStore: { success: vi.fn(), error: vi.fn(), info: vi.fn() },
 }));
-vi.mock('$lib/toastStore.svelte', () => toasts);
+vi.mock('#lib/toastStore.svelte.js', () => toasts);
 
 const auth = vi.hoisted(() => ({
 	authStore: {
@@ -17,7 +17,7 @@ const auth = vi.hoisted(() => ({
 		claimCurrentGuest: vi.fn(),
 	},
 }));
-vi.mock('$lib/authStore.svelte', () => auth);
+vi.mock('#lib/authStore.svelte.js', () => auth);
 
 const opponents = vi.hoisted(() => ({
 	playerOpponentsStore: {
@@ -37,10 +37,10 @@ const opponents = vi.hoisted(() => ({
 		reset: vi.fn(),
 	},
 }));
-vi.mock('$lib/stores/playerOpponentsStore.svelte', () => opponents);
+vi.mock('#lib/stores/playerOpponentsStore.svelte.js', () => opponents);
 
 import FirstLoginOnboarding from './FirstLoginOnboarding.svelte';
-import { isOnboarded, markOnboarded } from '$lib/auth/onboarding';
+import { isOnboarded, markOnboarded } from '#lib/auth/onboarding.js';
 
 const ACCOUNT = { id: 'account-uuid', nickname: 'BraveDie' };
 

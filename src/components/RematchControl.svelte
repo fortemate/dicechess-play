@@ -1,8 +1,8 @@
 <script lang="ts">
 	/* eslint-disable local/no-untranslated-text -- i18n debt: not yet migrated (#8) */
 	import { resolve } from '$app/paths';
-	import type { RematchStore } from '$lib/live/rematchStore.svelte';
-	import { timeControlLabel } from '$lib/live/timeControls';
+	import type { RematchStore } from '#lib/live/rematchStore.svelte.js';
+	import { timeControlLabel } from '#lib/live/timeControls.js';
 
 	let {
 		store,
@@ -158,7 +158,7 @@
 				{closedMessage}
 			</p>
 			<a
-				href={resolve('/lobby')}
+				href={resolve('lobby')}
 				class="w-full rounded-xl bg-primary py-2.5 text-center font-bold text-primary-content shadow-md transition-colors hover:bg-primary-hover"
 			>
 				Find another game →

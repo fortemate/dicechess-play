@@ -9,7 +9,7 @@
 	// background batch up to a minute after the game ends, so for that minute there is genuinely
 	// nothing to report. Saying so is the difference between "busy" and "broken" — a silent blank
 	// was read as the feature not working (#235 follow-up).
-	import { ratingDeltaDisplay, type RatingOutcome } from '$lib/live/ratingDelta';
+	import { ratingDeltaDisplay, type RatingOutcome } from '#lib/live/ratingDelta.js';
 
 	interface Props {
 		/** What the server has said so far. `null` renders nothing at all — not a rated game of

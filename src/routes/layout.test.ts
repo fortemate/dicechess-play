@@ -3,12 +3,14 @@ import { cleanup, render } from '@testing-library/svelte';
 import { createRawSnippet } from 'svelte';
 
 vi.mock('$app/environment', () => ({ browser: false }));
-vi.mock('$app/paths', () => ({ resolve: (path: string) => path }));
+vi.mock('$app/paths', () => ({
+	resolve: (path: string) => (path.startsWith('/') ? path : `/${path}`),
+}));
 vi.mock('$app/state', () => ({ page: { url: { pathname: '/' } } }));
 vi.mock('virtual:pwa-info', () => ({ pwaInfo: null }));
 vi.mock('virtual:pwa-register/svelte', () => ({ useRegisterSW: vi.fn() }));
-vi.mock('$lib/authStore.svelte', () => ({ authStore: { refresh: vi.fn(), status: 'signed-out' } }));
-vi.mock('$lib/live/liveApi', () => ({ isLiveEnabled: () => false }));
+vi.mock('#lib/authStore.svelte', () => ({ authStore: { refresh: vi.fn(), status: 'signed-out' } }));
+vi.mock('#lib/live/liveApi.js', () => ({ isLiveEnabled: () => false }));
 
 import Layout from './+layout.svelte';
 

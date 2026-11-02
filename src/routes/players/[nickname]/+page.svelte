@@ -2,10 +2,10 @@
 	/* eslint-disable local/no-untranslated-text -- i18n debt: not yet migrated (#8) */
 	import { page } from '$app/state';
 	import { resolve } from '$app/paths';
-	import { isLiveEnabled } from '$lib/live/liveApi';
-	import { fetchPlayerProfile, type PlayerProfile } from '$lib/leaderboard/leaderboardApi';
-	import type { PlayerOpponent } from '$lib/games/gamesApi';
-	import { winRate } from '$lib/stats/playerRecord';
+	import { isLiveEnabled } from '#lib/live/liveApi.js';
+	import { fetchPlayerProfile, type PlayerProfile } from '#lib/leaderboard/leaderboardApi.js';
+	import type { PlayerOpponent } from '#lib/games/gamesApi.js';
+	import { winRate } from '#lib/stats/playerRecord.js';
 	import CategoryRatings from '../../../components/CategoryRatings.svelte';
 	import WdlSummaryCard from '../../../components/WdlSummaryCard.svelte';
 	import WdlCounts from '../../../components/WdlCounts.svelte';
@@ -90,7 +90,7 @@
 
 <section class="mx-auto flex max-w-2xl flex-col gap-6">
 	<a
-		href={resolve('/leaderboard')}
+		href={resolve('leaderboard')}
 		class="w-fit text-sm font-semibold text-content-muted transition-colors hover:text-content"
 	>
 		← Back to the leaderboard

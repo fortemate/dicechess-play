@@ -4,12 +4,15 @@
 	import { goto } from '$app/navigation';
 	import { page } from '$app/state';
 	import { resolve } from '$app/paths';
-	import { localGamesStore } from '$lib/stores/localGamesStore.svelte';
-	import { myGamesStore, playerGamesStore } from '$lib/stores/playerGamesStore.svelte';
-	import { myOpponentsStore, playerOpponentsStore } from '$lib/stores/playerOpponentsStore.svelte';
-	import { authStore } from '$lib/authStore.svelte';
-	import { mergeGameHistory } from '$lib/stores/gameHistoryMerge';
-	import { paginateGameHistory } from '$lib/stores/gameHistoryPagination';
+	import { localGamesStore } from '#lib/stores/localGamesStore.svelte.js';
+	import { myGamesStore, playerGamesStore } from '#lib/stores/playerGamesStore.svelte.js';
+	import {
+		myOpponentsStore,
+		playerOpponentsStore,
+	} from '#lib/stores/playerOpponentsStore.svelte.js';
+	import { authStore } from '#lib/authStore.svelte.js';
+	import { mergeGameHistory } from '#lib/stores/gameHistoryMerge.js';
+	import { paginateGameHistory } from '#lib/stores/gameHistoryPagination.js';
 	import {
 		parseGamesFilters,
 		serverVsParam,
@@ -19,8 +22,8 @@
 		computeHeadToHead,
 		vsParamValue,
 		type GamesFilters,
-	} from '$lib/games/gamesFilters';
-	import { totalGames } from '$lib/stats/playerRecord';
+	} from '#lib/games/gamesFilters.js';
+	import { totalGames } from '#lib/stats/playerRecord.js';
 	import GameHistoryCard from '../../components/GameHistoryCard.svelte';
 	import LiveGameHistoryCard from '../../components/LiveGameHistoryCard.svelte';
 	import GamesFilterBar from '../../components/GamesFilterBar.svelte';
@@ -91,9 +94,9 @@
 		if (next.result) params.set('result', next.result);
 		if (next.source) params.set('source', next.source);
 		const query = params.toString();
-		void goto(query ? resolve(`/games?${query}`) : resolve('/games'), {
-			noScroll: true,
-			keepFocus: true,
+
+		void goto(query ? resolve(`games?${query}`) : resolve('games'), {
+			reset: false,
 		});
 	}
 
@@ -207,7 +210,7 @@
 			{:else}
 				<p class="text-content-muted">You haven't played any games yet.</p>
 				<a
-					href={resolve('/play')}
+					href={resolve('play')}
 					class="px-6 py-3 rounded-xl bg-primary text-primary-content font-bold shadow-lg shadow-primary/30 hover:bg-primary-hover transition-colors"
 				>
 					Play your first game →

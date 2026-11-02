@@ -76,13 +76,18 @@ export function normalizeForSearch(s: string): string {
 	return s.normalize('NFC').toLowerCase();
 }
 
-export function parseAdminBotsQuery(input: URLSearchParams | URL | string): AdminBotsQuery {
-	const params =
-		typeof input === 'string'
-			? new URLSearchParams(input.startsWith('?') ? input.slice(1) : input)
-			: input instanceof URL
-				? input.searchParams
-				: input;
+export function parseAdminBotsQuery(
+	input:
+		Pick<URLSearchParams, 'get'> | { readonly searchParams: Pick<URLSearchParams, 'get'> } | string,
+): AdminBotsQuery {
+	let params: Pick<URLSearchParams, 'get'>;
+	if (typeof input === 'string') {
+		params = new URLSearchParams(input.startsWith('?') ? input.slice(1) : input);
+	} else if ('searchParams' in input) {
+		params = input.searchParams;
+	} else {
+		params = input;
+	}
 
 	const search = params.get('q')?.trim() ?? '';
 	const ladder = (params.get('ladder') as LadderFilter) ?? 'all';

@@ -5,7 +5,7 @@ import {
 	opponentVsQuery,
 	findOpponentByVs,
 } from './lobbyRecord';
-import type { PlayerOpponent } from '$lib/games/gamesApi';
+import type { PlayerOpponent } from '#lib/games/gamesApi.js';
 
 function bot(team: string, botName: string, games: Partial<PlayerOpponent> = {}): PlayerOpponent {
 	return {

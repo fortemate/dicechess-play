@@ -1,6 +1,6 @@
 import 'fake-indexeddb/auto';
 import { describe, it, expect, beforeEach } from 'vitest';
-import { getDB, saveLocalGame, type LocalGameRecord } from '$lib/localGamesDB';
+import { getDB, saveLocalGame, type LocalGameRecord } from '#lib/localGamesDB.js';
 import { localGamesStore } from './localGamesStore.svelte';
 
 function game(

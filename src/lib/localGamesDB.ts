@@ -1,5 +1,5 @@
 import { openDB, type DBSchema, type IDBPDatabase } from 'idb';
-import type { GameEventInputWire } from '$lib/ingest/types';
+import type { GameEventInputWire } from '#lib/ingest/types.js';
 
 export type SyncStatus = 'pending' | 'synced' | 'quarantined';
 export type PlayerColor = 'WHITE' | 'BLACK';

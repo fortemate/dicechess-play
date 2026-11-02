@@ -3,7 +3,7 @@
 	import ShowcaseShell from '../../components/showcase/ShowcaseShell.svelte';
 	import { allFixtures } from '../../components/showcase/fixtures';
 	import type { ShowcaseIntent, ShowcaseState } from '../../components/showcase/types';
-	import { chromeStore } from '$lib/stores/chromeStore.svelte';
+	import { chromeStore } from '#lib/stores/chromeStore.svelte.js';
 
 	let selectedKey = $state<string>('open-white');
 	let customState = $state<ShowcaseState | null>(null);

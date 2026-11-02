@@ -17,7 +17,7 @@
 // play-with-bot store consumes it. `balance` remains a local-only number for the (guest-disabled)
 // betting UI — it is not an account balance and no server knows about it.
 
-import { getGuestUuid } from '$lib/ingest/guestIdentity';
+import { getGuestUuid } from '#lib/ingest/guestIdentity.js';
 import {
 	claimGuest,
 	deleteAccount,
@@ -31,7 +31,7 @@ import {
 	type DeleteResult,
 	type Me,
 	type NicknameResult,
-} from '$lib/auth/authApi';
+} from '#lib/auth/authApi.js';
 
 export interface User {
 	id: string;

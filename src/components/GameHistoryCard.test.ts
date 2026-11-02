@@ -1,10 +1,12 @@
 import { describe, expect, it, vi } from 'vitest';
 import { render } from '@testing-library/svelte';
 import GameHistoryCard from './GameHistoryCard.svelte';
-import type { DiceChessTurnHistory, LocalGameRecord } from '$lib/localGamesDB';
+import type { DiceChessTurnHistory, LocalGameRecord } from '#lib/localGamesDB.js';
 
 // The card links out via resolve(); stub it so the component renders without the SvelteKit runtime.
-vi.mock('$app/paths', () => ({ resolve: (path: string) => path }));
+vi.mock('$app/paths', () => ({
+	resolve: (path: string) => (path.startsWith('/') ? path : `/${path}`),
+}));
 
 const TWO_KINGS = '4k3/8/8/8/8/8/8/4K3 w - - 0 1'; // 2 pieces
 const START_PIECES = 32;

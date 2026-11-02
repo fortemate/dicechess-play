@@ -1,6 +1,6 @@
 <script lang="ts">
 	import { resolve } from '$app/paths';
-	import { m } from '$lib/paraglide/messages.js';
+	import { m } from '#lib/paraglide/messages.js';
 	import ShowcaseMark from './ShowcaseMark.svelte';
 	import AuthMenu from '../AuthMenu.svelte';
 	import ThemeMenu from '../ThemeMenu.svelte';
@@ -41,13 +41,13 @@
 		<div class="flex items-center gap-2 sm:gap-4">
 			<nav class="flex items-center gap-1 sm:gap-2">
 				<a
-					href={resolve('/play')}
+					href={resolve('play')}
 					class="px-2.5 py-1 rounded-lg text-xs sm:text-[13px] font-semibold text-content-muted hover:text-content hover:bg-surface-hover transition-colors whitespace-nowrap"
 				>
 					{m.home_nav_play_bots()}
 				</a>
 				<a
-					href={resolve('/rules')}
+					href={resolve('rules')}
 					class="hidden sm:inline-block px-2.5 py-1 rounded-lg text-xs sm:text-[13px] font-semibold text-content-muted hover:text-content hover:bg-surface-hover transition-colors whitespace-nowrap"
 				>
 					{m.home_nav_how_to_play()}

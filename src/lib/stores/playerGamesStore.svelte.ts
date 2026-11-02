@@ -4,9 +4,9 @@ import {
 	type PlayerGame,
 	type PlayerGamesFilters,
 	type PlayerGamesPage,
-} from '$lib/games/gamesApi';
-import { getGuestUuid } from '$lib/ingest/guestIdentity';
-import { isLiveEnabled } from '$lib/live/liveApi';
+} from '#lib/games/gamesApi.js';
+import { getGuestUuid } from '#lib/ingest/guestIdentity.js';
+import { isLiveEnabled } from '#lib/live/liveApi.js';
 
 /** The exact `finishedAt` of the oldest game in an already-fetched page — the next page's `before`
  * cursor (#150/#173). Never recomputed/reformatted: play-api's `before` comparison is a strict

@@ -1,5 +1,5 @@
 import type { Key } from '@lichess-org/chessground/types';
-import type { DieState } from '$lib/playWithBot/playWithBotDice.svelte';
+import type { DieState } from '#lib/playWithBot/playWithBotDice.svelte.js';
 
 export type ShowcaseColor = 'w' | 'b';
 

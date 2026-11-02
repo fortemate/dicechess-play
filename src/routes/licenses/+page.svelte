@@ -3,7 +3,7 @@
 	// Open-source license disclosures (#14). Identifies all bundled software, third-party
 	// assets, respective licenses, copyright notices, and upstream source code links.
 	import { resolve } from '$app/paths';
-	import { CANONICAL_ORIGIN, SITE_ORIGIN } from '$lib/rules/seo';
+	import { CANONICAL_ORIGIN, SITE_ORIGIN } from '#lib/rules/seo.js';
 
 	const sections = [
 		{ id: 'play-client', title: 'Dice Chess Play Client' },
@@ -27,8 +27,11 @@
 	<link rel="alternate" hreflang="en" href="{CANONICAL_ORIGIN}/licenses" />
 	<link rel="alternate" hreflang="x-default" href="{CANONICAL_ORIGIN}/licenses" />
 	<meta property="og:type" content="article" />
+
 	<meta property="og:site_name" content="Dice Chess — Play" />
+
 	<meta property="og:title" content="Open Source Licenses & Disclosures" />
+
 	<meta
 		property="og:description"
 		content="Open source license disclosures for the Dice Chess play client, Chessground, the Dice Chess engine, and bundled third-party assets."
@@ -141,8 +144,8 @@
 		<div class="flex flex-col gap-2 text-sm">
 			<div>
 				<span class="font-semibold text-content">Copyright:</span>
-				<span class="text-content-muted">
-					Copyright © Lichess Team (&lt;contact@lichess.org&gt;)</span
+				<span class="text-content-muted"
+					>Copyright © Lichess Team (&lt;contact@lichess.org&gt;)</span
 				>
 			</div>
 			<div>
@@ -468,13 +471,16 @@
 				class="font-semibold text-primary hover:underline"
 				href="https://github.com/fortemate/dicechess-play"
 				target="_blank"
-				rel="noopener noreferrer"
+				rel="noopener noreferrer">https://github.com/fortemate/dicechess-play</a
 			>
-				https://github.com/fortemate/dicechess-play</a
-			>. For game rules and dialect specifications, see our
-			<a class="font-semibold text-primary hover:underline" href={resolve('/rules')}>
-				Rules of Dice Chess</a
-			> page.
+
+			. For game rules and dialect specifications, see our
+
+			<a class="font-semibold text-primary hover:underline" href={resolve('rules')}
+				>Rules of Dice Chess</a
+			>
+
+			page.
 		</p>
 	</section>
 </article>

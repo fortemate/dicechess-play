@@ -6,12 +6,12 @@
 	// omitting it would read as the site not tracking that speed at all. `provisional` is per
 	// category: settled at blitz and still settling at bullet is a normal state, so the note lives
 	// on the row, not on the page.
-	import type { CategoryRating } from '$lib/leaderboard/leaderboardApi';
+	import type { CategoryRating } from '#lib/leaderboard/leaderboardApi.js';
 	import {
 		RATING_CATEGORY_LABELS,
 		RATING_CATEGORY_ORDER,
 		type RatingCategory,
-	} from '$lib/live/ratingCategory';
+	} from '#lib/live/ratingCategory.js';
 	import { formatWholeNumber } from '../utils/formatters';
 	import WdlCounts from './WdlCounts.svelte';
 

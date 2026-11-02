@@ -11,7 +11,7 @@ import type { ReconstructedHistory } from './reconstructHistory';
  * Unlike a local record (which already has a materialized `fen_after` for every micro-move), the
  * archive carries only ONE `fenAfter` per TURN (a turn is up to three micro-moves of the same
  * colour) — so per-micro-move positions within a turn are derived by walking the engine forward
- * (`expandTurn`, `$lib/live/turnReplay`), exactly as the live board does for a joining client's
+ * (`expandTurn`, `#lib/live/turnReplay`), exactly as the live board does for a joining client's
  * backlog (`LiveGameStore.replayHistory`). Each NEXT turn is chained from the server's own
  * `fenAfter`, not `expandTurn`'s locally-derived result, so a per-turn engine difference can never
  * compound across a long game (same reasoning as `replayHistory`).

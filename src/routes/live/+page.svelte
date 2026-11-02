@@ -1,13 +1,13 @@
 <script lang="ts">
 	/* eslint-disable local/no-untranslated-text -- i18n debt: not yet migrated (#8) */
 	import { resolve } from '$app/paths';
-	import { createGame, isLiveEnabled } from '$lib/live/liveApi';
-	import { buildJoinUrl, resolveSeats } from '$lib/live/seatLink';
-	import { getGuestUuid } from '$lib/ingest/guestIdentity';
-	import { timeControlPresets } from '$lib/live/timeControls';
-	import { SEAT_LABELS } from '$lib/live/playerLabel';
+	import { createGame, isLiveEnabled } from '#lib/live/liveApi.js';
+	import { buildJoinUrl, resolveSeats } from '#lib/live/seatLink.js';
+	import { getGuestUuid } from '#lib/ingest/guestIdentity.js';
+	import { timeControlPresets } from '#lib/live/timeControls.js';
+	import { SEAT_LABELS } from '#lib/live/playerLabel.js';
 	import TimeControlPicker from '../../components/TimeControlPicker.svelte';
-	import type { Seat } from '$lib/live/liveTypes';
+	import type { Seat } from '#lib/live/liveTypes.js';
 
 	type ColorChoice = Seat | 'random';
 	const colorOptions: readonly { value: ColorChoice; label: string }[] = [

@@ -1,4 +1,4 @@
-import type { Seat, TimeControl } from '$lib/live/liveTypes';
+import type { Seat, TimeControl } from '#lib/live/liveTypes.js';
 
 // The setup of the bot game this browser started most recently, so the board can offer an exact
 // rematch when it ends (#215).

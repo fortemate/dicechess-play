@@ -5,8 +5,8 @@
 // session with an author's bot token. The token reaches exactly one request — `claimBot`'s
 // `Authorization` header — and is never retained here. All other calls use only the session.
 
-import { isAuthEnabled } from '$lib/auth/authApi';
-import { apiBase } from '$lib/live/liveApi';
+import { isAuthEnabled } from '#lib/auth/authApi.js';
+import { apiBase } from '#lib/live/liveApi.js';
 
 /** The owner-only list wire from play-api's `OwnerBotRoutes.MyBot`, copied verbatim. */
 export interface MyBot {

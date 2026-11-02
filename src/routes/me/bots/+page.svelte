@@ -6,11 +6,11 @@
 	// Authorization header; it never joins authStore, the URL, or browser storage.
 	import { resolve } from '$app/paths';
 	import OwnedBotCard from '../../../components/OwnedBotCard.svelte';
-	import { claimBot } from '$lib/bots/ownerApi';
-	import { myBotsStore } from '$lib/bots/myBotsStore.svelte';
-	import { authStore } from '$lib/authStore.svelte';
-	import { toastStore } from '$lib/toastStore.svelte';
-	import { m } from '$lib/paraglide/messages.js';
+	import { claimBot } from '#lib/bots/ownerApi.js';
+	import { myBotsStore } from '#lib/bots/myBotsStore.svelte.js';
+	import { authStore } from '#lib/authStore.svelte.js';
+	import { toastStore } from '#lib/toastStore.svelte.js';
+	import { m } from '#lib/paraglide/messages.js';
 
 	let claimOpen = $state(false);
 	let tokenInput = $state('');
@@ -91,7 +91,7 @@
 <section class="flex flex-col gap-8">
 	<div class="flex flex-col gap-2">
 		<a
-			href={resolve('/me')}
+			href={resolve('me')}
 			class="w-fit text-xs font-bold text-content-muted underline transition-colors hover:text-content"
 		>
 			← Back to profile

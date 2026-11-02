@@ -12,7 +12,7 @@ const auth = vi.hoisted(() => ({
 		signIn: vi.fn(),
 	},
 }));
-vi.mock('$lib/authStore.svelte', () => auth);
+vi.mock('#lib/authStore.svelte.js', () => auth);
 
 import RatedChoice from './RatedChoice.svelte';
 import RatedChoiceHarness from './RatedChoiceHarness.svelte';

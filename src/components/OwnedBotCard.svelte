@@ -16,9 +16,9 @@
 		type BotCapacity,
 		type MyBot,
 		type OwnerBotFailure,
-	} from '$lib/bots/ownerApi';
-	import { toastStore } from '$lib/toastStore.svelte';
-	import { m } from '$lib/paraglide/messages.js';
+	} from '#lib/bots/ownerApi.js';
+	import { toastStore } from '#lib/toastStore.svelte.js';
+	import { m } from '#lib/paraglide/messages.js';
 	import { formatWholeNumber } from '../utils/formatters';
 	import BotWebhookPanel from './BotWebhookPanel.svelte';
 

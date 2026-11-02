@@ -1,7 +1,9 @@
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import { cleanup, render } from '@testing-library/svelte';
 
-vi.mock('$app/paths', () => ({ resolve: (path: string) => path }));
+vi.mock('$app/paths', () => ({
+	resolve: (path: string) => (path.startsWith('/') ? path : `/${path}`),
+}));
 
 import LicensesPage from './+page.svelte';
 

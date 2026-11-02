@@ -1,15 +1,17 @@
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import { cleanup, render } from '@testing-library/svelte';
 
-vi.mock('$app/paths', () => ({ resolve: (path: string) => path }));
-vi.mock('$lib/live/liveApi', () => ({ isLiveEnabled: () => false }));
-vi.mock('$lib/authStore.svelte', () => ({
+vi.mock('$app/paths', () => ({
+	resolve: (path: string) => (path.startsWith('/') ? path : `/${path}`),
+}));
+vi.mock('#lib/live/liveApi.js', () => ({ isLiveEnabled: () => false }));
+vi.mock('#lib/authStore.svelte.js', () => ({
 	authStore: { status: 'signed-out', canSignIn: false, guestsLoaded: true, loadGuests: vi.fn() },
 }));
-vi.mock('$lib/stores/localGamesStore.svelte', () => ({
+vi.mock('#lib/stores/localGamesStore.svelte.js', () => ({
 	localGamesStore: { loaded: true, games: [], error: null, load: vi.fn() },
 }));
-vi.mock('$lib/stores/playerOpponentsStore.svelte', () => ({
+vi.mock('#lib/stores/playerOpponentsStore.svelte.js', () => ({
 	playerOpponentsStore: {
 		loaded: true,
 		opponents: [],
@@ -25,7 +27,7 @@ vi.mock('$lib/stores/playerOpponentsStore.svelte', () => ({
 		reset: vi.fn(),
 	},
 }));
-vi.mock('$lib/ingest/guestIdentity', () => ({
+vi.mock('#lib/ingest/guestIdentity.js', () => ({
 	getGuestId: () => 'guest:018f0000-0000-7000-8000-000000000000',
 	getGuestUuid: () => '018f0000-0000-7000-8000-000000000000',
 	setGuestId: vi.fn(),
