@@ -1691,11 +1691,28 @@ describe('LiveGameStore local legal turn tree (#204)', () => {
 		deliver({
 			TurnPlayed: { v: 1, seat: 'White', moves: ['b1c3', 'g1f3'], fenAfter: AFTER_WHITE_KNIGHTS },
 		});
-		roll(`${START_FEN} N`, 2);
-		await vi.advanceTimersByTimeAsync(600);
-		live.handleBoardMove('b1', 'c3');
-		expect(submittedTurns()).toEqual([['b1c3', 'g1f3'], ['b1c3']]);
+		// Advance through Black's turn, then build White's next tree at a genuinely new root.
+		deliver({
+			DiceRolled: {
+				v: 2,
+				seat: 'Black',
+				dice: [2],
+				dfen: `${AFTER_WHITE_KNIGHTS} n`,
+				clocks: null,
+				legalMoves: null,
+			},
+		});
+		const nextWhiteFen = 'rnbqkb1r/pppppppp/5n2/8/8/2N2N2/PPPPPPPP/R1BQKB1R w KQkq - 3 3';
+		deliver({ TurnPlayed: { v: 3, seat: 'Black', moves: ['g8f6'], fenAfter: nextWhiteFen } });
+		roll(`${nextWhiteFen} N`, 4);
+		await vi.advanceTimersByTimeAsync(2200);
+		expect(live.currentBoardFen).toBe(nextWhiteFen);
+		expect(live.legalMovesDests.has('b1')).toBe(false);
+		expect(live.legalMovesDests.get('c3')).toContain('d5');
+		live.handleBoardMove('c3', 'd5');
+		expect(submittedTurns()).toEqual([['b1c3', 'g1f3'], ['c3d5']]);
 		expect(buildTree).toHaveBeenCalledTimes(2);
+		expect(buildTree).toHaveBeenLastCalledWith(`${nextWhiteFen} N`);
 		expect(getMoves).not.toHaveBeenCalled();
 		expect(getRulesVersion).toHaveBeenCalledTimes(1);
 	});
@@ -1769,6 +1786,69 @@ describe('LiveGameStore local legal turn tree (#204)', () => {
 		deliver({ Rejected: { v: 1, seat: 'Black', reason: 'illegal turn' } });
 		deliver({ Rejected: { v: 2, seat: 'White', reason: 'not your turn' } });
 		expect(getMoves).not.toHaveBeenCalled();
+	});
+
+	it.each(['0.16.0', 'unavailable'])(
+		'refreshes compatibility on a socket reconnect when rules are %s',
+		async (rules) => {
+			deliver(snapshot({ legalMoves: null }));
+			await vi.advanceTimersByTimeAsync(0);
+			expect(live.legalMovesDests.has('b1')).toBe(true);
+			if (rules === 'unavailable')
+				vi.mocked(getRulesVersion).mockRejectedValueOnce(new Error('Offline'));
+			else vi.mocked(getRulesVersion).mockResolvedValueOnce(rules);
+			const previous = MockWebSocket.last!;
+			previous.onerror?.();
+			await vi.advanceTimersByTimeAsync(300);
+			expect(MockWebSocket.last).not.toBe(previous);
+			MockWebSocket.last!.onopen?.();
+			vi.mocked(getMoves).mockResolvedValue({
+				version: 0,
+				dfen: `${START_FEN} N`,
+				dicePending: true,
+				legalMoves: { g1f3: {} },
+			});
+			deliver(snapshot({ legalMoves: null }));
+			await vi.advanceTimersByTimeAsync(0);
+			expect(getRulesVersion).toHaveBeenCalledTimes(2);
+			expect(getMoves).toHaveBeenCalledTimes(1);
+			expect([...live.legalMovesDests]).toEqual([['g1', ['f3']]]);
+		},
+	);
+
+	it('retries after a stalled moves fetch times out and uses the successful second response', async () => {
+		await serverRules('0.16.0');
+		const actual = await vi.importActual<typeof import('./liveApi')>('./liveApi');
+		vi.mocked(getMoves).mockImplementation(actual.getMoves);
+		vi.spyOn(AbortSignal, 'timeout').mockImplementation((ms) => {
+			const controller = new AbortController();
+			setTimeout(() => controller.abort(new DOMException('Timed out', 'TimeoutError')), ms);
+			return controller.signal;
+		});
+		const fetchMock = vi
+			.fn()
+			.mockImplementationOnce(
+				(_url, init: RequestInit) =>
+					new Promise((_resolve, reject) => {
+						init.signal!.addEventListener('abort', () => reject(init.signal!.reason));
+					}),
+			)
+			.mockResolvedValueOnce({
+				ok: true,
+				json: async () => ({
+					version: 0,
+					dfen: `${START_FEN} N`,
+					dicePending: true,
+					legalMoves: { b1c3: {} },
+				}),
+			});
+		vi.stubGlobal('fetch', fetchMock);
+		deliver(snapshot({ legalMoves: null }));
+		await vi.advanceTimersByTimeAsync(0);
+		expect(live.legalMovesDests.size).toBe(0);
+		await vi.advanceTimersByTimeAsync(5000);
+		expect(fetchMock).toHaveBeenCalledTimes(2);
+		expect([...live.legalMovesDests]).toEqual([['b1', ['c3']]]);
 	});
 
 	it('keeps the board locked after both fallback requests fail', async () => {

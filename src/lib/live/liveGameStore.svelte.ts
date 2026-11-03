@@ -365,9 +365,6 @@ export class LiveGameStore {
 		// the server refuses seat restoration for it, and here it drops any seat this link claimed,
 		// so a follower of a rematch chain cannot end up holding a board it is able to play.
 		this.gameId = id;
-		this.rulesCompatible = getRulesVersion()
-			.then((version) => version === bundledRulesVersion)
-			.catch(() => false);
 		this.playerColor = !spectator && as === 'black' ? 'b' : 'w';
 		if (spectator || as === null) {
 			this.mySeat = null;
@@ -387,8 +384,16 @@ export class LiveGameStore {
 			// A second 'connecting' means the first attempt failed: ask the archive once per drop
 			// whether the room is gone because the game is over. A live game answers 404 and the
 			// socket keeps retrying, so the probe costs one GET per reconnect at most.
-			if (s === 'open') this.connectAttempts = 0;
-			else if (s === 'connecting') {
+			if (s === 'open') {
+				this.connectAttempts = 0;
+				// A reconnect can attach to a new server deployment without calling connect() again.
+				this.rulesCompatible = getRulesVersion()
+					.then((version) => version === bundledRulesVersion)
+					.catch(() => false);
+			} else if (s === 'connecting') {
+				this.treeRequest += 1;
+				this.turnTree = null;
+				this.rulesCompatible = Promise.resolve(false);
 				this.connectAttempts += 1;
 				if (this.connectAttempts >= 2) void this.probeArchive(this.epoch);
 			} else if (s === 'closed') void this.probeArchive(this.epoch);
@@ -592,6 +597,7 @@ export class LiveGameStore {
 		this.scheduleGameEnd(this.epoch);
 	}
 
+	/** Roll back our rejected turn; an illegal-turn refusal replaces its hints with the server tree. */
 	private handleRejected(payload: Extract<ServerEvent, { Rejected: unknown }>['Rejected']): void {
 		if (payload.v <= this.version) return;
 		this.version = payload.v;
@@ -748,6 +754,7 @@ export class LiveGameStore {
 		);
 	}
 
+	/** Choose one roll-rooted tree after compatibility settles; preserve any in-progress inline walk. */
 	private async prepareTurnTree(
 		rollDfen: string,
 		rollVersion: number,
@@ -775,6 +782,7 @@ export class LiveGameStore {
 		await this.fetchLegalMoves(this.gameId, rollDfen, rollVersion, requestEpoch, request);
 	}
 
+	/** Try the authoritative endpoint twice, accepting only a current pending roll's matching tree. */
 	private async fetchLegalMoves(
 		gameId: string,
 		rollDfen: string,

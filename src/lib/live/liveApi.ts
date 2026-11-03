@@ -45,9 +45,9 @@ export async function getState(id: string): Promise<PublicGameState> {
 	return (await res.json()) as PublicGameState;
 }
 
-/** Fetch the legal turn tree for the current roll of a game (e.g. when elided from WebSocket frames). */
+/** Fetch the current roll's authoritative tree, bounding each fallback attempt to five seconds. */
 export async function getMoves(id: string): Promise<GameMoves> {
-	const res = await fetch(`${apiBase()}/games/${id}/moves`);
+	const res = await fetch(`${apiBase()}/games/${id}/moves`, { signal: AbortSignal.timeout(5000) });
 	if (!res.ok) throw new Error(`getMoves failed: ${res.status}`);
 	return (await res.json()) as GameMoves;
 }

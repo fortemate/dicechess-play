@@ -79,7 +79,37 @@ describe('liveApi', () => {
 
 		const res = await getMoves('g1');
 		expect(res).toEqual(payload);
-		expect(fetchMock).toHaveBeenCalledWith('http://localhost:8080/games/g1/moves');
+		expect(fetchMock).toHaveBeenCalledWith(
+			'http://localhost:8080/games/g1/moves',
+			expect.objectContaining({ signal: expect.any(AbortSignal) }),
+		);
+	});
+
+	it('aborts a stalled moves request after five seconds', async () => {
+		vi.useFakeTimers();
+		const timeout = vi.spyOn(AbortSignal, 'timeout').mockImplementation((ms) => {
+			const controller = new AbortController();
+			setTimeout(() => controller.abort(new DOMException('Timed out', 'TimeoutError')), ms);
+			return controller.signal;
+		});
+		vi.stubGlobal(
+			'fetch',
+			vi.fn(
+				(_url, init: RequestInit) =>
+					new Promise((_resolve, reject) => {
+						init.signal!.addEventListener('abort', () => reject(init.signal!.reason));
+					}),
+			),
+		);
+		try {
+			const result = expect(getMoves('g1')).rejects.toMatchObject({ name: 'TimeoutError' });
+			expect(timeout).toHaveBeenCalledWith(5000);
+			await vi.advanceTimersByTimeAsync(5000);
+			await result;
+		} finally {
+			timeout.mockRestore();
+			vi.useRealTimers();
+		}
 	});
 
 	it('getMoves throws on a non-ok response', async () => {
