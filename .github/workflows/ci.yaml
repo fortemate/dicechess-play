@@ -32,6 +32,9 @@ jobs:
           # Resolves @fortemate/dicechess-engine from the GitHub npm registry (.npmrc)
           NODE_AUTH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
+      - name: Verify client and server rules versions
+        run: npm run check:rules-version
+
       - name: Lint (ESLint)
         run: npm run lint
 

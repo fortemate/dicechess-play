@@ -71,3 +71,19 @@ if (actualDice !== EXPECTED_DICE) {
 }
 
 console.log('✓ bundled engine applies a legal move');
+
+// Live play now builds complete turn trees locally (#204). This API is only on the full entry,
+// whereas applyMove is also on /rules, so verify the shipped full entry independently.
+let turnEngine = null;
+for (const file of chunks) {
+	if (!readFileSync(join(CHUNK_DIR, file), 'utf8').includes('getLegalTurnTree')) continue;
+	const module = await import(pathToFileURL(join(process.cwd(), CHUNK_DIR, file)).href);
+	turnEngine = Object.values(module).find((value) => typeof value?.getLegalTurnTree === 'function');
+	if (turnEngine) break;
+}
+if (!turnEngine) fail('the complete-turn engine API is not reachable from any chunk export');
+const tree = turnEngine.getLegalTurnTree('8/8/8/2k5/8/1N6/2P5/K7 w - - 0 1 NPP');
+if (JSON.stringify(tree?.c2c4) !== '{"b3c5":{}}') {
+	fail('getLegalTurnTree lost the roll-rooted king-capture continuation after c2c4');
+}
+console.log('✓ bundled engine preserves legal turn continuations');
