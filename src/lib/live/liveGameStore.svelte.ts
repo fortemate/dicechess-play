@@ -1,13 +1,9 @@
 import type { Key } from '@lichess-org/chessground/types';
-import {
-	getPieceFromFen,
-	deriveChessgroundDests,
-	buildDfen,
-	getDieValue,
-} from '../../utils/fenUtils';
+import { getPieceFromFen, buildDfen, getDieValue } from '../../utils/fenUtils';
 import type { DieState } from '../playWithBot/playWithBotDice.svelte';
 import { LiveClient, randomClientSeed, type ConnStatus } from './liveClient';
-import { wsUrl, getMoves } from './liveApi';
+import { wsUrl, getMoves, getRulesVersion } from './liveApi';
+import { bundledRulesVersion } from './rulesVersion';
 import { getGuestUuid } from '../ingest/guestIdentity';
 import { splitDfen, stripDfen } from './dfenUtils';
 import { dieStateFromValue, expandTurn } from './turnReplay';
@@ -26,11 +22,10 @@ import type {
 	MayOfferDrawBy,
 	Termination,
 	PublicRematchStartup,
-	GameMoves,
 } from './liveTypes';
 import { walkMoveTree, type MoveTree } from '../moveTreeWalker';
 import { logger } from '../utils/logger';
-import { DiceChess } from '@fortemate/dicechess-engine/rules';
+import { DiceChess } from '@fortemate/dicechess-engine';
 import { buildTurnBlocks } from '../playWithBot/turnBlocks';
 import type { BotMoveHistoryState } from '../playWithBot/playWithBotHistory.svelte';
 import type { TurnBlock } from '../types';
@@ -54,8 +49,12 @@ export type LiveOutcome = 'won' | 'lost' | 'draw';
 /**
  * Server-authoritative human-vs-human game state. The server owns the truth: this store applies its
  * versioned events (Snapshot/DiceRolled/TurnPlayed/GameEnded/Rejected), and the local engine is used
- * only to show legal dice-moves and apply moves optimistically for instant feedback. A completed turn
- * is sent as SubmitTurn; the server's TurnPlayed confirms it (Rejected rolls the optimistic move back).
+ * only to show legal dice-moves and apply moves optimistically for instant feedback.
+ * A legal-turn tree is built once at the roll DFEN, never re-rooted after a micro-move. It is used
+ * only after /health confirms the bundled rules version. Version skew, unknown rules, a local
+ * engine failure or an illegal-turn rejection uses the authoritative server tree instead.
+ * A completed turn is sent as SubmitTurn; the server's TurnPlayed confirms it
+ * (Rejected rolls the optimistic move back).
  *
  * It exposes the same read-surface Board consumes (see BoardStore), so Board is reused unchanged.
  */
@@ -204,7 +203,9 @@ export class LiveGameStore {
 	private version = -1;
 	private pendingMoves = $state<string[]>([]); // optimistic UCI buffer for the turn in progress
 	private turnTree = $state<MoveTree | null>(null);
-	private treeFallback = $state<boolean>(false);
+	private rulesCompatible: Promise<boolean> = Promise.resolve(false);
+	private rollDfen = '';
+	private treeRequest = 0;
 	private isDicePending = false;
 	private confirmedFen = START_FEN; // last server-confirmed position, for rollback
 	private confirmedDice: DieState[] = [];
@@ -350,14 +351,6 @@ export class LiveGameStore {
 			return new Map();
 		const dice = this.availableDiceValues;
 		if (dice.length === 0) return new Map();
-		if (this.treeFallback) {
-			try {
-				const uci = DiceChess.getLegalUciMoves(buildDfen(this.liveFen, dice)) || [];
-				return deriveChessgroundDests(uci);
-			} catch {
-				return new Map();
-			}
-		}
 		if (this.turnTree !== null) {
 			return walkMoveTree(this.turnTree, this.pendingMoves).dests;
 		}
@@ -372,6 +365,9 @@ export class LiveGameStore {
 		// the server refuses seat restoration for it, and here it drops any seat this link claimed,
 		// so a follower of a rematch chain cannot end up holding a board it is able to play.
 		this.gameId = id;
+		this.rulesCompatible = getRulesVersion()
+			.then((version) => version === bundledRulesVersion)
+			.catch(() => false);
 		this.playerColor = !spectator && as === 'black' ? 'b' : 'w';
 		if (spectator || as === null) {
 			this.mySeat = null;
@@ -427,7 +423,7 @@ export class LiveGameStore {
 		this.pendingPromotion = null;
 		this.pendingMoves = [];
 		this.turnTree = null;
-		this.treeFallback = false;
+		this.treeRequest += 1;
 		this.isDicePending = false;
 		this.confirmedFen = START_FEN;
 		this.confirmedDice = [];
@@ -533,7 +529,7 @@ export class LiveGameStore {
 		this.version = payload.v;
 		this.isDrawOfferArmed = false;
 		this.turnTree = null;
-		this.treeFallback = false;
+		this.treeRequest += 1;
 		this.isDicePending = false;
 		this.recordTurn(payload.moves, payload.seat);
 		this.confirmedFen = stripDfen(payload.fenAfter);
@@ -601,6 +597,11 @@ export class LiveGameStore {
 		this.version = payload.v;
 		if (payload.seat === this.mySeat) {
 			this.rollback();
+			if (payload.reason === 'illegal turn' && this.isDicePending) {
+				this.turnTree = null;
+				const request = ++this.treeRequest;
+				void this.fetchLegalMoves(this.gameId, this.rollDfen, this.version, this.epoch, request);
+			}
 			toastStore.error(m.game_toast_move_rejected());
 		}
 	}
@@ -728,16 +729,50 @@ export class LiveGameStore {
 		const canAct = (dicePending || Boolean(this.drawOffer?.pending)) && activeSeat === this.mySeat;
 		this.gameStatus = canAct ? 'playing' : 'waiting';
 
-		if (legalMoves !== undefined && legalMoves !== null) {
-			this.turnTree = legalMoves;
-			this.treeFallback = false;
-		} else {
-			this.turnTree = null;
-			this.treeFallback = false;
-			if (dicePending && activeSeat === this.mySeat && this.mySeat !== null && this.gameId !== '') {
-				void this.fetchLegalMoves(this.gameId, dfen, this.version, this.epoch);
+		this.rollDfen = dfen;
+		this.turnTree = legalMoves ?? null; // a server tree is safe while /health is in flight
+		const request = ++this.treeRequest;
+		if (dicePending && activeSeat === this.mySeat && this.mySeat !== null) {
+			void this.prepareTurnTree(dfen, this.version, this.epoch, request);
+		}
+	}
+
+	/** A request belongs to one roll/snapshot/rejection, even when the same DFEN appears again. */
+	private isCurrentTreeRequest(epoch: number, request: number): boolean {
+		return (
+			this.epoch === epoch &&
+			this.treeRequest === request &&
+			this.isDicePending &&
+			this.authoritativeOver === null &&
+			this.gameStatus === 'playing'
+		);
+	}
+
+	private async prepareTurnTree(
+		rollDfen: string,
+		rollVersion: number,
+		requestEpoch: number,
+		request: number,
+	): Promise<void> {
+		const compatible = await this.rulesCompatible;
+		if (!this.isCurrentTreeRequest(requestEpoch, request)) return;
+		// An inline tree may already have allowed an optimistic move. Keep walking that same root
+		// until the next roll rather than replacing a tree midway through a turn.
+		if (this.pendingMoves.length > 0 || this.pendingPromotion !== null) return;
+		if (compatible) {
+			try {
+				const tree = DiceChess.getLegalTurnTree(rollDfen) as MoveTree | null;
+				if (tree !== null && tree !== undefined) {
+					this.turnTree = tree;
+					return;
+				}
+			} catch {
+				// The server remains the authority if the local engine cannot build this roll.
 			}
 		}
+		// Older servers may still include a complete authoritative tree in the frame.
+		if (this.turnTree !== null) return;
+		await this.fetchLegalMoves(this.gameId, rollDfen, rollVersion, requestEpoch, request);
 	}
 
 	private async fetchLegalMoves(
@@ -745,48 +780,28 @@ export class LiveGameStore {
 		rollDfen: string,
 		rollVersion: number,
 		requestEpoch: number,
+		request: number,
 	): Promise<void> {
-		let res: GameMoves | null = null;
 		for (let attempt = 0; attempt < 2; attempt++) {
-			if (
-				this.epoch !== requestEpoch ||
-				this.version !== rollVersion ||
-				!this.isDicePending ||
-				this.gameStatus !== 'playing'
-			) {
-				return;
-			}
+			if (!this.isCurrentTreeRequest(requestEpoch, request)) return;
 			try {
-				res = await getMoves(gameId);
-				break;
+				const res = await getMoves(gameId);
+				if (!this.isCurrentTreeRequest(requestEpoch, request)) return;
+				if (
+					res.dfen === rollDfen &&
+					res.version >= rollVersion &&
+					res.dicePending &&
+					res.legalMoves !== null
+				) {
+					this.turnTree = res.legalMoves;
+					return;
+				}
 			} catch {
-				// Retry on next attempt
+				// Retry once; never offer moves from a different rules version or a new root.
 			}
 		}
-
-		if (
-			this.epoch !== requestEpoch ||
-			this.version !== rollVersion ||
-			!this.isDicePending ||
-			this.gameStatus !== 'playing'
-		) {
-			return;
-		}
-
-		if (res) {
-			if (res.dfen === rollDfen && res.version >= rollVersion) {
-				this.turnTree = res.legalMoves ?? {};
-				this.treeFallback = false;
-			}
-			return;
-		}
-
-		logger.warn('Failed to fetch legal moves, falling back to local move calculation', {
-			gameId,
-			rollDfen,
-			rollVersion,
-		});
-		this.treeFallback = true;
+		if (!this.isCurrentTreeRequest(requestEpoch, request)) return;
+		logger.warn('Failed to fetch an authoritative legal turn tree', { gameId, rollVersion });
 	}
 
 	/** Runs once the reveal has drained to live: one suspense beat, then the announcement.
@@ -829,7 +844,7 @@ export class LiveGameStore {
 		this.termination = termination;
 		this.liveDice = [];
 		this.turnTree = null;
-		this.treeFallback = false;
+		this.treeRequest += 1;
 		this.isDicePending = false;
 		this.drawOffer = null;
 		this.drawOfferedBy = null;
@@ -898,6 +913,7 @@ export class LiveGameStore {
 		this.liveFen = this.confirmedFen;
 		this.liveDice = this.confirmedDice.map((d) => ({ ...d }));
 		this.pendingMoves = [];
+		this.pendingPromotion = null;
 		this.gameStatus = this.liveActiveColor === this.playerColor ? 'playing' : 'waiting';
 	}
 
@@ -1017,7 +1033,7 @@ export class LiveGameStore {
 				orig,
 				dest,
 				color: this.playerColor,
-				availablePieces: this.promotionPieces(orig, dest, dieIndex),
+				availablePieces: this.promotionPieces(orig, dest),
 				dieIndex,
 			};
 			return;
@@ -1042,25 +1058,8 @@ export class LiveGameStore {
 		setTimeout(() => (this.liveFen = fen), 0);
 	}
 
-	private promotionPieces(orig: string, dest: string, dieIndex: number): string[] {
-		if (!this.treeFallback && this.turnTree !== null) {
-			const promos = walkMoveTree(this.turnTree, this.pendingMoves).getPromotions(orig, dest);
-			if (promos.length > 0) return promos;
-		}
-		const dice = this.liveDice
-			.filter((d, i) => d.allowed && (!d.used || i === dieIndex))
-			.map((d) => getDieValue(d));
-		try {
-			const legal: string[] = DiceChess.getLegalUciMoves(buildDfen(this.liveFen, dice)) || [];
-			const promos = legal
-				.filter((m) => m.startsWith(orig + dest) && m.length === 5)
-				.map((m) => m[4].toLowerCase());
-			// eslint-disable-next-line svelte/prefer-svelte-reactivity
-			if (promos.length > 0) return Array.from(new Set(promos));
-		} catch {
-			/* fall through to the default set */
-		}
-		return ['q', 'r', 'b', 'n'];
+	private promotionPieces(orig: string, dest: string): string[] {
+		return walkMoveTree(this.turnTree, this.pendingMoves).getPromotions(orig, dest);
 	}
 
 	private completeMove(
@@ -1084,11 +1083,7 @@ export class LiveGameStore {
 		this.pendingMoves.push(orig + dest + (promo ?? ''));
 
 		const capturedKing = getPieceFromFen(oldFen, dest)?.toLowerCase() === 'k';
-		const turnComplete =
-			capturedKing ||
-			(!this.treeFallback && this.turnTree !== null
-				? walkMoveTree(this.turnTree, this.pendingMoves).isComplete
-				: this.legalMovesDests.size === 0);
+		const turnComplete = capturedKing || walkMoveTree(this.turnTree, this.pendingMoves).isComplete;
 		if (turnComplete) this.submitTurn();
 	}
 

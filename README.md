@@ -146,6 +146,8 @@ src/
 │   │                          spectatorFollowStore (spectators follow a rematch chain, #106),
 │   │                          ratingDelta (a finished game's own rating change: poll state, and rounding for display),
 │   │                          liveTypes/rematchTypes (play-api wire mirrors),
+│   │                          rulesVersion (exact bundled rules pin; checked against /health before
+│   │                          building a local legal-turn tree, with server-tree fallback),
 │   │                          turnReplay (engine-driven per-turn walk, shared by liveGameStore and
 │   │                          reconstructServerHistory, #163),
 │   │                          dfen/board/clock/seat/timeControl/playerLabel helpers;

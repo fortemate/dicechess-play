@@ -21,6 +21,7 @@
 		"preview": "vite preview",
 		"check": "paraglide-js compile --project ./project.inlang --outdir ./src/lib/paraglide && svelte-kit sync && svelte-check --tsconfig ./tsconfig.json && npm run check:functions",
 		"check:functions": "tsc --noEmit -p functions/tsconfig.json",
+		"check:rules-version": "node --test scripts/verify-rules-version.test.mjs && node scripts/verify-rules-version.mjs",
 		"lint": "eslint .",
 		"format": "prettier --write .",
 		"format:check": "prettier --check .",
@@ -32,7 +33,7 @@
 		"test:acceptance": "node --experimental-strip-types scripts/showcase-acceptance/runAll.ts"
 	},
 	"dependencies": {
-		"@fortemate/dicechess-engine": "^0.14.5",
+		"@fortemate/dicechess-engine": "0.15.0",
 		"@lichess-org/chessground": "^10.4.2",
 		"@sentry/sveltekit": "^11.9.0",
 		"idb": "^8.0.3",

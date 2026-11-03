@@ -52,6 +52,14 @@ export async function getMoves(id: string): Promise<GameMoves> {
 	return (await res.json()) as GameMoves;
 }
 
+/** Resolved dicechess-rules version from play-api's /health (not its application /version). */
+export async function getRulesVersion(): Promise<string | null> {
+	const res = await fetch(`${apiBase()}/health`, { signal: AbortSignal.timeout(5000) });
+	if (!res.ok) throw new Error(`getRulesVersion failed: ${res.status}`);
+	const health = (await res.json()) as { rulesVersion?: unknown };
+	return typeof health.rulesVersion === 'string' ? health.rulesVersion : null;
+}
+
 /** The WebSocket URL for a game; pass the seat token to play, `spectator` to watch read-only.
  *
  * `guest` is our anonymous identity, and it is what makes a friend-by-link game have two players

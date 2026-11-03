@@ -10,7 +10,8 @@ import { preferencesStore } from '../preferencesStore.svelte';
 import { m } from '#lib/paraglide/messages.js';
 import { DiceChess } from '@fortemate/dicechess-engine';
 import type { MoveTree } from '../moveTreeWalker';
-import { getMoves } from './liveApi';
+import { getMoves, getRulesVersion } from './liveApi';
+import { bundledRulesVersion } from './rulesVersion';
 
 // The store triggers real audio through the shared sound service; stub it so tests can
 // assert WHEN a roll sounds (aligned with its presented spin) without touching Audio.
@@ -39,6 +40,7 @@ vi.mock('./liveApi', async (importOriginal) => {
 	return {
 		...actual,
 		getMoves: vi.fn(),
+		getRulesVersion: vi.fn().mockResolvedValue(null),
 	};
 });
 
@@ -1638,14 +1640,15 @@ describe('LiveGameStore stake doubling (#75)', () => {
 	});
 });
 
-describe('LiveGameStore legal turn tree (#164)', () => {
+describe('LiveGameStore local legal turn tree (#204)', () => {
 	let live: LiveGameStore;
 
 	beforeEach(() => {
 		vi.useFakeTimers();
 		vi.clearAllMocks();
+		vi.mocked(getMoves).mockReset();
+		vi.mocked(getRulesVersion).mockResolvedValue(bundledRulesVersion);
 		vi.stubGlobal('WebSocket', MockWebSocket as unknown as typeof WebSocket);
-		MockWebSocket.last = null;
 		live = new LiveGameStore();
 		live.connect('g', 'tok', 'white');
 		MockWebSocket.last!.onopen?.();
@@ -1653,200 +1656,227 @@ describe('LiveGameStore legal turn tree (#164)', () => {
 
 	afterEach(() => {
 		live.dispose();
+		vi.restoreAllMocks();
+		vi.mocked(getRulesVersion).mockResolvedValue(null);
 		vi.useRealTimers();
 		vi.unstubAllGlobals();
 	});
 
 	const deliver = deliverEvent;
-
 	const submittedTurns = (): string[][] =>
 		MockWebSocket.last!.sent.flatMap((raw) => {
 			const command = JSON.parse(raw) as ClientCommand;
 			return 'SubmitTurn' in command ? [command.SubmitTurn.moves] : [];
 		});
 
-	it('restricts continuations based on the legal turn tree (reproduction position)', async () => {
-		const dfen = '8/8/8/2k5/8/1N6/2P5/K7 w - - 0 1 NPP';
-		const tree = DiceChess.getLegalTurnTree(dfen) as MoveTree;
+	function roll(dfen: string, v = 1) {
+		deliver({ DiceRolled: { v, seat: 'White', dice: [2], dfen, clocks: null, legalMoves: null } });
+	}
 
-		deliver(snapshot({ dfen, legalMoves: tree }));
+	async function serverRules(version: string | null) {
+		vi.mocked(getRulesVersion).mockResolvedValue(version);
+		live.connect('g', 'tok', 'white');
+		MockWebSocket.last!.onopen?.();
+		await vi.advanceTimersByTimeAsync(0);
+	}
+
+	it('plays elided rolls from one local tree per roll without requesting /moves', async () => {
+		const buildTree = vi.spyOn(DiceChess, 'getLegalTurnTree');
+		deliver(snapshot({ dfen: `${START_FEN} NN`, legalMoves: null }));
+		await vi.advanceTimersByTimeAsync(0);
+		live.handleBoardMove('b1', 'c3');
+		live.handleBoardMove('g1', 'f3');
+		expect(submittedTurns()).toEqual([['b1c3', 'g1f3']]);
+		expect(buildTree).toHaveBeenCalledTimes(1);
 		deliver({
-			DiceRolled: {
-				v: 1,
-				seat: 'White',
-				dice: [1, 1, 2],
-				dfen,
-				clocks: null,
-				legalMoves: tree,
-			},
+			TurnPlayed: { v: 1, seat: 'White', moves: ['b1c3', 'g1f3'], fenAfter: AFTER_WHITE_KNIGHTS },
 		});
-		await vi.advanceTimersByTimeAsync(600); // let spin land
-
-		// c2 has continuations in the tree
-		expect(live.legalMovesDests.has('c2')).toBe(true);
-
-		// White plays c2c4
-		live.handleBoardMove('c2', 'c4');
-
-		// In the tree for c2c4, only b3c5 is legal (b3d4 is not)
-		const knightDests = live.legalMovesDests.get('b3') ?? [];
-		expect(knightDests).toContain('c5');
-		expect(knightDests).not.toContain('d4');
-
-		// Attempting an illegal continuation (b3d4) is refused
-		live.handleBoardMove('b3', 'd4');
-		expect(submittedTurns()).toEqual([]);
-
-		// Playing the legal continuation (b3c5) captures the king and submits the turn
-		live.handleBoardMove('b3', 'c5');
-		expect(submittedTurns()).toEqual([['c2c4', 'b3c5']]);
+		roll(`${START_FEN} N`, 2);
+		await vi.advanceTimersByTimeAsync(600);
+		live.handleBoardMove('b1', 'c3');
+		expect(submittedTurns()).toEqual([['b1c3', 'g1f3'], ['b1c3']]);
+		expect(buildTree).toHaveBeenCalledTimes(2);
+		expect(getMoves).not.toHaveBeenCalled();
+		expect(getRulesVersion).toHaveBeenCalledTimes(1);
 	});
 
-	it('fetches elided legal turn tree and unlocks the board once received', async () => {
-		const dfen = `${START_FEN} N`;
-		let resolveMoves!: (moves: {
-			version: number;
-			dfen: string;
-			dicePending: boolean;
-			legalMoves: MoveTree | null;
-		}) => void;
-		vi.mocked(getMoves).mockImplementationOnce(
-			() =>
-				new Promise((resolve) => {
-					resolveMoves = resolve;
-				}),
-		);
+	it('offers only b3c5 after c2c4 in the turn-lifecycle example, without re-rooting', async () => {
+		const dfen = '8/8/8/2k5/8/1N6/2P5/K7 w - - 0 1 NPP';
+		deliver(snapshot({ dfen, legalMoves: null }));
+		await vi.advanceTimersByTimeAsync(0);
+		live.handleBoardMove('c2', 'c4');
+		expect([...live.legalMovesDests]).toEqual([['b3', ['c5']]]);
+		live.handleBoardMove('b3', 'd4');
+		expect(submittedTurns()).toEqual([]);
+		live.handleBoardMove('b3', 'c5');
+		expect(submittedTurns()).toEqual([['c2c4', 'b3c5']]);
+		expect(getMoves).not.toHaveBeenCalled();
+	});
 
-		deliver(snapshot());
-		deliver({
-			DiceRolled: {
-				v: 1,
-				seat: 'White',
-				dice: [2],
+	it('takes promotion choices from the local turn tree', async () => {
+		deliver(snapshot({ dfen: '7k/2P5/8/8/8/8/8/K7 w - - 0 1 P', legalMoves: null }));
+		await vi.advanceTimersByTimeAsync(0);
+		live.handleBoardMove('c7', 'c8');
+		expect(live.pendingPromotion?.availablePieces).toEqual(['q', 'r', 'b', 'n']);
+		live.completePromotion('n');
+		expect(submittedTurns()).toEqual([['c7c8n']]);
+		expect(getMoves).not.toHaveBeenCalled();
+	});
+
+	it.each(['0.14.5', '0.16.0', '0.15.1', null])(
+		'fetches the authoritative tree for incompatible or unknown rules %s',
+		async (version) => {
+			await serverRules(version);
+			const dfen = `${START_FEN} N`;
+			vi.mocked(getMoves).mockResolvedValue({
+				version: 0,
 				dfen,
-				clocks: null,
-				legalMoves: null, // elided tree
-			},
-		});
-		await vi.advanceTimersByTimeAsync(600); // spin lands
+				dicePending: true,
+				legalMoves: { b1c3: {} },
+			});
+			deliver(snapshot({ dfen, legalMoves: null }));
+			await vi.advanceTimersByTimeAsync(0);
+			expect(getMoves).toHaveBeenCalledWith('g');
+			expect([...live.legalMovesDests]).toEqual([['b1', ['c3']]]);
+		},
+	);
 
-		// Board offers no moves while fetch is in-flight
-		expect(live.legalMovesDests.size).toBe(0);
-
-		resolveMoves({
+	it('uses the server tree after an illegal turn rejection and resets the optimistic walk', async () => {
+		const dfen = `${START_FEN} N`;
+		deliver(snapshot({ dfen, legalMoves: null }));
+		await vi.advanceTimersByTimeAsync(0);
+		live.handleBoardMove('b1', 'c3');
+		expect(submittedTurns()).toEqual([['b1c3']]);
+		vi.mocked(getMoves).mockResolvedValue({
 			version: 1,
+			dfen,
+			dicePending: true,
+			legalMoves: { g1f3: {} },
+		});
+		deliver({ Rejected: { v: 1, seat: 'White', reason: 'illegal turn' } });
+		expect(live.currentBoardFen).toBe(START_FEN);
+		expect(live.legalMovesDests.size).toBe(0);
+		await vi.advanceTimersByTimeAsync(0);
+		expect(getMoves).toHaveBeenCalledTimes(1);
+		expect([...live.legalMovesDests]).toEqual([['g1', ['f3']]]);
+		live.handleBoardMove('g1', 'f3');
+		expect(submittedTurns()).toEqual([['b1c3'], ['g1f3']]);
+	});
+
+	it('does not fetch on unrelated or opponent rejections', async () => {
+		deliver(snapshot({ legalMoves: null }));
+		await vi.advanceTimersByTimeAsync(0);
+		deliver({ Rejected: { v: 1, seat: 'Black', reason: 'illegal turn' } });
+		deliver({ Rejected: { v: 2, seat: 'White', reason: 'not your turn' } });
+		expect(getMoves).not.toHaveBeenCalled();
+	});
+
+	it('keeps the board locked after both fallback requests fail', async () => {
+		await serverRules('0.16.0');
+		vi.mocked(getMoves).mockRejectedValue(new Error('Network error'));
+		deliver(snapshot({ legalMoves: null }));
+		await vi.advanceTimersByTimeAsync(0);
+		expect(getMoves).toHaveBeenCalledTimes(2);
+		expect(live.legalMovesDests.size).toBe(0);
+		live.handleBoardMove('b1', 'c3');
+		expect(submittedTurns()).toEqual([]);
+	});
+
+	it('falls back to the server tree when /health fails', async () => {
+		vi.mocked(getRulesVersion).mockRejectedValueOnce(new Error('Health unavailable'));
+		live.connect('g', 'tok', 'white');
+		MockWebSocket.last!.onopen?.();
+		const dfen = `${START_FEN} N`;
+		vi.mocked(getMoves).mockResolvedValue({
+			version: 0,
 			dfen,
 			dicePending: true,
 			legalMoves: { b1c3: {} },
 		});
-
-		// Await the fetch
-		await vi.waitFor(() => {
-			expect(live.legalMovesDests.size).toBeGreaterThan(0);
-		});
-
-		expect(vi.mocked(getMoves)).toHaveBeenCalledWith('g');
-		expect(live.legalMovesDests.get('b1')).toEqual(['c3']);
+		deliver(snapshot({ dfen, legalMoves: null }));
+		await vi.advanceTimersByTimeAsync(0);
+		expect(getMoves).toHaveBeenCalledTimes(1);
+		expect([...live.legalMovesDests]).toEqual([['b1', ['c3']]]);
 	});
 
-	it('ignores stale getMoves response (mismatched dfen or older version)', async () => {
+	it('keeps the same inline root if /health resolves midway through an optimistic turn', async () => {
+		let resolve!: (version: string) => void;
+		vi.mocked(getRulesVersion).mockReturnValueOnce(
+			new Promise((r) => {
+				resolve = r;
+			}),
+		);
+		live.connect('g', 'tok', 'white');
+		MockWebSocket.last!.onopen?.();
+		deliver(snapshot({ dfen: `${START_FEN} NN`, legalMoves: { b1c3: { g1f3: {} } } }));
+		live.handleBoardMove('b1', 'c3');
+		resolve(bundledRulesVersion);
+		await vi.advanceTimersByTimeAsync(0);
+		expect([...live.legalMovesDests]).toEqual([['g1', ['f3']]]);
+		live.handleBoardMove('g1', 'f3');
+		expect(submittedTurns()).toEqual([['b1c3', 'g1f3']]);
+		expect(getMoves).not.toHaveBeenCalled();
+	});
+
+	it.each([
+		{ version: -1, dfen: `${START_FEN} N`, dicePending: true, legalMoves: { b1c3: {} } },
+		{ version: 0, dfen: 'stale', dicePending: true, legalMoves: { b1c3: {} } },
+		{ version: 0, dfen: `${START_FEN} N`, dicePending: false, legalMoves: { b1c3: {} } },
+		{ version: 0, dfen: `${START_FEN} N`, dicePending: true, legalMoves: null },
+	])('does not unlock the board for an invalid fallback response: %j', async (response) => {
+		await serverRules('0.16.0');
+		vi.mocked(getMoves).mockResolvedValue(response);
+		deliver(snapshot({ legalMoves: null }));
+		await vi.advanceTimersByTimeAsync(0);
+		expect(live.legalMovesDests.size).toBe(0);
+	});
+
+	it.each(['roll', 'snapshot', 'dispose', 'end', 'reconnect'])(
+		'ignores an in-flight server tree after %s',
+		async (change) => {
+			await serverRules('0.16.0');
+			const dfen = `${START_FEN} N`;
+			let resolve!: (value: Awaited<ReturnType<typeof getMoves>>) => void;
+			vi.mocked(getMoves).mockReturnValueOnce(
+				new Promise((r) => {
+					resolve = r;
+				}),
+			);
+			deliver(snapshot({ dfen, legalMoves: null }));
+			await vi.advanceTimersByTimeAsync(0);
+			if (change === 'roll') roll(dfen, 1);
+			if (change === 'snapshot') deliver(snapshot({ dfen, legalMoves: {} }));
+			if (change === 'dispose') live.dispose();
+			if (change === 'end')
+				deliver({ GameEnded: { v: 1, over: { result: { Draw: {} }, termination: 'Draw' } } });
+			if (change === 'reconnect') live.connect('other', 'tok', 'white');
+			resolve({ version: 0, dfen, dicePending: true, legalMoves: { b1c3: {} } });
+			await vi.advanceTimersByTimeAsync(600);
+			expect(live.legalMovesDests.size).toBe(0);
+		},
+	);
+
+	it('uses a server tree if the local tree builder fails', async () => {
+		vi.spyOn(DiceChess, 'getLegalTurnTree').mockImplementationOnce(() => {
+			throw new Error('engine failure');
+		});
 		const dfen = `${START_FEN} N`;
-		vi.mocked(getMoves).mockResolvedValueOnce({
-			version: 0, // older version
-			dfen: 'stale-dfen',
+		vi.mocked(getMoves).mockResolvedValue({
+			version: 0,
+			dfen,
 			dicePending: true,
 			legalMoves: { b1c3: {} },
 		});
-
-		deliver(snapshot());
-		deliver({
-			DiceRolled: {
-				v: 1,
-				seat: 'White',
-				dice: [2],
-				dfen,
-				clocks: null,
-				legalMoves: null,
-			},
-		});
-		await vi.advanceTimersByTimeAsync(600);
-
-		// Give time for resolution
-		await vi.advanceTimersByTimeAsync(100);
-
-		// Stale response dropped, no fallback triggered, board remains blocked
-		expect(live.legalMovesDests.size).toBe(0);
+		deliver(snapshot({ dfen, legalMoves: null }));
+		await vi.advanceTimersByTimeAsync(0);
+		expect([...live.legalMovesDests]).toEqual([['b1', ['c3']]]);
 	});
 
-	it('locks the board on forced pass ({}) and sends no SubmitTurn', async () => {
-		deliver(snapshot());
-		deliver({
-			DiceRolled: {
-				v: 1,
-				seat: 'White',
-				dice: [2],
-				dfen: `${START_FEN} N`,
-				clocks: null,
-				legalMoves: {}, // forced pass
-			},
-		});
-		await vi.advanceTimersByTimeAsync(600);
-
+	it('keeps a forced pass locked without sending a turn', async () => {
+		deliver(snapshot({ dfen: '7k/8/8/8/8/8/8/K7 w - - 0 1 P', legalMoves: null }));
+		await vi.advanceTimersByTimeAsync(0);
 		expect(live.legalMovesDests.size).toBe(0);
-		live.handleBoardMove('b1', 'c3');
+		expect(getMoves).not.toHaveBeenCalled();
 		expect(submittedTurns()).toEqual([]);
-	});
-
-	it('resets tree walk to root when move is rejected', async () => {
-		const tree: MoveTree = {
-			b1c3: {},
-		};
-		deliver(snapshot());
-		deliver({
-			DiceRolled: {
-				v: 1,
-				seat: 'White',
-				dice: [2],
-				dfen: `${START_FEN} N`,
-				clocks: null,
-				legalMoves: tree,
-			},
-		});
-		await vi.advanceTimersByTimeAsync(600);
-
-		live.handleBoardMove('b1', 'c3');
-		expect(submittedTurns()).toEqual([['b1c3']]);
-
-		// Server rejects
-		deliver({ Rejected: { v: 2, seat: 'White', reason: 'IllegalMove' } });
-
-		// Walk is reset to root, b1 is available again
-		expect(live.legalMovesDests.get('b1')).toEqual(['c3']);
-	});
-
-	it('falls back to local engine calculation when getMoves fails after retries', async () => {
-		const dfen = `${START_FEN} N`;
-		vi.mocked(getMoves).mockRejectedValue(new Error('Network error'));
-
-		deliver(snapshot());
-		deliver({
-			DiceRolled: {
-				v: 1,
-				seat: 'White',
-				dice: [2],
-				dfen,
-				clocks: null,
-				legalMoves: null,
-			},
-		});
-		await vi.advanceTimersByTimeAsync(600);
-
-		// Wait for both fetch attempts to fail and fallback to trigger
-		await vi.waitFor(() => {
-			expect(live.legalMovesDests.size).toBeGreaterThan(0);
-		});
-
-		expect(vi.mocked(getMoves)).toHaveBeenCalledTimes(2);
-		expect(live.legalMovesDests.has('b1')).toBe(true);
 	});
 });
