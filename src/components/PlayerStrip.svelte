@@ -4,6 +4,7 @@
 	// The clock is optional (bot games and unlimited live games have none).
 	import { formatClock, isLowTime } from '#lib/live/clockFormat.js';
 	import BotBadge from './BotBadge.svelte';
+	import { m } from '#lib/paraglide/messages.js';
 
 	interface Props {
 		name: string;
@@ -85,7 +86,10 @@
 			{#if rating !== undefined}
 				<!-- Glicko-2 rating on the wire is a raw double (e.g. 1797.2144251082318, #235); whole
 				     points are honest enough here, matching AccountPanel/LeaderboardRow. -->
-				<small class="shrink-0 font-mono text-[11px] text-content-muted"
+				<small
+					class="shrink-0 font-mono text-[11px] text-content-muted"
+					title={m.common_rating_seat_estimate_context()}
+					aria-label={m.common_rating_seat_rating_aria({ rating: Math.round(rating) })}
 					>· {Math.round(rating)}</small
 				>
 			{/if}

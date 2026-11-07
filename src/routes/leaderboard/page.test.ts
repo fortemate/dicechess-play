@@ -15,6 +15,8 @@ vi.mock('$app/paths', () => ({
 		params ? path.replace('[team]', params.team).replace('[name]', params.name) : path,
 }));
 vi.mock('#lib/live/liveApi.js', () => ({ isLiveEnabled: () => true }));
+const pageState = vi.hoisted(() => ({ url: new URL('http://localhost/leaderboard') }));
+vi.mock('$app/state', () => ({ page: pageState }));
 vi.mock('#lib/authStore.svelte.js', () => ({ authStore: { nickname: null } }));
 
 const fetchLeaderboard = vi.hoisted(() => vi.fn());
@@ -44,6 +46,7 @@ const board = (name: string, kind: 'bot' | 'player'): Leaderboard => ({
 describe('leaderboard page', () => {
 	beforeEach(() => {
 		fetchLeaderboard.mockReset();
+		pageState.url = new URL('http://localhost/leaderboard');
 	});
 
 	afterEach(() => {

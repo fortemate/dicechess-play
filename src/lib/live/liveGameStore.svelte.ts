@@ -97,9 +97,10 @@ export class LiveGameStore {
 	winner = $state<Seat | null>(null); // the winning side, for spectator display
 	termination = $state<string | null>(null);
 	players = $state<Players | null>(null); // both seats' public faces (bots by name), from the snapshot
-	// Whether this game counts toward rating (play-api #290). `undefined` means the server didn't
-	// say (older server) — callers must treat that the same as `false`, never assume rated.
+	// Competitive eligibility (play-api #290), distinct from the separate training domain.
+	// Undefined means an older server did not say; false alone does not identify a casual game.
 	rated = $state<boolean | undefined>(undefined);
+	ratingDomain = $state<PublicGameState['ratingDomain']>(undefined);
 	onEnd?: ((over: Over) => void) | null = null;
 	onConnectionStatus?: ((status: ConnStatus) => void) | null = null;
 
@@ -439,6 +440,7 @@ export class LiveGameStore {
 		this.doubling = null;
 		this.players = null;
 		this.rated = undefined;
+		this.ratingDomain = undefined;
 		this.drawOffer = null;
 		this.drawOfferedBy = null;
 		this.mayOfferDraw = null;
@@ -663,6 +665,7 @@ export class LiveGameStore {
 	private syncState(state: PublicGameState, history?: SnapshotTurn[]): void {
 		this.players = state.players ?? null;
 		this.rated = state.rated;
+		this.ratingDomain = state.ratingDomain;
 		this.doubling = state.doubling ?? null;
 		this.rematchStartup = state.rematchStartup ?? null;
 		this.drawOffer = state.drawOffer ?? null;

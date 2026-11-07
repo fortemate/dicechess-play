@@ -19,19 +19,33 @@ export interface SeatRatingChange {
 	after: number;
 }
 
+/** The bot reference used for a training update; absent for older responses. */
+export interface TrainingReference {
+	source: 'anchor' | 'bot_rating' | 'unavailable';
+	anchorSetVersion: string | null;
+	epoch: number | null;
+	rating: number;
+	rd: number;
+}
+
 /** What one finished game did to each seat's rating.
  *
- * `applied` is the poll signal: `false` means the batch has not reached this game yet, which is
+ * `applied` is the legacy poll signal: `false` means the batch has not reached this game yet, which is
  * normal and temporary for a game that just ended. Once `applied` is true the answer is FINAL —
  * including both seats being `null`, which is what a game that moved nobody's rating looks like
  * (casual, a guest seat, an unregistered bot, self-play, a deleted account). A poller waiting for
- * numbers instead of for `applied` would wait forever on one of those.
+ * numbers instead of for completion would wait forever on one of those. An explicit `casual`
+ * outcome is also terminal even with applied=false: casual games never enter the rating batch.
  */
 export interface GameRatingChange {
 	gameId: string;
 	applied: boolean;
 	white: SeatRatingChange | null;
 	black: SeatRatingChange | null;
+	outcome?: 'pending' | 'applied' | 'skipped' | 'casual' | 'legacy';
+	reason?: string | null;
+	ratingDomain?: 'competitive' | 'training' | 'casual' | null;
+	trainingReference?: TrainingReference | null;
 }
 
 /** The game's recorded rating movement, or `null` for the cases that will never become an answer:

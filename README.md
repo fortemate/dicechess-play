@@ -86,7 +86,7 @@ src/
 │   ├── replay/[id]/           public replay for a server-recorded game (play-api GET
 │   │                          /games/{id}/history, #163) — engine-walked per-turn positions,
 │   │                          board-flip toggle, provably-fair commit/seed section
-│   ├── leaderboard/           bot rating ladder (play-api GET /leaderboard)
+│   ├── leaderboard/           competitive rating board + immutable published snapshots, grouped by speed/epoch (#124)
 │   ├── bots/                  human-play bot catalog (play-api GET /lobby/bots, ADR-0014)
 │   │   └── [team]/[name]/     bot profile — rating, ladder W-D-L, recent games (#152 Tier 1;
 │   │                          Tier 2/3 — human record, head-to-head vs models, rating history —
@@ -114,6 +114,10 @@ src/
 │   │                          handoff, registry-driven capability controls (#48)
 │   ├── CategoryRatings        one rating per speed (bullet/blitz/rapid, #258) — shared by both
 │   │                          public profiles; an unplayed speed renders as an explicit dash
+│   ├── TrainingRatings · RatingEstimate · RatingHistory · RatingTable — separate training records,
+│   │                          approximate 95% intervals, provenance, and immutable snapshot selection (#124)
+│   ├── GameRatingContext · GameRatingResult — recorded game domain and per-seat rating decisions;
+│   │                          unknown legacy metadata stays unknown, never inferred from rated=false
 │   ├── AuthMenu               header identity slot — Sign in / nickname badge; renders nothing
 │   │                          while loading or when play-api is unreachable (anonymous-first)
 │   ├── GamesFilterBar         /games's source/result pills + opponent search+chip (#151)
@@ -156,7 +160,9 @@ src/
 │   │                          replayLink — when a finished game has an archived replay and the
 │   │                          shareable (token-free) URL for it (#216)
 │   ├── leaderboard/           leaderboardApi — rating-ladder + bot-profile read client (play-api
-│   │                          wire mirror; GET /bots/{team}/{name}, #152)
+│   │                          wire mirror; bot/player profiles + published snapshot reads, #124/#152)
+│   ├── ratings/               ratingPresentation — documented Glicko interval/order conversions and
+│   │                          UTC cutoff labels preserving the API's sub-millisecond precision
 │   ├── catalog/               catalogApi — bot-catalog read/wake/play-bot client (play-api wire mirror);
 │   │                          botChallenge — starting a game + how a failure reads, shared by the
 │   │                          challenge panel and the rematch button; lastBotGame — the setup of the

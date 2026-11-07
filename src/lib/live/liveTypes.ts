@@ -1,5 +1,6 @@
 // Wire types for the play-api live protocol — a frozen mirror of the server's JSON
 // (dicechess-play-api). Do not "clean these up": they must match the server's codecs exactly.
+// ratingDomain is independent of rated: training uses rated=false; missing provenance stays unknown.
 import type { MoveTree } from '../moveTreeWalker';
 
 export type Seat = 'White' | 'Black';
@@ -101,9 +102,11 @@ export interface PublicGameState {
 	// Whether this game counts toward rating (play-api #290). Optional for wire evolution only:
 	// every room emits it, but absence must mean "the server does not say", NEVER "casual" — same
 	// rule as Seek.rated. No per-seat rating delta rides on GameEnded: rating application is an
-	// asynchronous batch job, so the client refetches the profile after the game ends instead of
-	// being handed a number the server would have to invent.
+	// asynchronous batch job; GET /games/{id}/rating supplies the recorded per-game decision.
 	rated?: boolean;
+	// Recorded namespace (#146/#150), independent of rated: training has rated=false.
+	// Absence/null is unknown and must never be relabelled casual.
+	ratingDomain?: 'competitive' | 'training' | 'casual' | null;
 	// Turn-anchored draw offer state (play-api #327). `drawOffer` is present during the pre-roll gate
 	// when an offer is pending for `activeSeat`. `mayOfferDraw` is false when the alternation rule
 	// forbids `activeSeat` from offering (e.g. after having just offered a declined draw).

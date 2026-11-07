@@ -42,6 +42,42 @@ describe('ratingApi', () => {
 		expect(await fetchGameRatingChange('game-1')).toEqual(pending);
 	});
 
+	it.each(['anchor', 'bot_rating', 'unavailable'] as const)(
+		'preserves training outcome and %s reference without rounding or inventing seat metadata',
+		async (source) => {
+			const answer: GameRatingChange = {
+				...applied,
+				outcome: 'applied',
+				reason: null,
+				ratingDomain: 'training',
+				trainingReference: {
+					source,
+					anchorSetVersion: source === 'anchor' ? 'anchors-v2' : null,
+					epoch: source === 'anchor' ? 2 : null,
+					rating: 1600.123456,
+					rd: 80.654321,
+				},
+			};
+			vi.stubGlobal('fetch', vi.fn().mockResolvedValue({ ok: true, json: async () => answer }));
+			expect(await fetchGameRatingChange('game-1')).toEqual(answer);
+		},
+	);
+
+	it('preserves a final skipped response with nullable additive fields', async () => {
+		const answer: GameRatingChange = {
+			gameId: 'game-1',
+			applied: true,
+			white: null,
+			black: null,
+			outcome: 'skipped',
+			reason: 'reference unavailable',
+			ratingDomain: null,
+			trainingReference: null,
+		};
+		vi.stubGlobal('fetch', vi.fn().mockResolvedValue({ ok: true, json: async () => answer }));
+		expect(await fetchGameRatingChange('game-1')).toEqual(answer);
+	});
+
 	it('resolves null on 404 — a permanent absence a poller must stop on, not a "not yet"', async () => {
 		vi.stubGlobal('fetch', vi.fn().mockResolvedValue({ ok: false, status: 404 }));
 		expect(await fetchGameRatingChange('missing')).toBeNull();

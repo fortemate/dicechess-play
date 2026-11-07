@@ -41,6 +41,8 @@ vi.mock('../../../components/BotRematchButton.svelte', stub);
 vi.mock('#lib/sound.js', () => ({ preloadSounds: vi.fn(), playSound: vi.fn() }));
 vi.mock('#lib/catalog/lastBotGame.js', () => ({ recallBotGame: () => null }));
 vi.mock('#lib/leaderboard/leaderboardApi.js', () => ({ fetchPlayerProfile: vi.fn() }));
+const ratingApi = vi.hoisted(() => ({ fetchGameRatingChange: vi.fn().mockResolvedValue(null) }));
+vi.mock('#lib/live/ratingApi.js', () => ratingApi);
 // The spectator's public continuation read (#106). Default answer: an ordinary game still being
 // played — `waiting` with no deadline — so existing cases see no follow activity.
 const continuation = vi.hoisted(() => ({
@@ -128,6 +130,45 @@ function storeState(overrides: Record<string, unknown> = {}) {
 		...overrides,
 	};
 }
+
+describe('live board — separate training results (#124)', () => {
+	afterEach(() => {
+		cleanup();
+		ratingApi.fetchGameRatingChange.mockReset().mockResolvedValue(null);
+	});
+	it('loads the recorded training update even when competitive rated is false', async () => {
+		state.current = storeState({ rated: false, ratingDomain: 'training' });
+		ratingApi.fetchGameRatingChange.mockResolvedValue({
+			gameId: 'game-1',
+			applied: true,
+			outcome: 'applied',
+			ratingDomain: 'training',
+			white: { before: 1500, after: 1512 },
+			black: null,
+			reason: 'Synthetic training fixture',
+			trainingReference: {
+				source: 'anchor',
+				rating: 1800,
+				rd: 30,
+				epoch: 2,
+				anchorSetVersion: 'synthetic-v2',
+			},
+		});
+		const view = render(LivePage);
+		await waitFor(() => expect(ratingApi.fetchGameRatingChange).toHaveBeenCalledWith('game-1'));
+		await waitFor(() =>
+			expect(view.getAllByText(/Synthetic training fixture/).length).toBeGreaterThan(0),
+		);
+		expect(view.getAllByText('1500 → 1512').length).toBeGreaterThan(0);
+	});
+	it('shows a confirmed casual game without waiting for a rating batch', async () => {
+		state.current = storeState({ rated: false, ratingDomain: 'casual' });
+		ratingApi.fetchGameRatingChange.mockClear();
+		const view = render(LivePage);
+		await waitFor(() => expect(view.getAllByText('Rating unchanged.').length).toBeGreaterThan(0));
+		expect(ratingApi.fetchGameRatingChange).not.toHaveBeenCalled();
+	});
+});
 
 describe('live board — a result read back from the archive (#109)', () => {
 	afterEach(cleanup);

@@ -1,7 +1,10 @@
-import { describe, expect, it } from 'vitest';
+import { describe, expect, it, vi } from 'vitest';
 import { render } from '@testing-library/svelte';
 import ProfileGameCard from './ProfileGameCard.svelte';
 import type { ProfileRecentGame } from '#lib/leaderboard/leaderboardApi.js';
+vi.mock('$app/paths', () => ({
+	resolve: (path: string, p: Record<string, string>) => path.replace('[id]', p.id),
+}));
 
 function game(overrides: Partial<ProfileRecentGame> = {}): ProfileRecentGame {
 	return {
@@ -49,13 +52,14 @@ describe('ProfileGameCard', () => {
 		expect(queryByText(/you played/i)).toBeNull();
 	});
 
-	it('shows a Rated/Casual pill instead of a redundant Live badge', () => {
+	it('does not call a legacy non-competitive record casual when it may have been training', () => {
 		const rated = render(ProfileGameCard, { game: game({ rated: true }) });
-		expect(rated.getByText('Rated')).toBeTruthy();
+		expect(rated.getByText('Competitive')).toBeTruthy();
 		rated.unmount();
 
 		const casual = render(ProfileGameCard, { game: game({ rated: false }) });
-		expect(casual.getByText('Casual')).toBeTruthy();
+		expect(casual.getByText('Not competitive')).toBeTruthy();
+		expect(casual.queryByText('Casual')).toBeNull();
 	});
 
 	it('labels the snake_case termination', () => {
@@ -72,8 +76,8 @@ describe('ProfileGameCard', () => {
 		expect(getByText('Game ended')).toBeTruthy();
 	});
 
-	it('is not a clickable link — there is nowhere to navigate (no replay data exists)', () => {
+	it('links to the exact public game details where recorded rating decisions can be read', () => {
 		const { container } = render(ProfileGameCard, { game: game() });
-		expect(container.querySelector('a')).toBeNull();
+		expect(container.querySelector('a')?.getAttribute('href')).toBe('/replay/g-1');
 	});
 });

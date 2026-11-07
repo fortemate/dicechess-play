@@ -48,9 +48,10 @@ describe('LeaderboardRow', () => {
 		expect(getByText('bot')).toBeTruthy();
 	});
 
-	it('flags a bot that left the ladder, whose rating is frozen but still listed', () => {
-		const { getByText } = render(LeaderboardRow, { row: row({ onLadder: false }) });
-		expect(getByText('left ladder')).toBeTruthy();
+	it('separates scheduling from strength, without fading a bot or calling its rating frozen', () => {
+		const { getByText, container } = render(LeaderboardRow, { row: row({ onLadder: false }) });
+		expect(getByText('Not in automatic ladder')).toBeTruthy();
+		expect(container.querySelector('tr')?.className).not.toContain('opacity-60');
 	});
 
 	/** The point of #206: a person is a row like any other on the same scale, just without the team
@@ -102,7 +103,8 @@ describe('LeaderboardRow', () => {
 	it('shows the rating with its deviation, and the win rate over decided games', () => {
 		const { getByText } = render(LeaderboardRow, { row: row() });
 		expect(getByText('1,721')).toBeTruthy(); // whole points: the ± carries the precision
-		expect(getByText('±85')).toBeTruthy();
+		expect(getByText('95% interval 1,554–1,887')).toBeTruthy();
+		expect(getByText('1,550')).toBeTruthy();
 		expect(getByText('75%')).toBeTruthy(); // 30 of 40 decided
 	});
 });

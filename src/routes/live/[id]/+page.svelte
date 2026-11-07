@@ -15,7 +15,7 @@
 	import RematchControl from '../../../components/RematchControl.svelte';
 	import SpectatorFollowPanel from '../../../components/SpectatorFollowPanel.svelte';
 	import { recallBotGame } from '#lib/catalog/lastBotGame.js';
-	import RatedBadge from '../../../components/RatedBadge.svelte';
+	import GameRatingContext from '../../../components/GameRatingContext.svelte';
 	import RatingDeltaLine from '../../../components/RatingDeltaLine.svelte';
 	import { chromeStore } from '#lib/stores/chromeStore.svelte.js';
 	import { LiveGameStore } from '#lib/live/liveGameStore.svelte.js';
@@ -184,14 +184,29 @@
 	// of mine, or the poll ran out of patience — as opposed to `waiting`, which says the batch simply
 	// has not got here yet and is worth showing.
 	let ratingOutcome = $state<RatingOutcome | null>(null);
+	const gameTimeControl = $derived(
+		page.params.id ? recallBotGame(page.params.id)?.timeControl : undefined,
+	);
+	const gameRatingDomain = $derived(
+		ratingOutcome?.details?.ratingDomain !== undefined
+			? ratingOutcome.details.ratingDomain
+			: live.ratingDomain,
+	);
 	$effect(() => {
 		ratingOutcome = null;
 		const gameId = page.params.id;
-		if (!gameId || live.gameStatus !== 'over' || live.spectator || !live.rated) return;
+		if (!gameId || live.gameStatus !== 'over' || live.spectator) return;
+		const domain = live.ratingDomain;
+		if (domain === 'casual') {
+			ratingOutcome = { kind: 'unmoved', details: { ratingDomain: domain, outcome: 'casual' } };
+			return;
+		}
 		const seat = bottomSeat;
 		// Announce the wait before the first request resolves: the batch is a minute behind at worst,
 		// and a blank minute is what made this look broken rather than busy.
-		ratingOutcome = { kind: 'waiting' };
+		ratingOutcome = domain
+			? { kind: 'waiting', details: { ratingDomain: domain } }
+			: { kind: 'waiting' };
 
 		let alive = true;
 		let attempts = 0;
@@ -884,11 +899,8 @@
 						</button>
 					{/if}
 				{/if}
-				{#if live.rated || connectionBadge || live.spectator}
+				{#if connectionBadge || live.spectator}
 					<div class="ml-auto flex items-center gap-1.5">
-						{#if live.rated}
-							<RatedBadge sizeClass="text-xs" />
-						{/if}
 						{#if connectionBadge}
 							<span
 								class="rounded-lg border px-2.5 py-1.5 text-xs font-bold {live.connection ===
@@ -911,6 +923,15 @@
 				{/if}
 			</div>
 
+			<div class="order-5 rounded-xl border border-border bg-surface/40 p-3 md:order-none">
+				<GameRatingContext
+					domain={gameRatingDomain}
+					rated={live.rated}
+					timeControl={gameTimeControl}
+					hasSeatRating={seatRatingOf(topSeat) !== undefined ||
+						seatRatingOf(bottomSeat) !== undefined}
+				/>
+			</div>
 			{#if live.gameStatus === 'over'}
 				<div
 					class="order-4 flex flex-col items-center gap-3 rounded-2xl border border-border bg-surface p-4 md:order-none md:flex-1 md:justify-center"
