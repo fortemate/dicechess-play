@@ -29,6 +29,9 @@ vi.mock('../../../components/lib/Chessground.svelte', stub);
 
 const historyApi = vi.hoisted(() => ({ fetchGameHistory: vi.fn() }));
 vi.mock('#lib/live/historyApi.js', () => historyApi);
+vi.mock('#lib/live/ratingApi.js', () => ({
+	fetchGameRatingChange: vi.fn().mockResolvedValue(null),
+}));
 const continuation = vi.hoisted(() => ({ getContinuation: vi.fn() }));
 vi.mock('#lib/live/continuationApi.js', () => continuation);
 

@@ -7,6 +7,8 @@
 	import type { PlayerOpponent } from '#lib/games/gamesApi.js';
 	import { winRate } from '#lib/stats/playerRecord.js';
 	import CategoryRatings from '../../../components/CategoryRatings.svelte';
+	import TrainingRatings from '../../../components/TrainingRatings.svelte';
+	import { m } from '#lib/paraglide/messages.js';
 	import WdlSummaryCard from '../../../components/WdlSummaryCard.svelte';
 	import WdlCounts from '../../../components/WdlCounts.svelte';
 	import WdlBar from '../../../components/WdlBar.svelte';
@@ -80,8 +82,9 @@
 	 * counts the default category (blitz) only, and subtracting it from the all-speeds `totalGames`
 	 * would misfile every other speed's rated games as casual. */
 	const ratedGames = $derived((profile?.ratings ?? []).reduce((sum, r) => sum + r.games, 0));
-	/** Games that were not rated — the gap between every finished game and the rating record. */
-	const casualGames = $derived(Math.max(0, (profile?.totalGames ?? 0) - ratedGames));
+	/** Other recorded games may include training or skipped updates as well as casual games. */
+	const otherGames = $derived(Math.max(0, (profile?.totalGames ?? 0) - ratedGames));
+	const countsConsistent = $derived((profile?.totalGames ?? 0) >= ratedGames);
 </script>
 
 <svelte:head>
@@ -118,19 +121,26 @@
 		</div>
 
 		<div class="flex flex-col gap-2">
-			<h3 class="text-sm font-bold uppercase tracking-wider text-content-muted">Ratings</h3>
+			<h3 class="text-sm font-bold uppercase tracking-wider text-content-muted">
+				{m.common_rating_competitive()}
+			</h3>
 			<!-- One rating per speed (#258); "provisional" is per row — a rating joins the leaderboard
 			     for its own speed once that deviation converges, after about ten rated games there. -->
 			<CategoryRatings ratings={profile.ratings ?? []} />
-			<!-- The two counts are kept apart on purpose (play-api #279): before rated play reached
-			     people, every game they had played was casual, so collapsing them would make a real
-			     rating record look like a total. -->
+			<!-- Training and other finished games are never folded into the competitive record. -->
 			<p class="text-xs text-content-muted">
-				{ratedGames} rated
-				{#if casualGames > 0}· {casualGames} casual{/if}
-				· {profile.totalGames} in total
+				{#if countsConsistent}{m.profile_competitive_record_summary({
+						rated: ratedGames,
+						other: otherGames,
+						total: profile.totalGames,
+					})}{:else}{m.profile_competitive_record_unreconciled({
+						rated: ratedGames,
+						total: profile.totalGames,
+					})}{/if}
 			</p>
 		</div>
+
+		<TrainingRatings ratings={profile.training ?? undefined} />
 
 		{#if vsPeople}
 			<div class="flex flex-col gap-2">

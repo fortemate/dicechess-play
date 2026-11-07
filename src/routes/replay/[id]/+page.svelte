@@ -11,6 +11,8 @@
 	import { buildTurnBlocks } from '#lib/playWithBot/turnBlocks.js';
 	import { terminationLabel as getTerminationLabel } from '#lib/gameOutcome.js';
 	import BotBadge from '../../../components/BotBadge.svelte';
+	import GameRatingContext from '../../../components/GameRatingContext.svelte';
+	import GameRatingResult from '../../../components/GameRatingResult.svelte';
 	import { formatDate } from '../../../utils/formatters';
 	import MoveHistory from '../../../components/MoveHistory.svelte';
 	import Chessground from '../../../components/lib/Chessground.svelte';
@@ -28,6 +30,7 @@
 
 	let loading = $state(true);
 	let history = $state<GameHistory | null>(null);
+	let ratingDomain = $state<string | null | undefined>(undefined);
 	// Distinct from `history === null` after loading: `notFound` is the explicit "history
 	// unavailable" state (an unknown id, or a known game with no archive row — pre-archive history,
 	// never backfilled); `error` is everything else (network, 5xx) and gets its own banner, per the
@@ -50,6 +53,7 @@
 
 		let active = true;
 		loading = true;
+		ratingDomain = undefined;
 		notFound = false;
 		error = null;
 		currentMoveIndex = 0;
@@ -250,6 +254,14 @@
 			</span>
 		</div>
 
+		<GameRatingContext
+			domain={ratingDomain}
+			rated={history.rated}
+			timeControl={history.timeControl}
+			hasSeatRating={history.players.white.rating !== undefined ||
+				history.players.black.rating !== undefined}
+		/>
+		<GameRatingResult gameId={history.gameId} onDomain={(domain) => (ratingDomain = domain)} />
 		{#if continuationHref}
 			<div
 				class="flex flex-wrap items-center justify-between gap-2 rounded-xl border border-primary/30 bg-primary/5 p-3"

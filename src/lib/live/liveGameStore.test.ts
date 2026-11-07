@@ -133,6 +133,17 @@ describe('LiveGameStore pacing', () => {
 	});
 
 	const deliver = deliverEvent;
+	it('keeps the recorded training domain independent of rated=false and clears it on reset', () => {
+		deliver(snapshot({ rated: false, ratingDomain: 'training' }));
+		expect(live.rated).toBe(false);
+		expect(live.ratingDomain).toBe('training');
+		deliver(snapshot({ rated: false }));
+		expect(live.ratingDomain).toBeUndefined();
+		deliver(snapshot({ rated: false, ratingDomain: 'training' }));
+		expect(live.ratingDomain).toBe('training');
+		live.connect('next-game', 'next-token', 'white');
+		expect(live.ratingDomain).toBeUndefined();
+	});
 
 	it("paces the opponent's dice roll with a 600ms spin, blocking interaction meanwhile", async () => {
 		deliver(snapshot());

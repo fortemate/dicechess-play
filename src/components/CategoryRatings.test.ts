@@ -50,10 +50,11 @@ describe('CategoryRatings', () => {
 		expect(rows[1]).not.toContain('provisional'); // …while blitz is settled, on the same screen
 	});
 
-	it('rounds ratings to whole points with the deviation alongside', () => {
+	it('rounds ratings and displays a converted 95% interval rather than labelling RD as an interval', () => {
 		const { container } = render(CategoryRatings, { ratings: [blitz] });
 		const blitzRow = Array.from(container.querySelectorAll('li'))[1];
 		expect(blitzRow.textContent).toContain('1,712');
-		expect(blitzRow.textContent).toContain('±84');
+		expect(blitzRow.textContent).toContain('95% interval 1,547–1,877');
+		expect(blitzRow.textContent).not.toContain('±84');
 	});
 });

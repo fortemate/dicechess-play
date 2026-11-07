@@ -5,6 +5,9 @@
 	import { RESULT_CLASS, RESULT_LABEL, terminationLabel } from '#lib/gameOutcome.js';
 	import { formatDate } from '../utils/formatters';
 	import BotBadge from './BotBadge.svelte';
+	import GameRatingContext from './GameRatingContext.svelte';
+	import { m } from '#lib/paraglide/messages.js';
+	import { resolve } from '$app/paths';
 
 	// One recent game on a public profile — a bot's or a person's (#207). Named for the surface, not
 	// the subject: play-api shapes both profiles' `recent` identically, so one card serves both.
@@ -13,9 +16,10 @@
 	// the viewer IS the participant ("You played White"), which is right on /games (a visitor's own
 	// history) but wrong here — a public profile is a THIRD PARTY looking at someone's record.
 	// ProfileRecentGame also has no `timeControl` field (play-api's profile wire, #152 Tier 1),
-	// so there's nothing to show in that footer slot. The rated/casual pill fills the header slot
+	// so speed stays unknown. The eligibility label fills the header slot
 	// LiveGameHistoryCard spends on a "Live" badge that would be redundant here — every game on a
 	// profile is server-recorded by construction, so it carries no distinguishing information.
+	// rated=false cannot distinguish casual from training; the details link opens the recorded result.
 	interface Props {
 		game: ProfileRecentGame;
 	}
@@ -33,13 +37,7 @@
 
 <div class="bg-surface/60 border border-border rounded-2xl p-5 flex flex-col gap-4">
 	<div class="flex justify-between items-center gap-2">
-		<span
-			class="px-2 py-0.5 rounded text-[10px] font-black tracking-wider uppercase border {game.rated
-				? 'bg-badge-accent/10 text-badge-accent border-badge-accent/20'
-				: 'bg-surface text-content-muted border-border'}"
-		>
-			{game.rated ? 'Rated' : 'Casual'}
-		</span>
+		<GameRatingContext rated={game.rated} compact />
 		<span class="text-xs text-content-muted font-medium text-right">
 			{formatDate(game.finishedAt)}
 		</span>
@@ -69,5 +67,13 @@
 		class="flex justify-between items-center pt-3 border-t border-border-strong/40 text-xs font-semibold text-content-muted"
 	>
 		<span>{termination}</span>
+		<a
+			href={resolve('/replay/[id]', { id: game.gameId })}
+			aria-label={m.common_rating_game_details_context({
+				opponent: opponentName,
+				finishedAt: formatDate(game.finishedAt, { includeSeconds: true }),
+			})}
+			class="font-semibold text-primary underline">{m.common_rating_game_details()}</a
+		>
 	</div>
 </div>

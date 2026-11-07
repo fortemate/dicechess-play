@@ -36,6 +36,13 @@ describe('BotCatalogCard', () => {
 		expect(getByText('aggressive + book')).toBeTruthy();
 	});
 
+	it('explains uncertainty without presenting the catalog scalar as a chosen-speed rating', () => {
+		const { getByText, queryByText } = render(BotCatalogCard, { bot: bot() });
+		expect(getByText('95% interval 1,553–1,887')).toBeTruthy();
+		expect(getByText(/Competitive estimate.*Speed not reported/)).toBeTruthy();
+		expect(queryByText(/±85/)).toBeNull();
+	});
+
 	it('flags a provisional rating without hiding the bot (opposite of the leaderboard policy)', () => {
 		const { getByText } = render(BotCatalogCard, { bot: bot({ provisional: true }) });
 		expect(getByText(/provisional/)).toBeTruthy();

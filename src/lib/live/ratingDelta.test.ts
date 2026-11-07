@@ -33,6 +33,13 @@ describe('ratingPollStep', () => {
 		expect(ratingPollStep(pending, 'White')).toEqual({ outcome: { kind: 'waiting' }, done: false });
 	});
 
+	it('settles an authoritative casual outcome even when the game never enters the batch', () => {
+		expect(ratingPollStep({ ...pending, outcome: 'casual' }, 'White')).toEqual({
+			outcome: { kind: 'unmoved', details: { outcome: 'casual' } },
+			done: true,
+		});
+	});
+
 	it('is done with the local seat’s movement once the batch has applied the game', () => {
 		const applied: GameRatingChange = {
 			gameId: 'game-1',
@@ -89,5 +96,68 @@ describe('ratingDeltaDisplay', () => {
 	it('is neutral when the move rounds away — a red "(0)" would read as a loss', () => {
 		const shown = ratingDeltaDisplay({ before: 1500.1, after: 1500.4 });
 		expect(shown).toEqual({ from: 1500, to: 1500, change: 0, label: '±0', tone: 'none' });
+	});
+});
+
+describe('rating decision metadata', () => {
+	it('preserves the pending and final server decisions while stopping on applied', () => {
+		const pending: GameRatingChange = {
+			gameId: 'training',
+			applied: false,
+			white: null,
+			black: null,
+			outcome: 'pending',
+			ratingDomain: 'training',
+		};
+		expect(ratingPollStep(pending, 'White')).toEqual({
+			outcome: { kind: 'waiting', details: { outcome: 'pending', ratingDomain: 'training' } },
+			done: false,
+		});
+		const final: GameRatingChange = {
+			...pending,
+			applied: true,
+			outcome: 'skipped',
+			reason: 'a participant has no rating state',
+			trainingReference: null,
+		};
+		expect(ratingPollStep(final, 'White')).toEqual({
+			outcome: {
+				kind: 'unmoved',
+				details: {
+					outcome: 'skipped',
+					ratingDomain: 'training',
+					reason: 'a participant has no rating state',
+					trainingReference: null,
+				},
+			},
+			done: true,
+		});
+	});
+
+	it('retains the captured reference with movement instead of resolving another rating', () => {
+		const reference = {
+			source: 'anchor' as const,
+			rating: 1462.75,
+			rd: 81.5,
+			anchorSetVersion: 'test-set',
+			epoch: 7,
+		};
+		const step = ratingPollStep(
+			{
+				gameId: 'training',
+				applied: true,
+				white: { before: 1500, after: 1510 },
+				black: null,
+				outcome: 'applied',
+				ratingDomain: 'training',
+				trainingReference: reference,
+			},
+			'White',
+		);
+		expect(step.outcome).toMatchObject({
+			kind: 'moved',
+			details: { trainingReference: reference },
+		});
+		expect(step.done).toBe(true);
 	});
 });

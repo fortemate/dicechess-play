@@ -1,39 +1,38 @@
 <script lang="ts">
-	/* eslint-disable local/no-untranslated-text -- i18n debt: not yet migrated (#8) */
-	// The one line that tells a player what a finished rated game did to their rating. Rendered on
-	// both finished-game surfaces (the end-of-game modal and the side-rail card), which is why it is
-	// a component rather than a snippet: the two callers must never drift, and the markup is worth
-	// mounting in a test of its own.
-	//
-	// It renders THREE states, and the pending one is load-bearing: play-api applies rating in a
-	// background batch up to a minute after the game ends, so for that minute there is genuinely
-	// nothing to report. Saying so is the difference between "busy" and "broken" — a silent blank
-	// was read as the feature not working (#235 follow-up).
+	// Explain only this game's recorded rating decision. Metadata is optional for older APIs; a
+	// training reference is the captured server value, never a lookup of today's bot rating.
 	import { ratingDeltaDisplay, type RatingOutcome } from '#lib/live/ratingDelta.js';
+	import * as m from '#lib/paraglide/messages.js';
+	import { formatWholeNumber } from '../utils/formatters.js';
 
 	interface Props {
-		/** What the server has said so far. `null` renders nothing at all — not a rated game of
-		 * mine, or the poll gave up; `unmoved` renders nothing either (see `RatingOutcome`). */
 		outcome: RatingOutcome | null;
-		/** Whether THIS instance is the one a screen reader should hear. Both finished-game surfaces
-		 * are mounted at once while the end-of-game modal is open (the side-rail card sits underneath
-		 * it as the after-dismissal fallback), so without this the same line is announced twice —
-		 * three times over, since it changes from pending to settled. The caller hands the duty to
-		 * whichever surface the player is actually looking at. */
+		/** Only the visible finished-game surface announces changes when both are mounted. */
 		announce?: boolean;
+		/** Shared game explanations need appear only once when displaying both seats. */
+		showDetails?: boolean;
 	}
 
-	let { outcome, announce = true }: Props = $props();
+	let { outcome, announce = true, showDetails = true }: Props = $props();
+	let details = $derived(outcome?.details);
+	let reference = $derived(details?.trainingReference);
+	let visible = $derived(outcome && (outcome.kind !== 'unmoved' || details != null));
 </script>
 
-<!-- The two speaking states share ONE element, so the delta REPLACES the pending text for a screen
-     reader rather than being announced as an unrelated new line. The silent states render no
-     element at all: an empty <p> would still occupy a line in the modal's flex column. -->
-{#if outcome?.kind === 'waiting' || outcome?.kind === 'moved'}
+{#if visible && outcome}
 	<p class="text-sm font-bold tabular-nums" aria-live={announce ? 'polite' : 'off'}>
+		{#if showDetails && details?.ratingDomain === 'competitive'}
+			<span class="block">{m.game_rating_competitive()}</span>
+		{:else if showDetails && details?.ratingDomain === 'training'}
+			<span class="block">{m.game_rating_training()}</span>
+		{:else if showDetails && details?.ratingDomain === 'casual'}
+			<span class="block">{m.game_rating_casual()}</span>
+		{/if}
 		{#if outcome.kind === 'waiting'}
-			<span class="animate-pulse font-normal text-content-muted italic">Rating updating…</span>
-		{:else}
+			<span class="animate-pulse font-normal text-content-muted italic"
+				>{m.game_rating_updating()}</span
+			>
+		{:else if outcome.kind === 'moved'}
 			{@const shown = ratingDeltaDisplay(outcome.change)}
 			<span class="text-content-muted">{shown.from} → {shown.to}</span>
 			<span
@@ -45,6 +44,66 @@
 			>
 				({shown.label})
 			</span>
+		{:else if details?.outcome === 'applied' || details?.outcome === 'skipped' || details?.outcome === 'casual'}
+			<span>{m.game_rating_unchanged()}</span>
+		{:else}
+			<span>{m.game_rating_unrecorded()}</span>
+		{/if}
+		{#if showDetails && outcome.kind !== 'waiting' && details}
+			{#if details.ratingDomain === 'competitive'}
+				<span class="block font-normal text-content-muted"
+					>{m.game_rating_competitive_explanation()}</span
+				>
+			{:else if details.ratingDomain === 'training'}
+				<span class="block font-normal text-content-muted"
+					>{m.game_rating_training_explanation()}</span
+				>
+			{:else if details.ratingDomain === 'casual' || details.outcome === 'casual'}
+				<span class="block font-normal text-content-muted"
+					>{m.game_rating_casual_explanation()}</span
+				>
+			{/if}
+			{#if details.outcome === 'applied'}
+				<span class="block font-normal text-content-muted">{m.game_rating_applied()}</span>
+			{:else if details.outcome === 'skipped'}
+				<span class="block font-normal text-content-muted">{m.game_rating_skipped()}</span>
+			{:else if details.outcome === 'legacy'}
+				<span class="block font-normal text-content-muted">{m.game_rating_legacy()}</span>
+			{:else if details.outcome && details.outcome !== 'casual'}
+				<span class="block font-normal text-content-muted">{m.game_rating_details_unknown()}</span>
+			{/if}
+			{#if details.reason}
+				<span class="block font-normal text-content-muted"
+					>{m.game_rating_reason({ reason: details.reason })}</span
+				>
+			{/if}
+			{#if details.ratingDomain === 'training'}
+				{#if reference && (reference.source === 'anchor' || reference.source === 'bot_rating')}
+					<span class="block font-normal text-content-muted">
+						{reference.source === 'anchor'
+							? m.game_rating_reference_anchor()
+							: m.game_rating_reference_bot()}
+						{m.game_rating_reference_values({
+							rating: formatWholeNumber(reference.rating),
+							rd: formatWholeNumber(reference.rd),
+						})}
+					</span>
+					{#if reference.anchorSetVersion != null}
+						<span class="block font-normal text-content-muted"
+							>{m.game_rating_reference_version({ version: reference.anchorSetVersion })}</span
+						>
+					{/if}
+					{#if reference.epoch != null}
+						<span class="block font-normal text-content-muted"
+							>{m.game_rating_reference_epoch({ epoch: reference.epoch })}</span
+						>
+					{/if}
+				{:else}
+					<span class="block font-normal text-content-muted"
+						>{m.game_rating_reference_unknown()}</span
+					>
+				{/if}
+			{/if}
 		{/if}
 	</p>
 {/if}

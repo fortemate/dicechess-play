@@ -8,8 +8,7 @@ import type { RatingCategory } from '../live/ratingCategory';
 // do NOT reshape it here. Both endpoints exist only when play-api runs with persistence, and
 // on this side only when VITE_PLAY_API_URL is configured (same gate as live play).
 
-/** Which population a row comes from. Bots and accounts share ONE Glicko-2 scale (play-api
- * ADR-0017), which is what makes a merged board honest rather than a mixing of two currencies.
+/** Which population a competitive row comes from. Training ratings are a separate domain.
  *
  * Branch on `kind === 'player'`, never on `kind === 'bot'`: on a server that predates the field
  * the absent value then degrades to a bot row, which is what every row used to be.
@@ -33,7 +32,7 @@ export interface LeaderRow {
 	name: string;
 	rating: number;
 	rd: number;
-	/** False for a bot that left the ladder — its rating is frozen but still listed. Always false
+	/** False disables automatic bot pairing; it does not imply a frozen rating or inactivity. Always false
 	 * for a player: the flag belongs to the bot pairing scheduler, and there is none for people.
 	 */
 	onLadder: boolean;
@@ -41,11 +40,37 @@ export interface LeaderRow {
 	wins: number;
 	draws: number;
 	losses: number;
+	domain?: string | null;
+	algorithm?: string | null;
+	epoch?: number | null;
+	orderingValue?: number | null;
+	orderingRule?: string | null;
+	ciLow?: number | null;
+	ciHigh?: number | null;
 }
 
 export interface Leaderboard {
 	/** The category this board answers for, echoed by the server (wireName form: 'blitz', …). */
 	category: string;
+	leaders: LeaderRow[];
+	epoch?: number | null;
+	anchorSetVersion?: string | null;
+	cutoff?: string | null;
+	computedAt?: string | null;
+}
+
+/** Immutable snapshot identity and metadata, scoped to one speed category. */
+export interface RatingSnapshotSummary {
+	category: RatingCategory;
+	epoch: number;
+	anchorSetVersion: string;
+	cutoff: string;
+	computedAt: string;
+	isCurrent: boolean;
+	entryCount: number;
+}
+
+export interface RatingSnapshot extends Omit<RatingSnapshotSummary, 'entryCount'> {
 	leaders: LeaderRow[];
 }
 
@@ -65,6 +90,19 @@ export interface CategoryRating {
 	wins: number;
 	draws: number;
 	losses: number;
+}
+
+/** Separate training estimate; competitive profile entries carry no version metadata. */
+export interface TrainingCategoryRating extends CategoryRating {
+	ciLow: number;
+	ciHigh: number;
+	intervalCalculation: string;
+	domain: string;
+	algorithm: string;
+	algorithmVersion: string;
+	epoch: number;
+	cutoff: string | null;
+	computedAt: string | null;
 }
 
 /** One recent game from the profiled bot's point of view. `opponent` is a public face — bots by
@@ -109,7 +147,7 @@ export interface BotProfile {
 	recent: ProfileRecentGame[];
 }
 
-/** The public board for one scale: converged participants, best rating first. */
+/** The public board for one scale: converged participants, ordered by the server's score. */
 export async function fetchLeaderboard(
 	scope: BoardScope,
 	category: RatingCategory,
@@ -121,6 +159,31 @@ export async function fetchLeaderboard(
 	const res = await fetch(`${apiBase()}/leaderboard?kind=${scope}&category=${category}`);
 	if (!res.ok) throw new Error(`fetchLeaderboard failed: ${res.status}`);
 	return (await res.json()) as Leaderboard;
+}
+
+/** Available immutable snapshots; an older server's unsupported route remains a 404 error. */
+export async function fetchRatingSnapshots(
+	category: RatingCategory,
+	signal?: AbortSignal,
+): Promise<RatingSnapshotSummary[]> {
+	const res = await fetch(`${apiBase()}/leaderboard/snapshots?category=${category}`, { signal });
+	if (!res.ok) throw new Error(`fetchRatingSnapshots failed: ${res.status}`);
+	return (await res.json()) as RatingSnapshotSummary[];
+}
+
+/** Fetch the exact category/epoch/cutoff identity, never a mutable latest alias. */
+export async function fetchRatingSnapshot(
+	category: RatingCategory,
+	epoch: number,
+	cutoff: string,
+	signal?: AbortSignal,
+): Promise<RatingSnapshot> {
+	const res = await fetch(
+		`${apiBase()}/leaderboard/snapshots/${category}/${epoch}/${encodeURIComponent(cutoff)}`,
+		{ signal },
+	);
+	if (!res.ok) throw new Error(`fetchRatingSnapshot failed: ${res.status}`);
+	return (await res.json()) as RatingSnapshot;
 }
 
 /** One account's public card (#207). Keyed on the nickname because that is the only public handle a
@@ -148,6 +211,8 @@ export interface PlayerProfile {
 	losses: number;
 	/** One entry per PLAYED category, bullet→blitz→rapid; see `CategoryRating`. */
 	ratings: CategoryRating[];
+	/** Absent on older servers; never merge these estimates into competitive ratings. */
+	training?: TrainingCategoryRating[];
 	/** Every finished game, rated or casual. Added by play-api #279 because a profile reading
 	 * `games: 0` next to a non-empty recent list is a contradiction: before rated play existed for
 	 * people, every game they had played was casual. Keep the two numbers distinct.

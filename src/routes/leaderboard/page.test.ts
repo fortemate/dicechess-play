@@ -15,10 +15,17 @@ vi.mock('$app/paths', () => ({
 		params ? path.replace('[team]', params.team).replace('[name]', params.name) : path,
 }));
 vi.mock('#lib/live/liveApi.js', () => ({ isLiveEnabled: () => true }));
+const pageState = vi.hoisted(() => ({ url: new URL('http://localhost/leaderboard') }));
+vi.mock('$app/state', () => ({ page: pageState }));
 vi.mock('#lib/authStore.svelte.js', () => ({ authStore: { nickname: null } }));
 
 const fetchLeaderboard = vi.hoisted(() => vi.fn());
-vi.mock('#lib/leaderboard/leaderboardApi.js', () => ({ fetchLeaderboard }));
+const historyApi = vi.hoisted(() => ({ list: vi.fn(), item: vi.fn() }));
+vi.mock('#lib/leaderboard/leaderboardApi.js', () => ({
+	fetchLeaderboard,
+	fetchRatingSnapshots: historyApi.list,
+	fetchRatingSnapshot: historyApi.item,
+}));
 
 import LeaderboardPage from './+page.svelte';
 
@@ -44,10 +51,36 @@ const board = (name: string, kind: 'bot' | 'player'): Leaderboard => ({
 describe('leaderboard page', () => {
 	beforeEach(() => {
 		fetchLeaderboard.mockReset();
+		historyApi.list.mockReset();
+		historyApi.item.mockReset();
+		pageState.url = new URL('http://localhost/leaderboard');
 	});
 
 	afterEach(() => {
 		cleanup();
+	});
+
+	it('loads the current epoch on a direct immutable permalink and labels an earlier scale', async () => {
+		const cutoff = '2026-01-02T03:04:05Z';
+		pageState.url = new URL(
+			`http://localhost/leaderboard?view=history&category=blitz&epoch=1&cutoff=${encodeURIComponent(cutoff)}`,
+		);
+		fetchLeaderboard.mockResolvedValue({ ...board('current-bot', 'bot'), epoch: 2 });
+		const summary = {
+			category: 'blitz',
+			epoch: 1,
+			cutoff,
+			computedAt: cutoff,
+			anchorSetVersion: 'synthetic',
+			isCurrent: true,
+			entryCount: 0,
+		};
+		historyApi.list.mockResolvedValue([summary]);
+		historyApi.item.mockResolvedValue({ ...summary, leaders: [] });
+		const view = render(LeaderboardPage);
+		expect(await view.findByText('Earlier epoch')).toBeTruthy();
+		expect(fetchLeaderboard).toHaveBeenCalledWith('bots', 'blitz');
+		expect(view.queryByText('acme current-bot')).toBeNull();
 	});
 
 	it('asks for the merged board on arrival, so people are visible without opting in', async () => {

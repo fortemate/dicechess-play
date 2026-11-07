@@ -1,5 +1,6 @@
 import { describe, expect, it, vi, beforeEach } from 'vitest';
-import { fireEvent, render } from '@testing-library/svelte';
+import { fireEvent, render, within } from '@testing-library/svelte';
+import type { CategoryRating } from '#lib/leaderboard/leaderboardApi.js';
 
 vi.mock('$app/paths', () => ({
 	resolve: (path: string, params?: Record<string, string>) =>
@@ -13,16 +14,7 @@ vi.mock('#lib/toastStore.svelte.js', () => toasts);
 
 // A mutable stand-in for the store: these tests are about how each rename outcome is surfaced, and
 // the real store can only produce those outcomes by talking to play-api.
-type MockCategoryRating = {
-	category: string;
-	rating: number;
-	rd: number;
-	provisional: boolean;
-	games: number;
-	wins: number;
-	draws: number;
-	losses: number;
-};
+type MockCategoryRating = CategoryRating;
 
 const auth = vi.hoisted(() => ({
 	authStore: {
@@ -89,17 +81,16 @@ describe('AccountPanel', () => {
 		expect(container.textContent?.trim()).toBe('');
 	});
 
-	it('shows the nickname and the rounded rating, labelled with its speed (#258)', () => {
+	it('shows all speeds as unrated when no category has been measured, without the legacy scalar', () => {
 		signIn();
-		const { getByText } = render(AccountPanel);
+		const { getByText, getByRole, getAllByLabelText, queryByText } = render(AccountPanel);
 		expect(getByText('BraveDie')).toBeTruthy();
-		expect(getByText('1500')).toBeTruthy();
-		// The scalar the wire carries IS the blitz rating since play-api #280 — the label is what
-		// keeps this panel honest next to a per-speed profile.
-		expect(getByText(/blitz rating/i)).toBeTruthy();
+		expect(getByRole('heading', { name: 'Competitive ratings' })).toBeTruthy();
+		expect(getAllByLabelText('Unrated at this speed')).toHaveLength(3);
+		expect(queryByText(/^1,?500$/)).toBeNull();
 	});
 
-	it('lists other PLAYED speeds in one compact line, and unplayed ones not at all', () => {
+	it('renders a sparse measured speed with uncertainty and keeps missing blitz unrated', () => {
 		signIn({
 			ratings: [
 				{
@@ -112,33 +103,60 @@ describe('AccountPanel', () => {
 					draws: 1,
 					losses: 2,
 				},
-				{
-					category: 'blitz',
-					rating: 1500.4,
-					rd: 350,
-					provisional: true,
-					games: 0,
-					wins: 0,
-					draws: 0,
-					losses: 0,
-				},
 			],
 		});
-		const { getByText, queryByText } = render(AccountPanel);
-		// Bullet is played → listed (the ? marks it provisional); rapid is unplayed → invisible here,
-		// the compact block earns no dash rows (the public profile shows the full per-speed view).
-		expect(getByText(/Bullet\s*1481\?/)).toBeTruthy();
-		expect(queryByText(/rapid/i)).toBeNull();
+		const { getAllByRole, queryByText } = render(AccountPanel);
+		const rows = getAllByRole('listitem');
+		expect(rows.map((row) => row.firstElementChild?.textContent?.trim())).toEqual([
+			'Bullet',
+			'Blitz',
+			'Rapid',
+		]);
+		expect(within(rows[0]).getByText('1,481')).toBeTruthy();
+		expect(within(rows[0]).getByText('95% interval 1,108–1,853')).toBeTruthy();
+		expect(within(rows[0]).getByText('provisional')).toBeTruthy();
+		for (const row of [rows[1], rows[2]]) {
+			expect(within(row).getByLabelText('Unrated at this speed')).toBeTruthy();
+			expect(within(row).queryByText('provisional')).toBeNull();
+		}
+		expect(queryByText(/^1,?500$/)).toBeNull();
 	});
 
 	it('explains a provisional rating, so a missing board entry does not read as a bug', () => {
-		signIn({ provisional: true });
+		signIn({
+			ratings: [
+				{
+					category: 'blitz',
+					rating: 1300,
+					rd: 150,
+					provisional: true,
+					games: 2,
+					wins: 1,
+					draws: 0,
+					losses: 1,
+				},
+			],
+		});
 		const { getByText } = render(AccountPanel);
 		expect(getByText(/provisional/i)).toBeTruthy();
 	});
 
 	it('says nothing about provisional once the rating has settled', () => {
-		signIn({ provisional: false });
+		signIn({
+			provisional: true,
+			ratings: [
+				{
+					category: 'blitz',
+					rating: 1300,
+					rd: 50,
+					provisional: false,
+					games: 12,
+					wins: 6,
+					draws: 0,
+					losses: 6,
+				},
+			],
+		});
 		const { queryByText } = render(AccountPanel);
 		expect(queryByText(/provisional/i)).toBeNull();
 	});

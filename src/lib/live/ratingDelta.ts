@@ -32,12 +32,18 @@ export interface RatingDeltaDisplay {
  *   applies rating up to `RATING_INTERVAL_SECONDS` after the game ends, so a modal that stays blank
  *   for a minute reads as broken rather than as busy (the complaint that produced this state).
  * - `moved` — the recorded movement for the local seat.
- * - `unmoved` — applied, and this game moved no rating (a guest seat, an unregistered opponent,
- *   self-play). Final, and deliberately renders nothing: the honest reason lives on the server's
- *   skip log, and inventing one here would be a guess.
+ * - `unmoved` — final without a movement for this seat. Server metadata explains why when present;
+ *   older responses remain silent rather than inventing a reason.
  */
+export type RatingOutcomeDetails = Pick<
+	GameRatingChange,
+	'outcome' | 'reason' | 'ratingDomain' | 'trainingReference'
+>;
+
 export type RatingOutcome =
-	{ kind: 'waiting' } | { kind: 'moved'; change: SeatRatingChange } | { kind: 'unmoved' };
+	| { kind: 'waiting'; details?: RatingOutcomeDetails }
+	| { kind: 'moved'; change: SeatRatingChange; details?: RatingOutcomeDetails }
+	| { kind: 'unmoved'; details?: RatingOutcomeDetails };
 
 /** One polled answer turned into what to render plus whether the poll is finished — the two travel
  * together because they are the same decision, and splitting them is how a poller ends up showing
@@ -49,16 +55,22 @@ export interface RatingPollStep {
 	done: boolean;
 }
 
-/** `applied` is the ONLY signal that separates "not yet" from "final" — including the case where
- * both seats are absent, which is a final "nobody's rating moved" and not a not-yet. A poller that
- * waited for numbers instead would wait forever on a skipped game.
+/** `applied` settles batch decisions even when both seats are absent. The server's explicit
+ * `casual` outcome is also final: casual games never enter the rating batch and may stay unapplied.
+ * A legacy response without that classification still waits for `applied`.
  */
 export function ratingPollStep(change: GameRatingChange, seat: Seat): RatingPollStep {
-	if (!change.applied) return { outcome: { kind: 'waiting' }, done: false };
+	const details: RatingOutcomeDetails = {};
+	for (const key of ['outcome', 'reason', 'ratingDomain', 'trainingReference'] as const) {
+		if (change[key] !== undefined) Object.assign(details, { [key]: change[key] });
+	}
+	const metadata = Object.keys(details).length ? { details } : {};
+	if (change.outcome === 'casual') return { outcome: { kind: 'unmoved', ...metadata }, done: true };
+	if (!change.applied) return { outcome: { kind: 'waiting', ...metadata }, done: false };
 	const mine = seatChange(change, seat);
 	return mine
-		? { outcome: { kind: 'moved', change: mine }, done: true }
-		: { outcome: { kind: 'unmoved' }, done: true };
+		? { outcome: { kind: 'moved', change: mine, ...metadata }, done: true }
+		: { outcome: { kind: 'unmoved', ...metadata }, done: true };
 }
 
 /** Ratings arrive as Glicko-2 doubles (`1797.2144251082318` reached production), so they are

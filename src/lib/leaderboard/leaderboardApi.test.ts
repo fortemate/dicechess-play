@@ -1,5 +1,16 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
-import { fetchLeaderboard, fetchBotProfile, fetchPlayerProfile } from './leaderboardApi';
+import {
+	fetchLeaderboard,
+	fetchBotProfile,
+	fetchPlayerProfile,
+	fetchRatingSnapshots,
+	fetchRatingSnapshot,
+	type Leaderboard,
+	type PlayerProfile,
+	type TrainingCategoryRating,
+	type RatingSnapshot,
+	type RatingSnapshotSummary,
+} from './leaderboardApi';
 
 describe('leaderboardApi', () => {
 	beforeEach(() => vi.stubEnv('VITE_PLAY_API_URL', 'http://localhost:8080'));
@@ -9,6 +20,152 @@ describe('leaderboardApi', () => {
 	});
 
 	const okJson = (body: unknown) => vi.fn().mockResolvedValue({ ok: true, json: async () => body });
+
+	const summary: RatingSnapshotSummary = {
+		category: 'rapid',
+		epoch: 2,
+		anchorSetVersion: 'anchors-v2',
+		cutoff: '2026-11-01T00:00:00.123Z',
+		computedAt: '2026-11-01T00:01:00Z',
+		isCurrent: false,
+		entryCount: 0,
+	};
+
+	it('lists snapshots for each requested category without sharing responses', async () => {
+		const fetchMock = vi.fn().mockImplementation(async (url: string) => ({
+			ok: true,
+			json: async () => [{ ...summary, category: new URL(url).searchParams.get('category') }],
+		}));
+		vi.stubGlobal('fetch', fetchMock);
+		for (const category of ['bullet', 'blitz', 'rapid'] as const) {
+			expect(await fetchRatingSnapshots(category)).toEqual([{ ...summary, category }]);
+			expect(fetchMock).toHaveBeenLastCalledWith(
+				`http://localhost:8080/leaderboard/snapshots?category=${category}`,
+				{ signal: undefined },
+			);
+		}
+	});
+
+	it('fetches an immutable identity with the instant escaped as one path segment', async () => {
+		const snapshot: RatingSnapshot = {
+			category: summary.category,
+			epoch: summary.epoch,
+			anchorSetVersion: summary.anchorSetVersion,
+			cutoff: summary.cutoff,
+			computedAt: summary.computedAt,
+			isCurrent: summary.isCurrent,
+			leaders: [],
+		};
+		const fetchMock = okJson(snapshot);
+		vi.stubGlobal('fetch', fetchMock);
+		expect(await fetchRatingSnapshot('rapid', 2, summary.cutoff)).toEqual(snapshot);
+		expect(fetchMock).toHaveBeenCalledWith(
+			'http://localhost:8080/leaderboard/snapshots/rapid/2/2026-11-01T00%3A00%3A00.123Z',
+			{ signal: undefined },
+		);
+	});
+
+	it('forwards cancellation to both snapshot requests and preserves abort errors', async () => {
+		const controller = new AbortController();
+		const aborted = new DOMException('Cancelled', 'AbortError');
+		const fetchMock = vi.fn().mockRejectedValue(aborted);
+		vi.stubGlobal('fetch', fetchMock);
+		controller.abort();
+		await expect(fetchRatingSnapshots('bullet', controller.signal)).rejects.toBe(aborted);
+		await expect(fetchRatingSnapshot('rapid', 2, summary.cutoff, controller.signal)).rejects.toBe(
+			aborted,
+		);
+		expect(fetchMock.mock.calls.every((call) => call[1].signal === controller.signal)).toBe(true);
+	});
+
+	it.each([404, 503])('preserves snapshot HTTP status %i for the caller', async (status) => {
+		vi.stubGlobal('fetch', vi.fn().mockResolvedValue({ ok: false, status }));
+		await expect(fetchRatingSnapshots('blitz')).rejects.toThrow(
+			`fetchRatingSnapshots failed: ${status}`,
+		);
+		await expect(fetchRatingSnapshot('blitz', 2, summary.cutoff)).rejects.toThrow(
+			`fetchRatingSnapshot failed: ${status}`,
+		);
+	});
+
+	it('passes version metadata and nullable legacy metadata through without synthesis', async () => {
+		const board: Leaderboard = {
+			category: 'rapid',
+			epoch: 2,
+			anchorSetVersion: 'anchors-v2',
+			cutoff: summary.cutoff,
+			computedAt: summary.computedAt,
+			leaders: [
+				{
+					rank: 1,
+					kind: 'bot',
+					team: 'sample',
+					name: 'bot',
+					rating: 1600,
+					rd: 80,
+					onLadder: true,
+					games: 10,
+					wins: 6,
+					draws: 0,
+					losses: 4,
+					domain: 'competitive',
+					algorithm: 'glicko2',
+					epoch: 2,
+					orderingValue: 1440,
+					orderingRule: 'conservative-rating',
+					ciLow: 1443.2,
+					ciHigh: 1756.8,
+				},
+			],
+		};
+		vi.stubGlobal('fetch', okJson(board));
+		expect(await fetchLeaderboard('all', 'rapid')).toEqual(board);
+		const legacy: Leaderboard = { category: 'bullet', leaders: [], epoch: null, cutoff: null };
+		vi.stubGlobal('fetch', okJson(legacy));
+		expect(await fetchLeaderboard('all', 'bullet')).toEqual(legacy);
+	});
+
+	it('keeps training estimates separate and accepts profiles from older servers', async () => {
+		const old: PlayerProfile = {
+			nickname: 'Player',
+			rating: 1500,
+			rd: 350,
+			provisional: true,
+			games: 0,
+			wins: 0,
+			draws: 0,
+			losses: 0,
+			ratings: [],
+			totalGames: 1,
+			opponents: [],
+			recent: [],
+		};
+		vi.stubGlobal('fetch', okJson(old));
+		expect((await fetchPlayerProfile('Player')).training).toBeUndefined();
+		const training: TrainingCategoryRating = {
+			category: 'bullet',
+			rating: 1610.25,
+			rd: 90,
+			provisional: false,
+			ciLow: 1433.85,
+			ciHigh: 1786.65,
+			intervalCalculation: 'rating ± 1.96 · rd (95% confidence interval)',
+			domain: 'training',
+			algorithm: 'glicko2',
+			algorithmVersion: 'v1',
+			epoch: 1,
+			cutoff: null,
+			computedAt: null,
+			games: 1,
+			wins: 1,
+			draws: 0,
+			losses: 0,
+		};
+		const current: PlayerProfile = { ...old, training: [training] };
+		vi.stubGlobal('fetch', okJson(current));
+		expect(await fetchPlayerProfile('Player')).toEqual(current);
+		expect(current.ratings).toEqual([]);
+	});
 
 	it('fetchLeaderboard GETs the board for the requested scope and speed', async () => {
 		const board = {

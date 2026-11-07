@@ -2,7 +2,8 @@
 	/* eslint-disable local/no-untranslated-text -- i18n debt: not yet migrated (#8) */
 	import { resolve } from '$app/paths';
 	import type { CatalogBot } from '#lib/catalog/catalogApi.js';
-	import { formatWholeNumber } from '../utils/formatters';
+	import { m } from '#lib/paraglide/messages.js';
+	import RatingEstimate from './RatingEstimate.svelte';
 	import BotBadge from './BotBadge.svelte';
 	import BotChallengePanel from './BotChallengePanel.svelte';
 
@@ -21,10 +22,13 @@
 			</a>
 			<BotBadge />
 		</span>
-		<span class="font-mono text-xs tabular-nums text-content-muted">
-			<b class="text-content">{formatWholeNumber(bot.rating)}</b>
-			±{formatWholeNumber(bot.rd)}
-			{#if bot.provisional}<span class="italic">· provisional</span>{/if}
+		<!-- The catalog scalar carries no speed or version metadata. It cannot stand in for the
+		     category chosen in the challenge form; the public profile has the per-speed ratings. -->
+		<p class="text-xs text-content-muted">
+			{m.common_rating_competitive_estimate()} · {m.common_rating_speed_unknown()}
+		</p>
+		<RatingEstimate estimate={bot} compact />
+		<span class="text-xs text-content-muted">
 			<!-- Advisory only — read once when the catalog was fetched, not polled — so a card can go
 			     stale before a click; `wake`'s own busy check and play-bot's 409 stay authoritative.
 			     Tested `=== false`, NOT `!bot.available`: the field is absent on an API version older

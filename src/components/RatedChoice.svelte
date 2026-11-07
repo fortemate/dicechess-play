@@ -1,6 +1,7 @@
 <script lang="ts">
 	/* eslint-disable local/no-untranslated-text -- i18n debt: not yet migrated (#8) */
 	import { authStore } from '#lib/authStore.svelte.js';
+	import { m } from '#lib/paraglide/messages.js';
 
 	// The Rated/Casual choice for a game about to be started, shared by the catalog-bot panel and the
 	// lobby's open-a-table panel (play-api #279). Rated is the player's own call now, for any
@@ -66,6 +67,7 @@
 				</label>
 			{/each}
 		</div>
+		<p class="text-xs font-normal text-content-muted">{m.common_rating_choice_help()}</p>
 	</fieldset>
 {:else if authStore.status === 'signed-out' && authStore.canSignIn}
 	<!-- Say what will happen and how to change it, rather than hiding the feature: a visitor should

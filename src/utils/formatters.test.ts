@@ -29,6 +29,7 @@ describe('formatters', () => {
 			expect(formatDate(null)).toBe('Unknown Date');
 			expect(formatDate(undefined)).toBe('Unknown Date');
 			expect(formatDate('invalid-date')).toBe('Unknown Date');
+			expect(formatDate('invalid-date', { includeSeconds: true })).toBe('Unknown Date');
 		});
 
 		it('formats valid ISO date strings using en-GB date locale', () => {
@@ -37,6 +38,14 @@ describe('formatters', () => {
 			expect(formatted).toContain('2025');
 			expect(formatted).toContain('Jan');
 			expect(formatted).toContain('15');
+		});
+
+		it('can retain seconds without changing the default date precision', () => {
+			const first = '2026-07-16T12:00:05Z';
+			const second = '2026-07-16T12:00:45Z';
+			expect(formatDate(first)).toBe(formatDate(second));
+			expect(formatDate(first, { includeSeconds: true })).toMatch(/:05$/);
+			expect(formatDate(second, { includeSeconds: true })).toMatch(/:45$/);
 		});
 	});
 

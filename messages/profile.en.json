@@ -10,5 +10,14 @@
 	"profile_toast_copy_failed": "Could not copy — select the code and copy it manually.",
 	"profile_toast_code_restored": "Player code restored.",
 	"profile_toast_invalid_code": "That does not look like a valid player code.",
-	"profile_toast_new_identity": "Started a new identity."
+	"profile_toast_new_identity": "Started a new identity.",
+	"profile_training_heading": "Training vs bots",
+	"profile_training_explanation": "Training estimates and records are separate from competitive standings. Do not compare these numbers with competitive ratings.",
+	"profile_training_unsupported": "Training estimates are not reported by this server yet.",
+	"profile_training_empty": "No training estimate recorded yet.",
+	"profile_training_unmeasured": "No training estimate at this speed.",
+	"profile_training_record": "Training record",
+	"profile_training_games": "{count} training games",
+	"profile_competitive_record_summary": "{rated} competitive rating games · {other} other recorded games · {total} in total",
+	"profile_competitive_record_unreconciled": "Competitive record: {rated} games. Finished games reported: {total}. These counts do not currently agree."
 }

@@ -1,7 +1,10 @@
-import { describe, expect, it } from 'vitest';
-import { render } from '@testing-library/svelte';
+import { describe, expect, it, vi } from 'vitest';
+import { render, within } from '@testing-library/svelte';
 import ProfileGameCard from './ProfileGameCard.svelte';
 import type { ProfileRecentGame } from '#lib/leaderboard/leaderboardApi.js';
+vi.mock('$app/paths', () => ({
+	resolve: (path: string, p: Record<string, string>) => path.replace('[id]', p.id),
+}));
 
 function game(overrides: Partial<ProfileRecentGame> = {}): ProfileRecentGame {
 	return {
@@ -49,13 +52,14 @@ describe('ProfileGameCard', () => {
 		expect(queryByText(/you played/i)).toBeNull();
 	});
 
-	it('shows a Rated/Casual pill instead of a redundant Live badge', () => {
+	it('does not call a legacy non-competitive record casual when it may have been training', () => {
 		const rated = render(ProfileGameCard, { game: game({ rated: true }) });
-		expect(rated.getByText('Rated')).toBeTruthy();
+		expect(rated.getByText('Competitive')).toBeTruthy();
 		rated.unmount();
 
 		const casual = render(ProfileGameCard, { game: game({ rated: false }) });
-		expect(casual.getByText('Casual')).toBeTruthy();
+		expect(casual.getByText('Not competitive')).toBeTruthy();
+		expect(casual.queryByText('Casual')).toBeNull();
 	});
 
 	it('labels the snake_case termination', () => {
@@ -72,8 +76,49 @@ describe('ProfileGameCard', () => {
 		expect(getByText('Game ended')).toBeTruthy();
 	});
 
-	it('is not a clickable link — there is nowhere to navigate (no replay data exists)', () => {
+	it('links to the exact public game details where recorded rating decisions can be read', () => {
 		const { container } = render(ProfileGameCard, { game: game() });
-		expect(container.querySelector('a')).toBeNull();
+		expect(container.querySelector('a')?.getAttribute('href')).toBe('/replay/g-1');
+	});
+
+	it('distinguishes details links by opponent and finished time without changing visible text', () => {
+		const firstGame = game();
+		const secondGame = game({
+			gameId: 'g-2',
+			opponent: { kind: 'Human', name: null },
+			finishedAt: '2026-07-17T15:30:00Z',
+		});
+		const first = render(ProfileGameCard, { game: firstGame });
+		const second = render(ProfileGameCard, { game: secondGame });
+		const firstLink = first.getByRole('link', {
+			name: /^Game details against acme alice, finished /,
+		});
+		const secondLink = second.getByRole('link', {
+			name: /^Game details against Anonymous opponent, finished /,
+		});
+		expect(firstLink.textContent).toBe('Game details');
+		expect(secondLink.textContent).toBe('Game details');
+		expect(firstLink.getAttribute('href')).toBe('/replay/g-1');
+		expect(secondLink.getAttribute('href')).toBe('/replay/g-2');
+	});
+
+	it('distinguishes same-opponent details links for games finished within the same minute', () => {
+		const first = render(ProfileGameCard, {
+			game: game({ gameId: 'fast-game-1', finishedAt: '2026-07-16T12:00:05Z' }),
+		});
+		const second = render(ProfileGameCard, {
+			game: game({ gameId: 'fast-game-2', finishedAt: '2026-07-16T12:00:45Z' }),
+		});
+		const firstLink = within(first.container).getByRole('link', {
+			name: /^Game details against acme alice, finished /,
+		});
+		const secondLink = within(second.container).getByRole('link', {
+			name: /^Game details against acme alice, finished /,
+		});
+		expect(firstLink.getAttribute('aria-label')).not.toBe(secondLink.getAttribute('aria-label'));
+		expect(firstLink.getAttribute('href')).toBe('/replay/fast-game-1');
+		expect(secondLink.getAttribute('href')).toBe('/replay/fast-game-2');
+		expect(firstLink.textContent).toBe('Game details');
+		expect(secondLink.textContent).toBe('Game details');
 	});
 });

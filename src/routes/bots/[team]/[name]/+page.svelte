@@ -7,6 +7,7 @@
 	import type { PlayerOpponent } from '#lib/games/gamesApi.js';
 	import { emptyCounts, winRate } from '#lib/stats/playerRecord.js';
 	import CategoryRatings from '../../../../components/CategoryRatings.svelte';
+	import { m } from '#lib/paraglide/messages.js';
 	import WdlSummaryCard from '../../../../components/WdlSummaryCard.svelte';
 	import WdlCounts from '../../../../components/WdlCounts.svelte';
 	import WdlBar from '../../../../components/WdlBar.svelte';
@@ -109,13 +110,15 @@
 			</span>
 			{#if !profile.onLadder}
 				<p class="text-sm italic text-content-muted">
-					Left the ladder — its ratings are frozen but still listed.
+					{m.common_rating_scheduling_help()}
 				</p>
 			{/if}
 		</div>
 
 		<div class="flex flex-col gap-2">
-			<h3 class="text-sm font-bold uppercase tracking-wider text-content-muted">Ratings</h3>
+			<h3 class="text-sm font-bold uppercase tracking-wider text-content-muted">
+				{m.common_rating_competitive()}
+			</h3>
 			<!-- One rating per speed (#258); "provisional" is per row. -->
 			<CategoryRatings ratings={profile.ratings ?? []} />
 		</div>
