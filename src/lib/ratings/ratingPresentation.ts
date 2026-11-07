@@ -47,8 +47,8 @@ export function knownEpoch(value: unknown): value is number {
 /** Compare ISO instants without Date's millisecond precision loss or formatting differences. */
 export function sameRatingCutoff(left: string, right: string): boolean {
 	const instant = (value: string): bigint | null => {
-		const match = value.match(
-			/^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}(?:\.(\d{1,9}))?(?:Z|[+-]\d{2}:\d{2})$/,
+		const match = /^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}(?:\.(\d{1,9}))?(?:Z|[+-]\d{2}:\d{2})$/.exec(
+			value,
 		);
 		const millis = Date.parse(value);
 		if (!match || !Number.isFinite(millis)) return null;
@@ -75,6 +75,6 @@ export function ratingDate(value: string | null | undefined): string | null {
 		timeZone: 'UTC',
 	}).format(date);
 	// Preserve the API's sub-millisecond cutoff identity; Date alone would collapse distinct snapshots.
-	const fraction = value.match(/\.(\d{1,9})(?:Z|[+-]\d{2}:\d{2})$/)?.[1];
+	const fraction = /\.(\d{1,9})(?:Z|[+-]\d{2}:\d{2})$/.exec(value)?.[1];
 	return fraction ? `${formatted}.${fraction}` : formatted;
 }
