@@ -1,8 +1,7 @@
 import { describe, expect, it, vi } from 'vitest';
-import { render } from '@testing-library/svelte';
+import { render, within } from '@testing-library/svelte';
 import ProfileGameCard from './ProfileGameCard.svelte';
 import type { ProfileRecentGame } from '#lib/leaderboard/leaderboardApi.js';
-import { formatDate } from '../utils/formatters';
 vi.mock('$app/paths', () => ({
 	resolve: (path: string, p: Record<string, string>) => path.replace('[id]', p.id),
 }));
@@ -92,14 +91,34 @@ describe('ProfileGameCard', () => {
 		const first = render(ProfileGameCard, { game: firstGame });
 		const second = render(ProfileGameCard, { game: secondGame });
 		const firstLink = first.getByRole('link', {
-			name: `Game details against acme alice, finished ${formatDate(firstGame.finishedAt)}`,
+			name: /^Game details against acme alice, finished /,
 		});
 		const secondLink = second.getByRole('link', {
-			name: `Game details against Anonymous opponent, finished ${formatDate(secondGame.finishedAt)}`,
+			name: /^Game details against Anonymous opponent, finished /,
 		});
 		expect(firstLink.textContent).toBe('Game details');
 		expect(secondLink.textContent).toBe('Game details');
 		expect(firstLink.getAttribute('href')).toBe('/replay/g-1');
 		expect(secondLink.getAttribute('href')).toBe('/replay/g-2');
+	});
+
+	it('distinguishes same-opponent details links for games finished within the same minute', () => {
+		const first = render(ProfileGameCard, {
+			game: game({ gameId: 'fast-game-1', finishedAt: '2026-07-16T12:00:05Z' }),
+		});
+		const second = render(ProfileGameCard, {
+			game: game({ gameId: 'fast-game-2', finishedAt: '2026-07-16T12:00:45Z' }),
+		});
+		const firstLink = within(first.container).getByRole('link', {
+			name: /^Game details against acme alice, finished /,
+		});
+		const secondLink = within(second.container).getByRole('link', {
+			name: /^Game details against acme alice, finished /,
+		});
+		expect(firstLink.getAttribute('aria-label')).not.toBe(secondLink.getAttribute('aria-label'));
+		expect(firstLink.getAttribute('href')).toBe('/replay/fast-game-1');
+		expect(secondLink.getAttribute('href')).toBe('/replay/fast-game-2');
+		expect(firstLink.textContent).toBe('Game details');
+		expect(secondLink.textContent).toBe('Game details');
 	});
 });

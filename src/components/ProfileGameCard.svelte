@@ -71,7 +71,7 @@
 			href={resolve('/replay/[id]', { id: game.gameId })}
 			aria-label={m.common_rating_game_details_context({
 				opponent: opponentName,
-				finishedAt: formatDate(game.finishedAt),
+				finishedAt: formatDate(game.finishedAt, { includeSeconds: true }),
 			})}
 			class="font-semibold text-primary underline">{m.common_rating_game_details()}</a
 		>

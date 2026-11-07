@@ -5,12 +5,17 @@ export const RATING_LOCALE = 'en-US';
 export const DATE_LOCALE = 'en-GB';
 
 const wholeNumberFormatter = new Intl.NumberFormat(RATING_LOCALE, { maximumFractionDigits: 0 });
-const dateFormatter = new Intl.DateTimeFormat(DATE_LOCALE, {
+const dateOptions = {
 	day: 'numeric',
 	month: 'short',
 	year: 'numeric',
 	hour: '2-digit',
 	minute: '2-digit',
+} satisfies Intl.DateTimeFormatOptions;
+const dateFormatter = new Intl.DateTimeFormat(DATE_LOCALE, dateOptions);
+const dateWithSecondsFormatter = new Intl.DateTimeFormat(DATE_LOCALE, {
+	...dateOptions,
+	second: '2-digit',
 });
 
 /**
@@ -25,15 +30,19 @@ export function formatWholeNumber(value: number): string {
 /**
  * Formats a date string to a human-readable format using the date locale.
  * @param dateString - The date string to format (ISO 8601 or similar).
+ * @param options - Include seconds when the context must distinguish games within one minute.
  * @returns Formatted date string or "Unknown Date" if parsing fails.
  */
-export function formatDate(dateString?: string | null): string {
+export function formatDate(
+	dateString?: string | null,
+	options: { includeSeconds?: boolean } = {},
+): string {
 	if (!dateString) return 'Unknown Date';
 	try {
 		const date = new Date(dateString);
 		if (Number.isNaN(date.getTime())) return 'Unknown Date';
 
-		return dateFormatter.format(date);
+		return (options.includeSeconds ? dateWithSecondsFormatter : dateFormatter).format(date);
 	} catch {
 		return 'Unknown Date';
 	}

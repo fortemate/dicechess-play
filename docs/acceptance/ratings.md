@@ -34,7 +34,7 @@ inactivity or a frozen rating, and a recent game's `rated=false` alone never imp
 Selected rendered evidence is stored in `evidence/ratings/`. All names, values and epochs in these
 images are synthetic.
 
-Validation: 1,477 Vitest tests, six built-bundle smoke tests, and twelve ratings acceptance tests passed.
+Validation: 1,479 Vitest tests, six built-bundle smoke tests, and twelve ratings acceptance tests passed.
 Lint, formatting, type checks, rules-version alignment and the mandatory bundled-engine move and
 continuation checks passed.
 
