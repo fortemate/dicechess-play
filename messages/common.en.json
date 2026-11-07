@@ -28,6 +28,7 @@
 	"common_rating_computed_unknown": "Calculation time not reported",
 	"common_rating_glicko": "Glicko-2",
 	"common_rating_competitive": "Competitive ratings",
+	"common_rating_competitive_estimate": "Competitive estimate",
 	"common_rating_profile_unknown": "Algorithm version, epoch, freshness and activity are not reported for these profile ratings.",
 	"common_rating_interval_help": "For Glicko-2, the approximate 95% interval is rating ± 1.96 × RD. Wider intervals mean greater uncertainty. RD alone is not a 95% interval.",
 	"common_rating_explanation": "How to read these ratings",
@@ -54,5 +55,6 @@
 	"common_rating_choice_help": "Rated play is a request. The game will show whether a competitive rating or a separate training estimate can change.",
 	"common_rating_algorithm_version_unknown": "Algorithm version not reported",
 	"common_rating_seat_rating_aria": "Competitive rating {rating} at game start. Uncertainty and epoch not reported.",
-	"common_rating_game_details": "Game details"
+	"common_rating_game_details": "Game details",
+	"common_rating_game_details_context": "Game details against {opponent}, finished {finishedAt}"
 }

@@ -54,9 +54,40 @@ export interface GameRatingChange {
  * it is not a "not yet". Any OTHER failure (network, 5xx) throws, so a transient blip stays
  * distinguishable from a permanent absence and the poll can simply try again.
  */
-export async function fetchGameRatingChange(gameId: string): Promise<GameRatingChange | null> {
-	const res = await fetch(`${apiBase()}/games/${encodeURIComponent(gameId)}/rating`);
-	if (res.status === 404) return null;
-	if (!res.ok) throw new Error(`fetchGameRatingChange failed: ${res.status}`);
-	return (await res.json()) as GameRatingChange;
+export async function fetchGameRatingChange(
+	gameId: string,
+	signal?: AbortSignal,
+): Promise<GameRatingChange | null> {
+	// Cover headers AND the response body, so a stalled connection cannot hold a poll forever.
+	// Race the entire operation as well as aborting fetch: cancellation must settle the caller
+	// even when a transport has not yet delivered the abort rejection.
+	const controller = new AbortController();
+	const forwardAbort = () => controller.abort(signal?.reason);
+	if (signal?.aborted) forwardAbort();
+	else signal?.addEventListener('abort', forwardAbort, { once: true });
+	const timer = setTimeout(
+		() => controller.abort(new DOMException('Rating request timed out', 'TimeoutError')),
+		5_000,
+	);
+	let onAbort: () => void = () => {};
+	try {
+		controller.signal.throwIfAborted();
+		const aborted = new Promise<never>((_, reject) => {
+			onAbort = () => reject(controller.signal.reason);
+			controller.signal.addEventListener('abort', onAbort, { once: true });
+		});
+		const request = async () => {
+			const res = await fetch(`${apiBase()}/games/${encodeURIComponent(gameId)}/rating`, {
+				signal: controller.signal,
+			});
+			if (res.status === 404) return null;
+			if (!res.ok) throw new Error(`fetchGameRatingChange failed: ${res.status}`);
+			return (await res.json()) as GameRatingChange;
+		};
+		return await Promise.race([request(), aborted]);
+	} finally {
+		clearTimeout(timer);
+		signal?.removeEventListener('abort', forwardAbort);
+		controller.signal.removeEventListener('abort', onAbort);
+	}
 }

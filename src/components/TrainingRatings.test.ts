@@ -47,11 +47,11 @@ describe('TrainingRatings', () => {
 		expect(
 			unsupported.getByText('Training estimates are not reported by this server yet.'),
 		).toBeTruthy();
-		expect(unsupported.queryByText('No training games yet.')).toBeNull();
+		expect(unsupported.queryByText('No training estimate recorded yet.')).toBeNull();
 		unsupported.unmount();
 
 		const empty = render(TrainingRatings, { ratings: [] });
-		expect(empty.getByText('No training games yet.')).toBeTruthy();
+		expect(empty.getByText('No training estimate recorded yet.')).toBeTruthy();
 		expect(empty.queryByText('Training estimates are not reported by this server yet.')).toBeNull();
 		expect(empty.getAllByText('No training estimate at this speed.')).toHaveLength(3);
 	});

@@ -10,17 +10,9 @@
 	// fails after a round-trip feels broken.
 	import { resolve } from '$app/paths';
 	import { authStore } from '#lib/authStore.svelte.js';
-	import { RATING_CATEGORY_LABELS } from '#lib/live/ratingCategory.js';
+	import CategoryRatings from './CategoryRatings.svelte';
 	import { toastStore } from '#lib/toastStore.svelte.js';
 	import { m } from '#lib/paraglide/messages.js';
-
-	// The speeds OTHER than the headline (blitz) the account has actually played — absent wire
-	// entries are unplayed speeds and stay invisible here (the compact block earns no dash rows;
-	// `?` marks a still-provisional number). Defaults to [] against a play-api promoted later than
-	// this page's deploy, same posture as the profiles.
-	const otherSpeeds = $derived(
-		(authStore.account?.ratings ?? []).filter((r) => r.category !== 'blitz'),
-	);
 
 	let editing = $state(false);
 	let draft = $state('');
@@ -152,33 +144,14 @@
 				<p class="text-xs text-danger" role="alert">{error}</p>
 			{/if}
 
-			<!-- Ratings are per speed since play-api #280; this panel is a compact identity block, so it
-			     leads with the default category (blitz — the ladder's speed and the leaderboard's default
-			     board) instead of three numbers, and lists the other PLAYED speeds in one small line.
-			     The full per-speed view lives on the public profile, one click away. -->
-			<div class="flex items-baseline gap-3 border-t border-border pt-4">
-				<span class="text-xs font-bold uppercase tracking-wider text-content-muted">
-					Blitz rating
-				</span>
-				<span class="font-mono text-lg font-bold tabular-nums text-content">
-					{Math.round(authStore.account.rating)}
-				</span>
-				{#if authStore.account.provisional}
-					<!-- The public board hides provisional accounts. Saying so here is the difference between
-					     "my rating is missing" and "my rating is still settling". -->
-					<span class="text-xs text-content-muted">
-						provisional — not listed publicly until it settles
-					</span>
-				{/if}
+			<!-- Sparse per-speed entries are the measured competitive ratings. The legacy scalar can
+			     be an unplayed default, so this account view uses the same honest rows as profiles. -->
+			<div class="space-y-3 border-t border-border pt-4">
+				<h4 class="text-xs font-bold uppercase tracking-wider text-content-muted">
+					{m.common_rating_competitive()}
+				</h4>
+				<CategoryRatings ratings={authStore.account.ratings ?? []} />
 			</div>
-			{#if otherSpeeds.length > 0}
-				<p class="font-mono text-xs tabular-nums text-content-muted">
-					{#each otherSpeeds as r, i (r.category)}
-						{i > 0 ? ' · ' : ''}{RATING_CATEGORY_LABELS[r.category]}
-						{Math.round(r.rating)}{r.provisional ? '?' : ''}
-					{/each}
-				</p>
-			{/if}
 		</div>
 
 		<a

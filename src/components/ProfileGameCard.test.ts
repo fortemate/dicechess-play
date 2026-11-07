@@ -2,6 +2,7 @@ import { describe, expect, it, vi } from 'vitest';
 import { render } from '@testing-library/svelte';
 import ProfileGameCard from './ProfileGameCard.svelte';
 import type { ProfileRecentGame } from '#lib/leaderboard/leaderboardApi.js';
+import { formatDate } from '../utils/formatters';
 vi.mock('$app/paths', () => ({
 	resolve: (path: string, p: Record<string, string>) => path.replace('[id]', p.id),
 }));
@@ -79,5 +80,26 @@ describe('ProfileGameCard', () => {
 	it('links to the exact public game details where recorded rating decisions can be read', () => {
 		const { container } = render(ProfileGameCard, { game: game() });
 		expect(container.querySelector('a')?.getAttribute('href')).toBe('/replay/g-1');
+	});
+
+	it('distinguishes details links by opponent and finished time without changing visible text', () => {
+		const firstGame = game();
+		const secondGame = game({
+			gameId: 'g-2',
+			opponent: { kind: 'Human', name: null },
+			finishedAt: '2026-07-17T15:30:00Z',
+		});
+		const first = render(ProfileGameCard, { game: firstGame });
+		const second = render(ProfileGameCard, { game: secondGame });
+		const firstLink = first.getByRole('link', {
+			name: `Game details against acme alice, finished ${formatDate(firstGame.finishedAt)}`,
+		});
+		const secondLink = second.getByRole('link', {
+			name: `Game details against Anonymous opponent, finished ${formatDate(secondGame.finishedAt)}`,
+		});
+		expect(firstLink.textContent).toBe('Game details');
+		expect(secondLink.textContent).toBe('Game details');
+		expect(firstLink.getAttribute('href')).toBe('/replay/g-1');
+		expect(secondLink.getAttribute('href')).toBe('/replay/g-2');
 	});
 });

@@ -197,10 +197,6 @@
 		const gameId = page.params.id;
 		if (!gameId || live.gameStatus !== 'over' || live.spectator) return;
 		const domain = live.ratingDomain;
-		if (domain === 'casual') {
-			ratingOutcome = { kind: 'unmoved', details: { ratingDomain: domain, outcome: 'casual' } };
-			return;
-		}
 		const seat = bottomSeat;
 		// Announce the wait before the first request resolves: the batch is a minute behind at worst,
 		// and a blank minute is what made this look broken rather than busy.
@@ -209,10 +205,12 @@
 			: { kind: 'waiting' };
 
 		let alive = true;
+		const controller = new AbortController();
 		let attempts = 0;
 		let timer: ReturnType<typeof setInterval> | undefined;
 		const stop = () => {
 			alive = false;
+			controller.abort();
 			clearInterval(timer);
 		};
 		/** Giving up is a state change, not just a stopped timer: leaving `waiting` on screen forever
@@ -224,7 +222,7 @@
 		const tick = async () => {
 			attempts += 1;
 			try {
-				const change = await fetchGameRatingChange(gameId);
+				const change = await fetchGameRatingChange(gameId, controller.signal);
 				if (!alive) return;
 				// null is permanent (no such game / a server that records no ratings), so stop showing
 				// a wait; a pending answer is the normal case for a game that just ended.

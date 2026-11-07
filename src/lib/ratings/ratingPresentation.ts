@@ -17,6 +17,7 @@ export interface RatingEstimateInput {
 const finite = (value: unknown): value is number =>
 	typeof value === 'number' && Number.isFinite(value);
 
+/** Prefer recorded 95% bounds; convert RD only for the documented legacy Glicko-2 contract. */
 export function confidenceInterval(
 	estimate: RatingEstimateInput,
 ): { low: number; high: number } | null {
@@ -31,6 +32,7 @@ export function confidenceInterval(
 	return { low: estimate.rating - 1.96 * estimate.rd, high: estimate.rating + 1.96 * estimate.rd };
 }
 
+/** Keep the server's score, with a legacy conservative-score fallback that never reorders rows. */
 export function orderingScore(
 	row: RatingEstimateInput & { orderingValue?: number | null; orderingRule?: string | null },
 ): number | null {
@@ -40,6 +42,7 @@ export function orderingScore(
 	return finite(row.rating) && finite(row.rd) && row.rd >= 0 ? row.rating - 2 * row.rd : null;
 }
 
+/** A missing, fractional or nonpositive epoch cannot identify a published rating scale. */
 export function knownEpoch(value: unknown): value is number {
 	return finite(value) && Number.isInteger(value) && value > 0;
 }

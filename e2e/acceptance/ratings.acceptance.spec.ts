@@ -3,6 +3,7 @@
 import { expect, test, type Page } from '@playwright/test';
 import type { GameHistory } from '../../src/lib/live/historyApi';
 import type { GameRatingChange } from '../../src/lib/live/ratingApi';
+import type { Me } from '../../src/lib/auth/authApi';
 import type {
 	LeaderRow,
 	Leaderboard,
@@ -166,7 +167,29 @@ const casualResult: GameRatingChange = {
 	black: null,
 };
 
-async function stubApi(page: Page, historyStatuses: number[] = []) {
+const account: Me = {
+	id: '00000000-0000-4000-8000-000000000001',
+	nickname: 'ExamplePlayer',
+	rating: 1500,
+	rd: 350,
+	provisional: true,
+	games: 0,
+	admin: false,
+	ratings: [
+		{
+			category: 'bullet',
+			rating: 1400,
+			rd: 50,
+			provisional: false,
+			games: 12,
+			wins: 7,
+			draws: 1,
+			losses: 4,
+		},
+	],
+};
+
+async function stubApi(page: Page, historyStatuses: number[] = [], signedIn = false) {
 	const requests: string[] = [];
 	await page.route('**/*', async (route) => {
 		const url = new URL(route.request().url());
@@ -181,6 +204,9 @@ async function stubApi(page: Page, historyStatuses: number[] = []) {
 			body = [summary];
 		} else if (url.pathname.startsWith('/leaderboard/snapshots/blitz/7/')) body = historical;
 		else if (url.pathname === '/players/by-nickname/ExamplePlayer') body = player;
+		else if (signedIn && url.pathname === '/auth/me') body = account;
+		else if (signedIn && url.pathname === '/auth/me/guests') body = { guests: [] };
+		else if (signedIn && url.pathname === '/me/opponents') body = { opponents: [] };
 		else if (/^\/games\/(training-example|casual-example)\/history$/.test(url.pathname))
 			body = { ...archivedGame, gameId: url.pathname.split('/')[2] };
 		else if (url.pathname === '/games/training-example/rating') body = trainingResult;
@@ -253,6 +279,7 @@ test('current ordering and exact earlier-epoch history remain distinct', async (
 	});
 	await page.goto(target.pathname + target.search);
 	await expect(page.getByText('Historical snapshot · Epoch 7', { exact: true })).toBeVisible();
+	await expect(page.getByText('Earlier epoch', { exact: true })).toBeVisible();
 	expect(
 		requests.filter(
 			(request) => request === `/leaderboard/snapshots/blitz/7/${encodeURIComponent(cutoff)}`,
@@ -260,29 +287,29 @@ test('current ordering and exact earlier-epoch history remain distinct', async (
 	).toBeGreaterThanOrEqual(2);
 });
 
-test('profile keeps sparse training estimates and metadata separate', async ({ page }, info) => {
+test('profile integrates sparse training estimates separately from competitive ratings', async ({
+	page,
+}, info) => {
 	await stubApi(page);
 	await page.goto('/players/ExamplePlayer');
 	await expect(page.getByRole('heading', { name: 'ExamplePlayer', exact: true })).toBeVisible();
+	await expect(page.getByRole('heading', { name: 'Training vs bots', exact: true })).toBeVisible();
 	const training = page.getByRole('list', { name: 'Training vs bots' });
 	const rows = training.getByRole('listitem');
 	await expect(rows).toHaveCount(3);
 	await expect(rows.nth(0)).toContainText('Bullet');
 	await expect(rows.nth(0)).toContainText('1,234');
-	await expect(rows.nth(0)).toContainText('95% interval 1,001–1,467');
-	await expect(rows.nth(0)).toContainText('provisional');
-	await expect(rows.nth(0)).toContainText('Epoch 8');
-	await expect(rows.nth(0)).toContainText('Data cutoff not reported');
-	await expect(rows.nth(0)).toContainText('Calculation time not reported');
-	await expect(rows.nth(0)).toContainText('Glicko-2 · synthetic-v2');
-	await expect(rows.nth(0)).toContainText('3 training games');
-	await expect(rows.nth(0)).toContainText('2W');
-	for (const index of [1, 2]) {
+	for (const [index, speed] of [
+		[1, 'Blitz'],
+		[2, 'Rapid'],
+	] as const) {
+		await expect(rows.nth(index)).toContainText(speed);
 		await expect(rows.nth(index)).toContainText('No training estimate at this speed.');
 		await expect(rows.nth(index)).not.toContainText('1,234');
 		await expect(rows.nth(index)).not.toContainText('1,500');
 	}
 	await expect(page.getByText('1,800', { exact: true })).toBeVisible();
+	await expect(training).not.toContainText('1,800');
 	await expect(
 		page.getByText(/Training estimates and records are separate from competitive standings/),
 	).toBeVisible();
@@ -368,4 +395,38 @@ test('explicit casual replay is terminal even when applied is false', async ({ p
 	await page.screenshot({
 		path: info.outputPath(`ratings-${info.project.name}-replay-casual.png`),
 	});
+});
+
+test('signed-in account preserves sparse competitive speeds without a default rating', async ({
+	page,
+}, info) => {
+	await stubApi(page, [], true);
+	await page.goto('/me');
+	const onboarding = page.getByRole('dialog', { name: 'You’re signed in' });
+	await expect(onboarding).toBeVisible();
+	await onboarding.getByRole('button', { name: 'Later', exact: true }).click();
+	await expect(page.getByRole('dialog')).toHaveCount(0);
+	await expect(
+		page.getByRole('heading', { name: 'Competitive ratings', exact: true }),
+	).toBeVisible();
+	const link = page.getByRole('link', { name: 'View public profile', exact: true });
+	await expect(link).toHaveAttribute('href', '/players/ExamplePlayer');
+	const ratings = page.getByRole('list').filter({ has: page.getByText('1,400', { exact: true }) });
+	const rows = ratings.getByRole('listitem');
+	await expect(rows).toHaveCount(3);
+	await expect(rows.nth(0)).toContainText('Bullet');
+	await expect(rows.nth(0)).toContainText('95% interval 1,302–1,498');
+	await expect(rows.nth(0).getByText('provisional', { exact: true })).toHaveCount(0);
+	for (const [index, speed] of [
+		[1, 'Blitz'],
+		[2, 'Rapid'],
+	] as const) {
+		await expect(rows.nth(index)).toContainText(speed);
+		await expect(rows.nth(index).getByLabel('Unrated at this speed')).toBeVisible();
+		await expect(rows.nth(index)).toContainText('no rated games at this speed');
+	}
+	await expect(page.getByText(/^1,?500$/)).toHaveCount(0);
+	await expectNoPageOverflow(page);
+	await ratings.scrollIntoViewIfNeeded();
+	await page.screenshot({ path: info.outputPath(`ratings-${info.project.name}-account.png`) });
 });

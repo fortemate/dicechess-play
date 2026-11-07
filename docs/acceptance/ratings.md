@@ -21,6 +21,7 @@ freshness, and unavailable history with a successful retry. Desktop and mobile a
 keyboard activation, no page overflow, exact snapshot permalink reload, and separate training records.
 Replay fixtures verify the recorded training delta, captured anchor reference and archived speed,
 plus a casual result that remains terminal with `applied=false`.
+The signed-in account fixture leaves Blitz and Rapid unrated rather than reusing its default scalar.
 Colocated unit/component tests additionally cover nanosecond cutoff identity, equivalent ISO cutoff
 formats, cancelled/stale requests, absent legacy metadata, skipped outcomes, and training polling when
 `rated=false`.
@@ -33,7 +34,7 @@ inactivity or a frozen rating, and a recent game's `rated=false` alone never imp
 Selected rendered evidence is stored in `evidence/ratings/`. All names, values and epochs in these
 images are synthetic.
 
-Validation: 1,463 Vitest tests, six built-bundle smoke tests, and ten ratings acceptance tests passed.
+Validation: 1,477 Vitest tests, six built-bundle smoke tests, and twelve ratings acceptance tests passed.
 Lint, formatting, type checks, rules-version alignment and the mandatory bundled-engine move and
 continuation checks passed.
 
@@ -41,3 +42,4 @@ continuation checks passed.
 - [Historical snapshot, desktop](evidence/ratings/history-desktop.png)
 - [Training estimate, mobile](evidence/ratings/training-mobile.png)
 - [Training result, mobile](evidence/ratings/result-mobile.png)
+- [Sparse account ratings, mobile](evidence/ratings/account-mobile.png)

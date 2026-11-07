@@ -84,6 +84,7 @@
 	const ratedGames = $derived((profile?.ratings ?? []).reduce((sum, r) => sum + r.games, 0));
 	/** Other recorded games may include training or skipped updates as well as casual games. */
 	const otherGames = $derived(Math.max(0, (profile?.totalGames ?? 0) - ratedGames));
+	const countsConsistent = $derived((profile?.totalGames ?? 0) >= ratedGames);
 </script>
 
 <svelte:head>
@@ -128,11 +129,14 @@
 			<CategoryRatings ratings={profile.ratings ?? []} />
 			<!-- Training and other finished games are never folded into the competitive record. -->
 			<p class="text-xs text-content-muted">
-				{m.profile_competitive_record_summary({
-					rated: ratedGames,
-					other: otherGames,
-					total: profile.totalGames,
-				})}
+				{#if countsConsistent}{m.profile_competitive_record_summary({
+						rated: ratedGames,
+						other: otherGames,
+						total: profile.totalGames,
+					})}{:else}{m.profile_competitive_record_unreconciled({
+						rated: ratedGames,
+						total: profile.totalGames,
+					})}{/if}
 			</p>
 		</div>
 

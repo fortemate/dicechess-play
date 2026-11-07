@@ -44,7 +44,7 @@
 			>
 				({shown.label})
 			</span>
-		{:else if details?.outcome === 'skipped' || details?.outcome === 'casual'}
+		{:else if details?.outcome === 'applied' || details?.outcome === 'skipped' || details?.outcome === 'casual'}
 			<span>{m.game_rating_unchanged()}</span>
 		{:else}
 			<span>{m.game_rating_unrecorded()}</span>

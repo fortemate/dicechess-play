@@ -188,3 +188,16 @@ describe('historical movement wording', () => {
 		expect(queryByText('Rating update recorded.')).toBeNull();
 	});
 });
+
+describe('confirmed applied movement', () => {
+	it('shows an unchanged seat when an applied training result has no seat movement', () => {
+		const { getByText, queryByText } = render(RatingDeltaLine, {
+			outcome: {
+				kind: 'unmoved',
+				details: { outcome: 'applied', ratingDomain: 'training' },
+			},
+		});
+		expect(getByText('Rating unchanged.')).toBeTruthy();
+		expect(queryByText('Rating movement not recorded.')).toBeNull();
+	});
+});

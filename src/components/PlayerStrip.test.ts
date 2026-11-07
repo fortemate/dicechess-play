@@ -41,6 +41,29 @@ describe('PlayerStrip', () => {
 		expect(queryByText('·', { exact: false })).toBeNull();
 	});
 
+	it('associates each displayed seat rating with its own screen-reader context', () => {
+		const first = render(PlayerStrip, { name: 'White', sub: 'player', rating: 1756 });
+		const second = render(PlayerStrip, { name: 'Black', sub: 'player', rating: 1600 });
+		const firstRating = first.getByText('· 1756');
+		const secondRating = second.getByText('· 1600');
+		const firstId = firstRating.getAttribute('aria-describedby');
+		const secondId = secondRating.getAttribute('aria-describedby');
+		expect(firstId).toBeTruthy();
+		expect(secondId).toBeTruthy();
+		expect(firstId).not.toBe(secondId);
+		for (const [container, id] of [
+			[first.container, firstId],
+			[second.container, secondId],
+		] as const) {
+			const context = container.querySelector(`[id="${id}"]`);
+			expect(context?.textContent).toBe(
+				'Seat ratings are competitive ratings at game start. Their uncertainty and epoch are not reported here.',
+			);
+			expect(context?.classList.contains('sr-only')).toBe(true);
+			expect(context?.getAttribute('aria-hidden')).not.toBe('true');
+		}
+	});
+
 	it('renders the dense phone row only when asked for (showcase table)', () => {
 		const regular = render(PlayerStrip, { name: 'BraveDie', sub: 'player' });
 		expect(regular.container.firstElementChild?.className).toMatch(/\bmin-h-14\b/);

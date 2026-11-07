@@ -38,6 +38,8 @@ afterEach(() => {
 	cleanup();
 	vi.useRealTimers();
 	vi.resetAllMocks();
+	vi.unstubAllGlobals();
+	vi.unstubAllEnvs();
 });
 
 describe('GameRatingResult', () => {
@@ -169,5 +171,62 @@ describe('GameRatingResult', () => {
 			await vi.advanceTimersByTimeAsync(20_000);
 		});
 		expect(fetchRating).toHaveBeenCalledTimes(3);
+	});
+});
+
+describe('bounded rating transport', () => {
+	it.each(['headers', 'body'])(
+		'retries stalled %s requests through the real helper and reaches the delayed state',
+		async (stage) => {
+			vi.useFakeTimers();
+			vi.stubEnv('VITE_PLAY_API_URL', 'http://localhost:8080');
+			const actual =
+				await vi.importActual<typeof import('#lib/live/ratingApi.js')>('#lib/live/ratingApi.js');
+			fetchRating.mockImplementation(actual.fetchGameRatingChange);
+			const hung = new Promise<never>(() => {});
+			const transport = vi.fn().mockReturnValue(
+				stage === 'headers'
+					? hung
+					: Promise.resolve({
+							ok: true,
+							status: 200,
+							json: () => hung,
+						}),
+			);
+			vi.stubGlobal('fetch', transport);
+			const { getByText } = render(GameRatingResult, { gameId: 'stalled' });
+			await flush();
+			await act(async () => {
+				await vi.advanceTimersByTimeAsync(5_000);
+			});
+			expect(getByText('Could not load game ratings. Trying again…')).toBeTruthy();
+			expect(transport.mock.calls[0][1].signal.aborted).toBe(true);
+			await act(async () => {
+				await vi.advanceTimersByTimeAsync(355_000);
+			});
+			expect(transport).toHaveBeenCalledTimes(36);
+			expect(
+				getByText('Rating details are not ready. Open this game again later to check.'),
+			).toBeTruthy();
+		},
+	);
+
+	it('aborts an in-flight transport on unmount without scheduling another attempt', async () => {
+		vi.useFakeTimers();
+		vi.stubEnv('VITE_PLAY_API_URL', 'http://localhost:8080');
+		const actual =
+			await vi.importActual<typeof import('#lib/live/ratingApi.js')>('#lib/live/ratingApi.js');
+		fetchRating.mockImplementation(actual.fetchGameRatingChange);
+		const transport = vi.fn().mockReturnValue(new Promise<never>(() => {}));
+		vi.stubGlobal('fetch', transport);
+		const { unmount } = render(GameRatingResult, { gameId: 'stalled' });
+		await flush();
+		unmount();
+		await flush();
+		expect(transport.mock.calls[0][1].signal.aborted).toBe(true);
+		await act(async () => {
+			await vi.advanceTimersByTimeAsync(20_000);
+		});
+		expect(transport).toHaveBeenCalledTimes(1);
 	});
 });

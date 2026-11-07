@@ -45,8 +45,9 @@
 	});
 
 	$effect(() => {
-		if (!isLiveEnabled() || view !== 'live') return;
-		const wanted = scope;
+		if (!isLiveEnabled()) return;
+		// History needs the current scale too, including when an immutable permalink opens directly.
+		const wanted = view === 'history' ? 'bots' : scope;
 		const wantedCategory = category;
 		void retry;
 		board = null;

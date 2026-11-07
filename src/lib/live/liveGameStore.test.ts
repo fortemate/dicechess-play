@@ -139,6 +139,8 @@ describe('LiveGameStore pacing', () => {
 		expect(live.ratingDomain).toBe('training');
 		deliver(snapshot({ rated: false }));
 		expect(live.ratingDomain).toBeUndefined();
+		deliver(snapshot({ rated: false, ratingDomain: 'training' }));
+		expect(live.ratingDomain).toBe('training');
 		live.connect('next-game', 'next-token', 'white');
 		expect(live.ratingDomain).toBeUndefined();
 	});

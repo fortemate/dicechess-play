@@ -24,6 +24,7 @@
 
 	$effect(() => {
 		const id = gameId;
+		const controller = new AbortController();
 		let disposed = false;
 		let timer: ReturnType<typeof setTimeout> | undefined;
 		let attempts = 0;
@@ -34,7 +35,7 @@
 		async function load() {
 			attempts += 1;
 			try {
-				const response = await fetchGameRatingChange(id);
+				const response = await fetchGameRatingChange(id, controller.signal);
 				if (disposed) return;
 				if (!response) {
 					status = 'unavailable';
@@ -58,6 +59,7 @@
 		void load();
 		return () => {
 			disposed = true;
+			controller.abort();
 			if (timer !== undefined) clearTimeout(timer);
 		};
 	});

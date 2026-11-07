@@ -69,6 +69,10 @@
 		<span>{termination}</span>
 		<a
 			href={resolve('/replay/[id]', { id: game.gameId })}
+			aria-label={m.common_rating_game_details_context({
+				opponent: opponentName,
+				finishedAt: formatDate(game.finishedAt),
+			})}
 			class="font-semibold text-primary underline">{m.common_rating_game_details()}</a
 		>
 	</div>

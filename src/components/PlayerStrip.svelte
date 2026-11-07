@@ -42,6 +42,8 @@
 	}: Props = $props();
 
 	const low = $derived(clockMs !== undefined && isLowTime(clockMs));
+	const instanceId = $props.id();
+	const ratingContextId = `${instanceId}-rating-context`;
 </script>
 
 <!-- min-h matches the strip's height with the clock pill (taller than the avatar),
@@ -89,9 +91,9 @@
 				<small
 					class="shrink-0 font-mono text-[11px] text-content-muted"
 					title={m.common_rating_seat_estimate_context()}
-					aria-label={m.common_rating_seat_rating_aria({ rating: Math.round(rating) })}
-					>· {Math.round(rating)}</small
+					aria-describedby={ratingContextId}>· {Math.round(rating)}</small
 				>
+				<span id={ratingContextId} class="sr-only">{m.common_rating_seat_estimate_context()}</span>
 			{/if}
 			{#if bot}
 				<BotBadge />
