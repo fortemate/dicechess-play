@@ -1,4 +1,4 @@
-# Versioned ratings acceptance (#124)
+# Versioned ratings acceptance (#124, #125)
 
 This suite runs the built SPA against deterministic, synthetic public API responses. The reserved
 `ratings-staging.invalid` origin is intercepted locally; all other external requests are blocked.
@@ -22,6 +22,10 @@ keyboard activation, no page overflow, exact snapshot permalink reload, and sepa
 Replay fixtures verify the recorded training delta, captured anchor reference and archived speed,
 plus a casual result that remains terminal with `applied=false`.
 The signed-in account fixture leaves Blitz and Rapid unrated rather than reusing its default scalar.
+A speed-switch regression clears the old board during loading, preserves a failed refresh as an
+error, and retries into an explicitly empty Rapid board without restoring cached Blitz rows.
+Rendered assertions also preserve supplied confidence bounds, provisional status, and unknown
+activity or freshness metadata.
 Colocated unit/component tests additionally cover nanosecond cutoff identity, equivalent ISO cutoff
 formats, cancelled/stale requests, absent legacy metadata, skipped outcomes, and training polling when
 `rated=false`.
@@ -34,7 +38,7 @@ inactivity or a frozen rating, and a recent game's `rated=false` alone never imp
 Selected rendered evidence is stored in `evidence/ratings/`. All names, values and epochs in these
 images are synthetic.
 
-Validation: 1,479 Vitest tests, six built-bundle smoke tests, and twelve ratings acceptance tests passed.
+Validation: 1,479 Vitest tests, six built-bundle smoke tests, and fourteen ratings acceptance tests passed.
 Lint, formatting, type checks, rules-version alignment and the mandatory bundled-engine move and
 continuation checks passed.
 
