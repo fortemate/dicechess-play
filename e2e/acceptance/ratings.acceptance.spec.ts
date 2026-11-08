@@ -247,6 +247,8 @@ test('current ordering and exact earlier-epoch history remain distinct', async (
 	await expect(rows.nth(1)).toContainText('1,600');
 	await expect(rows.nth(0)).toContainText('Not in automatic ladder');
 	await expect(rows.nth(0)).not.toContainText(/frozen/i);
+	await expect(rows.nth(0)).toContainText('95% interval 1,651–1,749');
+	await expect(page.getByText('Epoch 9 · Activity not reported', { exact: true })).toBeVisible();
 	await expectNoPageOverflow(page);
 	await page.screenshot({
 		path: info.outputPath(`ratings-${info.project.name}-current.png`),
@@ -299,6 +301,11 @@ test('profile integrates sparse training estimates separately from competitive r
 	await expect(rows).toHaveCount(3);
 	await expect(rows.nth(0)).toContainText('Bullet');
 	await expect(rows.nth(0)).toContainText('1,234');
+	await expect(rows.nth(0)).toContainText('95% interval 1,001–1,467');
+	await expect(rows.nth(0)).toContainText('provisional');
+	await expect(rows.nth(0)).toContainText('Data cutoff not reported');
+	await expect(rows.nth(0)).toContainText('Calculation time not reported');
+	await expect(rows.nth(0)).toContainText('Glicko-2 · synthetic-v2');
 	for (const [index, speed] of [
 		[1, 'Blitz'],
 		[2, 'Rapid'],
@@ -321,6 +328,49 @@ test('profile integrates sparse training estimates separately from competitive r
 	await training.locator('..').scrollIntoViewIfNeeded();
 	await page.screenshot({
 		path: info.outputPath(`ratings-${info.project.name}-training-detail.png`),
+	});
+});
+
+test('speed changes clear stale ratings through a failed refresh and an empty retry', async ({
+	page,
+}, info) => {
+	const requests = await stubApi(page);
+	let releaseFailure!: () => void;
+	const failureGate = new Promise<void>((resolve) => (releaseFailure = resolve));
+	let rapidRequests = 0;
+	await page.route(`${API_ORIGIN}/leaderboard?**`, async (route) => {
+		const url = new URL(route.request().url());
+		if (url.searchParams.get('category') !== 'rapid') return route.fallback();
+		requests.push(url.pathname + url.search);
+		rapidRequests++;
+		if (rapidRequests === 1) await failureGate;
+		await route.fulfill({
+			status: rapidRequests === 1 ? 503 : 200,
+			contentType: 'application/json',
+			body: JSON.stringify({ category: 'rapid', leaders: [] }),
+			headers: { 'access-control-allow-origin': 'http://localhost:4175' },
+		});
+	});
+	await page.goto('/leaderboard');
+	await expect(page.getByText('Example Steady', { exact: true })).toBeVisible();
+	await page.getByRole('button', { name: 'Rapid', exact: true }).click();
+	await expect(page.getByRole('status')).toContainText('Loading the board…');
+	await expect(page.getByText('Example Steady', { exact: true })).toHaveCount(0);
+	await expect(page.locator('tbody tr')).toHaveCount(0);
+	releaseFailure();
+	await expect(page.getByRole('alert')).toContainText('The leaderboard is unavailable right now');
+	await expect(page.getByText('Nothing on the rapid board yet')).toHaveCount(0);
+	await page.getByRole('button', { name: 'Retry', exact: true }).click();
+	await expect(page.getByText(/Nothing on the rapid board yet/)).toBeVisible();
+	await expect(page.getByRole('alert')).toHaveCount(0);
+	await expect(page.getByText('Example Steady', { exact: true })).toHaveCount(0);
+	expect(
+		requests.filter((request) => request === '/leaderboard?kind=all&category=rapid'),
+	).toHaveLength(2);
+	await expectNoPageOverflow(page);
+	await page.screenshot({
+		path: info.outputPath(`ratings-${info.project.name}-empty-after-retry.png`),
+		fullPage: true,
 	});
 });
 
