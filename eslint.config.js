@@ -76,6 +76,14 @@ export default ts.config(
 	{
 		// src/lib/paraglide/ is compiler output: generated, gitignored, and it carries its own
 		// `/* eslint-disable */` headers that would trip unused-directive reporting (i18n epic #8).
-		ignores: ['dist/', 'node_modules/', '.svelte-kit/', 'public/', '.vite/', 'src/lib/paraglide/'],
+		ignores: [
+			'dist/',
+			'.pwa-test/',
+			'node_modules/',
+			'.svelte-kit/',
+			'public/',
+			'.vite/',
+			'src/lib/paraglide/',
+		],
 	},
 );

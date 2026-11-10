@@ -1,5 +1,6 @@
 package-lock.json
 dist/
+.pwa-test/
 node_modules/
 public/
 .svelte-kit/

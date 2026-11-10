@@ -78,7 +78,14 @@ export default defineConfig({
 				version: { pollInterval: 60_000 },
 			},
 			{
-				registerType: 'autoUpdate',
+				// Resolve the worker at the site root even when entering a nested SPA route.
+				base: '/',
+				scope: '/',
+				// Keep an update waiting until the layout can safely reload outside a game.
+				registerType: 'prompt',
+				// The adapter writes this shell after worker generation. The Kit integration
+				// revisions its precache entry from version.json, rather than a missing file.
+				kit: { adapterFallback: 'index.html', spa: true },
 				manifest: {
 					id: 'dicechess-play',
 					name: 'Dice Chess — Play',
@@ -112,7 +119,7 @@ export default defineConfig({
 						},
 					],
 				},
-				workbox: {
+				generateSW: {
 					globPatterns: ['**/*.{js,css,html,ico,png,svg,mp3,ogg,wasm}'],
 				},
 			},

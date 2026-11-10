@@ -86,6 +86,12 @@
 		if (!isOver) endModalDismissed = false;
 	});
 	const showEndModal = $derived(isOver && !endModalDismissed);
+	$effect(() => {
+		chromeStore.holdReload = !inLobby && !isOver;
+		return () => {
+			chromeStore.holdReload = false;
+		};
+	});
 	const endTone = $derived(
 		store.gameStatus === 'victory'
 			? ('win' as const)
