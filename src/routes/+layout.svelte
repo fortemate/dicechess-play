@@ -14,13 +14,16 @@
 
 	// This layout also renders at build time when the static content pages (/rules,
 	// #254) are prerendered, so browser-only boot work is gated on `browser`.
-	// registerType: 'autoUpdate' (vite.config.ts): once a new service worker activates, the plugin
-	// reloads the page — at that very instant, which after every deploy lands on whoever is mid-game
-	// and drops their seat. A game screen raises chromeStore.holdReload instead, and the effect
-	// below performs the reload once the screen is idle again.
+	// A new worker waits until the game releases holdReload. Explicit activation lets the
+	// plugin reload into that worker only when it is safe to leave the current game.
 	let reloadPending = $state(false);
+	let activationPending = $state(false);
+	let updateWorker: ((reloadPage?: boolean) => Promise<void>) | undefined;
 	if (browser) {
-		useRegisterSW({ onNeedReload: () => (reloadPending = true) });
+		({ updateServiceWorker: updateWorker } = useRegisterSW({
+			onNeedRefresh: () => (activationPending = true),
+			onNeedReload: () => (reloadPending = true),
+		}));
 
 		// Tell app.html's boot watchdog (#223) that the module graph made it: from here on a
 		// failed import is a runtime matter for staleBundleRecovery, never a wedged boot.
@@ -33,7 +36,12 @@
 	}
 
 	$effect(() => {
-		if (reloadPending && !chromeStore.holdReload) window.location.reload();
+		if (chromeStore.reloadHeld) return;
+		if (reloadPending) window.location.reload();
+		else if (activationPending && updateWorker) {
+			activationPending = false;
+			void updateWorker(true);
+		}
 	});
 </script>
 

@@ -30,6 +30,7 @@
 		"test:coverage": "vitest run --coverage",
 		"prepare": "paraglide-js compile --project ./project.inlang --outdir ./src/lib/paraglide && svelte-kit sync || echo \"\"",
 		"test:e2e": "playwright test",
+		"test:pwa": "node scripts/prepare-pwa-test.mjs && playwright test --config playwright.pwa.config.ts",
 		"test:acceptance": "node --experimental-strip-types scripts/showcase-acceptance/runAll.ts"
 	},
 	"dependencies": {

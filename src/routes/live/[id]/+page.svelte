@@ -58,6 +58,12 @@
 		typeof window !== 'undefined' && window.matchMedia('(min-width: 1024px)').matches;
 
 	const live = new LiveGameStore();
+	$effect(() => {
+		chromeStore.holdReload = isLiveEnabled() && !live.spectator && live.gameStatus !== 'over';
+		return () => {
+			chromeStore.holdReload = false;
+		};
+	});
 
 	let confirmResign = $state(false);
 	let showHistory = $state(wideScreen());

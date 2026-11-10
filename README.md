@@ -274,6 +274,11 @@ are recorded by play-api itself, not from here.
 
 ## Deploy
 
+Run `npm run test:pwa` to build two production revisions and exercise service-worker registration,
+offline SPA navigation and a same-origin update that waits for an active practice game to finish.
+It uses Chromium with service workers enabled and a loopback static server, without API response
+interception. Temporary builds live in the ignored `.pwa-test/` directory.
+
 Every push to `main` builds in GitHub Actions and Direct-Uploads `dist/` to Cloudflare Pages
 (`.github/workflows/deploy.yaml`) — so **never commit to `main`**. Building in Actions is what
 keeps the packages PAT out of Cloudflare. Releases are a manual `Ops: Release` dispatch that bumps
