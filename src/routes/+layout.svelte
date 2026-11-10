@@ -36,7 +36,7 @@
 	}
 
 	$effect(() => {
-		if (chromeStore.holdReload) return;
+		if (chromeStore.reloadHeld) return;
 		if (reloadPending) window.location.reload();
 		else if (activationPending && updateWorker) {
 			activationPending = false;

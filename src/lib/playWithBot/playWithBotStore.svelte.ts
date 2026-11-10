@@ -76,6 +76,7 @@ export function resetDiceChessInstance() {
 
 import { botStatsStore } from '../botStatsStore.svelte';
 import { preferencesStore } from '../preferencesStore.svelte';
+import { chromeStore } from '../stores/chromeStore.svelte';
 import {
 	saveLocalGame,
 	type DiceChessTurnHistory,
@@ -1688,7 +1689,12 @@ export class PlayWithBotStore {
 				mode: this.mode,
 				events: $state.snapshot(this.events),
 			};
-			await saveLocalGame(gameRecord);
+			chromeStore.pendingGameSaves++;
+			try {
+				await saveLocalGame(gameRecord);
+			} finally {
+				chromeStore.pendingGameSaves--;
+			}
 			logger.info('Game successfully saved to IndexedDB');
 		} catch (e) {
 			logger.error('Failed to save local game record', e as Error);

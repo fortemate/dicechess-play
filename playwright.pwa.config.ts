@@ -5,7 +5,7 @@ export default defineConfig({
 	workers: 1,
 	retries: 0,
 	timeout: 60_000,
-	use: { baseURL: 'http://localhost:4176', serviceWorkers: 'allow', trace: 'off' },
+	use: { baseURL: 'http://localhost:4176', serviceWorkers: 'allow', trace: 'retain-on-failure' },
 	webServer: {
 		command: 'node scripts/pwa-test-server.mjs',
 		url: 'http://localhost:4176',

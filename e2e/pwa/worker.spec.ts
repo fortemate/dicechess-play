@@ -3,8 +3,10 @@ import { test, expect, type Page } from '@playwright/test';
 async function controlled(page: Page, route: string) {
 	await page.goto(route);
 	await expect
-		.poll(() =>
-			page.evaluate(async () => !!(await navigator.serviceWorker.getRegistration())?.active),
+		.poll(
+			() => page.evaluate(async () => !!(await navigator.serviceWorker.getRegistration())?.active),
+			// A first install precaches the complete production asset graph on a cold browser.
+			{ timeout: 30_000 },
 		)
 		.toBe(true);
 	await page.reload();
@@ -27,7 +29,7 @@ for (const route of ['/', '/players/example', '/live/example', '/replay/example'
 		await controlled(page, route);
 		await context.setOffline(true);
 		await page.reload();
-		await expect(page.locator('body')).not.toBeEmpty();
+		await expect.poll(() => page.evaluate(() => window.__dcBooted)).toBe(true);
 		expect(await page.evaluate(() => !!navigator.serviceWorker.controller)).toBe(true);
 	});
 }
@@ -72,8 +74,17 @@ test('a new production build waits until the active practice game ends', async (
 			page.evaluate(async () => !!(await navigator.serviceWorker.getRegistration())?.waiting),
 		)
 		.toBe(true);
-	await page.waitForTimeout(1500);
+	// Let the app flush its waiting-worker callback and render before checking the hold.
+	await page.evaluate(
+		() =>
+			new Promise<void>((resolve) => {
+				requestAnimationFrame(() => requestAnimationFrame(() => resolve()));
+			}),
+	);
 	expect(await page.evaluate(() => sessionStorage.getItem('pwa-reload-count'))).toBe('0');
+	expect(
+		await page.evaluate(async () => !!(await navigator.serviceWorker.getRegistration())?.waiting),
+	).toBe(true);
 	await page.getByRole('button', { name: 'Resign', exact: true }).click();
 	await page
 		.getByRole('button', { name: 'Click again to confirm resignation', exact: true })
