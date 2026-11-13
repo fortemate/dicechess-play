@@ -54,10 +54,10 @@
     "selectedPairIndex": null
   },
   "fairness": {
-    "commit": "132ce06628ca939f55ffb4f93727ef38b7db72e7b8b54b1d540bd5a45ff48eb3",
-    "serverSeed": "1cf4727c3aea4f519d2c608620121d13955be9022ba1f176a8eda7dc3291230f",
+    "commit": "ad3d3f3d557491b002854076944363472f0074a0fac8887cb14d1e763bba9aaa",
+    "serverSeed": "f951fadc506d72346b32be7b3cd4b06ab34685a855207369ef5ccaa596929bbc",
     "clientSeeds": {
-      "white": "lab225-equal-offers-289",
+      "white": "lab225-equal-offers-985",
       "black": "acceptance-fixture-black"
     }
   }

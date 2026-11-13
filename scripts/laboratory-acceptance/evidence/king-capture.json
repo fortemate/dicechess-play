@@ -31,18 +31,18 @@
       "activeColor": "w",
       "offers": [
         [
-          1,
-          2
+          2,
+          1
         ],
         [
-          1,
-          6
+          5,
+          4
         ]
       ],
       "selectedPairIndex": 0,
       "dice": [
-        1,
-        2
+        2,
+        1
       ],
       "moves": [
         "c7d8"
@@ -54,21 +54,21 @@
     "phase": "Ended",
     "offers": [
       [
-        1,
-        2
+        2,
+        1
       ],
       [
-        1,
-        6
+        5,
+        4
       ]
     ],
     "selectedPairIndex": 0
   },
   "fairness": {
-    "commit": "a6fc63976af066168e73f4737b752d6737c00c76dd4a68ec025b311cf47e2ddf",
-    "serverSeed": "f291f073e75a077cfa3d8cc77f12627db43870b785fe70b13d046010e1307386",
+    "commit": "375a38080b2b49da4e064e56aa4f0c02f51a82ad171ed8f1d6d86f352f761735",
+    "serverSeed": "51a76dcd8715cd0c7911d88fb6b1111fc97198d79fea6cda8c183fdd0808ee8f",
     "clientSeeds": {
-      "white": "lab225-king-capture-3",
+      "white": "lab225-king-capture-26",
       "black": "acceptance-fixture-black"
     }
   }

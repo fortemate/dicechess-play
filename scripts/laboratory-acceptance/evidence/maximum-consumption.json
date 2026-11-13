@@ -57,10 +57,10 @@
     "selectedPairIndex": null
   },
   "fairness": {
-    "commit": "8e0c11e7dd606cdb22ab754d1a8a2c6ecd1a0381a04f95b6cf1b9a4384620d41",
-    "serverSeed": "798c791f9108d091cc1d7710c568cc1de0d6f87c2f134311bd2996a6eb573fb6",
+    "commit": "4e124844ea02279b52f29619baa35c3bbe2e328d657425a9c342506877429938",
+    "serverSeed": "88f7661095792e4a7422e8e04a340d3b4b3d4706a99bc10640f967a008735caa",
     "clientSeeds": {
-      "white": "lab225-maximum-consumption-106",
+      "white": "lab225-maximum-consumption-64",
       "black": "acceptance-fixture-black"
     }
   }

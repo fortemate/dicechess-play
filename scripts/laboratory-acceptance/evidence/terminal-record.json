@@ -34,18 +34,18 @@
       "activeColor": "w",
       "offers": [
         [
-          4,
-          5
-        ],
-        [
           6,
           4
+        ],
+        [
+          3,
+          5
         ]
       ],
       "selectedPairIndex": 0,
       "dice": [
-        4,
-        5
+        6,
+        4
       ],
       "moves": [],
       "fenAfter": "rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR b KQkq - 0 1"
@@ -55,8 +55,8 @@
       "activeColor": "b",
       "offers": [
         [
-          1,
-          6
+          4,
+          4
         ],
         [
           3,
@@ -65,14 +65,34 @@
       ],
       "selectedPairIndex": 0,
       "dice": [
-        1,
-        6
+        4,
+        4
+      ],
+      "moves": [],
+      "fenAfter": "rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 2"
+    },
+    {
+      "turnNumber": 2,
+      "activeColor": "w",
+      "offers": [
+        [
+          3,
+          2
+        ],
+        [
+          5,
+          2
+        ]
+      ],
+      "selectedPairIndex": 0,
+      "dice": [
+        3,
+        2
       ],
       "moves": [
-        "d7d5",
-        "e8d7"
+        "b1a3"
       ],
-      "fenAfter": "rnbq1bnr/pppkpppp/8/3p4/8/8/PPPPPPPP/RNBQKBNR w KQ d6 1 2"
+      "fenAfter": "rnbqkbnr/pppppppp/8/8/8/N7/PPPPPPPP/R1BQKBNR b KQkq - 1 2"
     }
   ],
   "currentTurn": {
@@ -81,11 +101,11 @@
     "selectedPairIndex": null
   },
   "fairness": {
-    "commit": "88e3062d187ef2e9c2a14e6a2df8559bf53cd8e2a74ac9a0364e66b0a7b61895",
-    "serverSeed": "0e2d6be3604d755512c963ce05f8872d5eaf7e793b2d173b0e122f2789fb471a",
+    "commit": "9ff10bdab492304d0b7ec283a9cd98ac55501eb1ce68b57d5bac29a181075eb9",
+    "serverSeed": "13eb31e4f7fa6113785642bc9850e2396a4f29b90a772de72e362c5b23819efd",
     "clientSeeds": {
-      "white": "5a8e6c335b4de1ce613786ecde476759",
-      "black": "188483e14136abc2c19fc7952151bd1d"
+      "white": "77a5e84fb689e6e838bd2d2fed3220f5",
+      "black": "c1efb2cff30700a40c8b4b75066f9b26"
     }
   }
 }

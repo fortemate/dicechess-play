@@ -79,6 +79,8 @@ Artifacts are written under the unique `run-<timestamp>/` subdirectory of `LAB_A
 
 ## Operator handoff
 
+The pinned API [runtime runbook](https://github.com/fortemate/dicechess-play-api/blob/e3254bbc022b02a1635075f62c57d8ab6d410f54/contributor-docs/src/content/docs/laboratory-runtime.md) provides the local Compose launch, admission closure, public-transcript SQL export, restricted backup and volume-preserving retirement procedures. This acceptance harness runs staged API processes and its own disposable database instead of that Compose recipe.
+
 This local harness does not select a production hostname, configure DNS, or launch a public service. Any later isolated launch or public admission decision is for the human operator. If an isolated deployment is authorized, keep its database and runtime separate, control admission with the actual `LAB_ADMISSION_OPEN` setting, avoid shared-database migrations, and have the operator decide any hostname or DNS changes. Keep the lab database and exported record under the configured retention policy (30 days by default); export completed records through the public UI/server transcript surface and verify them with the independent oracle before retention expires. Do not treat this local run as approval to open admission or as a deployed acceptance result.
 
 See [`REPORT.md`](./REPORT.md) for the qualified revisions, final results and remaining limitations.

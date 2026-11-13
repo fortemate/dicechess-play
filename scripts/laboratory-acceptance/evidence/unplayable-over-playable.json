@@ -54,10 +54,10 @@
     "selectedPairIndex": null
   },
   "fairness": {
-    "commit": "0242d6025371ae6720f9f2255f4ea64e4f758ed6a444692afabc726b6113bb5e",
-    "serverSeed": "c2472ee2c36439a3321dadd95feff2a00e9f61e1dff845af57310eef9fa301b6",
+    "commit": "b308d946a50f20e024ade701cbade6f6029308909797aa8cafe19ca2238197a7",
+    "serverSeed": "4893277d3822b60a05f3eeb1e8d931377fc19d78e1461731556d4c15e94af211",
     "clientSeeds": {
-      "white": "lab225-unplayable-over-playable-728",
+      "white": "lab225-unplayable-over-playable-1432",
       "black": "acceptance-fixture-black"
     }
   }

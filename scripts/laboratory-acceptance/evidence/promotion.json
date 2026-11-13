@@ -35,7 +35,7 @@
           1
         ],
         [
-          2,
+          6,
           1
         ]
       ],
@@ -56,10 +56,10 @@
     "selectedPairIndex": null
   },
   "fairness": {
-    "commit": "1af171616860d0a7c492ccf40cc973a3ae7f8b4ee5e61c5d86b88136f757a7c2",
-    "serverSeed": "f35a76b3b28ab93fc527d85db1bcd713d88c1c71b2f52b045bbba0ccbbec4f02",
+    "commit": "3523c1f4f6011d1743fa23d6aeac3c3bb1afc21296cd4f99a48e97e6ef3c0e05",
+    "serverSeed": "0e30f73cd1aff2b4adc6606a9dae336d9ea570eee42b6d30f6ab1f483c3f7e06",
     "clientSeeds": {
-      "white": "lab225-promotion-24",
+      "white": "lab225-promotion-21",
       "black": "acceptance-fixture-black"
     }
   }

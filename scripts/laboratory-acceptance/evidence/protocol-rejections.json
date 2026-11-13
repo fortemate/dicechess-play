@@ -25,24 +25,37 @@
     }
   },
   "completeness": "complete",
-  "turns": [],
+  "turns": [
+    {
+      "turnNumber": 0,
+      "activeColor": "w",
+      "offers": [
+        [
+          3,
+          4
+        ],
+        [
+          1,
+          2
+        ]
+      ],
+      "selectedPairIndex": 0,
+      "dice": [
+        3,
+        4
+      ],
+      "moves": [],
+      "fenAfter": "rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR b KQkq - 0 1"
+    }
+  ],
   "currentTurn": {
     "phase": "Ended",
-    "offers": [
-      [
-        6,
-        2
-      ],
-      [
-        3,
-        1
-      ]
-    ],
-    "selectedPairIndex": 0
+    "offers": [],
+    "selectedPairIndex": null
   },
   "fairness": {
-    "commit": "22124ee3a11775f999c7102986c7f5a01bcfb5e1f27856a8ce0d47b6077a470f",
-    "serverSeed": "d42526d3b4e8cb1b465397764c5f6ea6959c0771daf853b4d84afd15de442fa2",
+    "commit": "c883182e78154d41bf1224e603e28d55e3c066c5958bb9abd860ec8b048ab1ba",
+    "serverSeed": "e6240353bdc0002003ecbedd84bc004fa023eaf78a1c11dd5481d01fb8d4eab9",
     "clientSeeds": {
       "white": "acceptance-white-seed",
       "black": "acceptance-black-seed"

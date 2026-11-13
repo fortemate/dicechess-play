@@ -31,8 +31,8 @@
       "activeColor": "w",
       "offers": [
         [
-          3,
-          4
+          4,
+          3
         ],
         [
           6,
@@ -54,10 +54,10 @@
     "selectedPairIndex": null
   },
   "fairness": {
-    "commit": "d210a7121374f95452603fa2b523658ea3b599b216e43e782cb18a0e55b47837",
-    "serverSeed": "4a3c2aeed2717d5dc11502780ae417609e1afd5deeb11913704bc96fb7b867be",
+    "commit": "a0c86508ee65d596eb629132227d2075b3c19982894207f7e614b653fe413acd",
+    "serverSeed": "d56cf67e2d496e6b7db8d7a8b47f006909ce4a80b6b6f78f99685d51d4162cea",
     "clientSeeds": {
-      "white": "lab225-both-unplayable-150",
+      "white": "lab225-both-unplayable-447",
       "black": "acceptance-fixture-black"
     }
   }

@@ -31,18 +31,18 @@
       "activeColor": "w",
       "offers": [
         [
-          4,
-          6
+          6,
+          4
         ],
         [
-          2,
-          3
+          6,
+          5
         ]
       ],
       "selectedPairIndex": 0,
       "dice": [
-        4,
-        6
+        6,
+        4
       ],
       "moves": [
         "e1g1"
@@ -56,10 +56,10 @@
     "selectedPairIndex": null
   },
   "fairness": {
-    "commit": "d6eba9fb65dccfdc38dbce24ca49fd3981ce01f93af09dcc85a774d544d200e7",
-    "serverSeed": "2a273d24be377e7c0ba14511c6529b96c9a133a7797bf63bac319d28f74cbd6e",
+    "commit": "2d5bff1f63d42b947014cebc408f178e038ba6339a4eabe75b16cf6acafd2273",
+    "serverSeed": "ba77725eb5454585b9a789d93ca14ecdafa5adbd757fd4454bf30a53aa8f620b",
     "clientSeeds": {
-      "white": "lab225-castling-0",
+      "white": "lab225-castling-20",
       "black": "acceptance-fixture-black"
     }
   }

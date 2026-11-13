@@ -129,7 +129,7 @@
     {
       "scenario": "legal-move-through-ui",
       "status": "PASS",
-      "details": "submitted a legal move sequence (2 micro-moves)"
+      "details": "submitted a legal move sequence (1 micro-move)"
     },
     {
       "scenario": "finished-review-and-public-export",

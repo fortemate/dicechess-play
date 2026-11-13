@@ -32,19 +32,19 @@
     "phase": "Ended",
     "offers": [
       [
-        5,
-        4
+        2,
+        3
       ],
       [
-        2,
-        2
+        4,
+        1
       ]
     ],
     "selectedPairIndex": null
   },
   "fairness": {
-    "commit": "00f97ba305c5f2266f1da3b80dc09018df5a8fe62764495b13672d81d7e96662",
-    "serverSeed": "80763c2a7d1319c7a3fbd07941ee6eeac35716104b6fa1a0b34401aec33d2b17",
+    "commit": "d0e4320b4dcd424f2a2c8fa0da6bc4c31fe56f66297be330d0c3e637a62798c1",
+    "serverSeed": "56ad909e5f98f0c2e5fa8433a1a45d0a2674591f9172a1c328c7a4f9cefe2ef3",
     "clientSeeds": {
       "white": "acceptance-white-seed",
       "black": "acceptance-black-seed"

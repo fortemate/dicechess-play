@@ -22,7 +22,7 @@ export class AcceptanceEnvironment {
 	constructor() {
 		this.wsl =
 			process.platform === 'win32'
-				? ['-d', process.env.LAB_ACCEPTANCE_WSL_DISTRO ?? 'Ubuntu', '--']
+				? ['-d', process.env.LAB_ACCEPTANCE_WSL_DISTRO ?? 'Ubuntu', '--exec']
 				: null;
 		this.stage = process.env.LAB_ACCEPTANCE_STAGE_DIR;
 		this.java = process.env.LAB_ACCEPTANCE_JAVA_HOME;
@@ -145,6 +145,12 @@ export class AcceptanceEnvironment {
 	}
 	async setup(outputDir) {
 		await mkdir(outputDir, { recursive: true });
+		const literal = 'lab225 space ; $(printf altered) "quoted"';
+		assert.equal(
+			(await this.linux('printf', ['%s', literal])).stdout,
+			literal,
+			'Launcher must preserve arguments without shell expansion',
+		);
 		if (this.wsl) {
 			const networking = (await this.linux('wslinfo', ['--networking-mode'])).stdout.trim();
 			assert.equal(networking, 'nat', 'Windows acceptance requires an isolated WSL NAT network');

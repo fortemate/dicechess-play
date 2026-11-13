@@ -34,8 +34,8 @@
     "selectedPairIndex": null
   },
   "fairness": {
-    "commit": "124b7618d0d2bb99d7f02ab31a980902e2faefafe1cc527202a067d64054e45a",
-    "serverSeed": "e88a82427cc279f1b5949e3c5b7772ebd2af6b0eafc41834bb7a493dbcd2527e",
+    "commit": "cb6dfbd5c22ffbfb5b367302571138fde2327f1e119942404ab0bc28161e3008",
+    "serverSeed": "6b871ceb864c400950d1c049f8263dbc2c03d103e4b961e5a2faed2b26be9eb8",
     "clientSeeds": {
       "white": "acceptance-waiting-white",
       "black": "acceptance-waiting-black"
