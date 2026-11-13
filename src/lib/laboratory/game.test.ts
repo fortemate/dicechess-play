@@ -107,6 +107,19 @@ afterEach(() => {
 });
 
 describe('LaboratoryGame', () => {
+	it('unlocks a declined draw only after the authoritative version advances', () => {
+		const current = state('AwaitingFirstRoll', { drawOffer: { pending: true } });
+		const { game, send } = setup(current);
+		game.respondDraw(false);
+		expect(send).toHaveBeenCalledExactlyOnceWith({ RespondDraw: { accept: false } });
+		expect(game.pending).toBe(true);
+		game.frame({ DrawOfferArmed: { armed: false } });
+		expect(game.pending).toBe(true);
+		game.accept({ ...current, version: current.version + 1, drawOffer: null }, 'White');
+		expect(game.pending).toBe(false);
+		game.rollFirst();
+		expect(send).toHaveBeenCalledTimes(2);
+	});
 	it('gates commands by stage, active seat, and connection status', () => {
 		const wrongSeat = setup(state('AwaitingFirstRoll', { activeSeat: 'Black' }));
 		wrongSeat.game.rollFirst();

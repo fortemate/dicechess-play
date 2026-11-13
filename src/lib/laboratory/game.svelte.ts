@@ -33,9 +33,9 @@ export class LaboratoryGame {
 	private awaitingArm = false;
 
 	constructor(
-		private api: LaboratoryApi,
-		private gameId: () => string | null,
-		private send: Send,
+		private readonly api: LaboratoryApi,
+		private readonly gameId: () => string | null,
+		private readonly send: Send,
 	) {}
 
 	get canAct(): boolean {
@@ -81,14 +81,12 @@ export class LaboratoryGame {
 
 	accept(state: LaboratoryGameState, seat: Seat): void {
 		if (this.state && state.version < this.state.version) return;
-		const changed =
-			!this.state || state.version !== this.state.version || state.dfen !== this.state.dfen;
+		const changed = state.version !== this.state?.version || state.dfen !== this.state?.dfen;
 		if (changed) {
 			this.treeEpoch += 1;
 			this.draft = [];
 			this.tentative = null;
 			this.tree = validMoveTree(state.legalMoves) ? state.legalMoves : null;
-			this.simpleVersion = null;
 		}
 		this.state = state;
 		this.seat = seat;
@@ -138,23 +136,8 @@ export class LaboratoryGame {
 	}
 	frame(frame: unknown): void {
 		if (!isRecord(frame)) return;
-		if (
-			isRecord(frame.LabCommandApplied) &&
-			frame.LabCommandApplied.commandId === this.commandId &&
-			Number.isSafeInteger(frame.LabCommandApplied.appliedVersion)
-		) {
-			this.appliedVersion = Number(frame.LabCommandApplied.appliedVersion);
-			if (this.state && this.state.version >= this.appliedVersion) this.clearPending();
-		}
-		if (isRecord(frame.LabRejected) && frame.LabRejected.commandId === this.commandId) {
-			this.clearPending();
-			this.draft = [];
-			this.error = 'The server rejected this action. The latest position is being restored.';
-		}
-		if (isRecord(frame.Rejected)) {
-			this.clearPending();
-			this.error = 'The server rejected this action. Try again from the latest position.';
-		}
+		this.applyReceipt(frame.LabCommandApplied);
+		this.applyRejection(frame);
 		if (isRecord(frame.DrawOfferArmed) && typeof frame.DrawOfferArmed.armed === 'boolean') {
 			this.drawArmed = frame.DrawOfferArmed.armed;
 			if (this.awaitingArm) this.clearPending();
@@ -164,6 +147,27 @@ export class LaboratoryGame {
 				frame.TurnPlayed.moves.length === 0
 					? 'The selected pair had no legal moves. Turn passed.'
 					: null;
+		}
+	}
+	private applyReceipt(receipt: unknown): void {
+		if (
+			isRecord(receipt) &&
+			receipt.commandId === this.commandId &&
+			Number.isSafeInteger(receipt.appliedVersion)
+		) {
+			this.appliedVersion = Number(receipt.appliedVersion);
+			if (this.state && this.state.version >= this.appliedVersion) this.clearPending();
+		}
+	}
+	private applyRejection(frame: Record<string, unknown>): void {
+		if (isRecord(frame.LabRejected) && frame.LabRejected.commandId === this.commandId) {
+			this.clearPending();
+			this.draft = [];
+			this.error = 'The server rejected this action. The latest position is being restored.';
+		}
+		if (isRecord(frame.Rejected)) {
+			this.clearPending();
+			this.error = 'The server rejected this action. Try again from the latest position.';
 		}
 	}
 	clock(seat: Seat): string {
