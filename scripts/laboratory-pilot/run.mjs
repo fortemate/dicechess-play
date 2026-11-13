@@ -2,7 +2,7 @@
 import assert from 'node:assert/strict';
 import { execFile } from 'node:child_process';
 import { promisify } from 'node:util';
-import { mkdir, writeFile } from 'node:fs/promises';
+import { mkdir, writeFile, readFile } from 'node:fs/promises';
 import { resolve } from 'node:path';
 import { randomUUID } from 'node:crypto';
 import { chromium } from '@playwright/test';
@@ -97,6 +97,17 @@ async function incompleteFixture() {
 
 try {
 	await mkdir(output, { recursive: true });
+	const sourceRevision = (await exec('git', ['rev-parse', 'HEAD'], { cwd: ROOT })).stdout.trim();
+	const sourceStatus = async () =>
+		(
+			await exec('git', ['status', '--porcelain', '--untracked-files=all'], { cwd: ROOT })
+		).stdout.trim();
+	assert.equal(
+		await sourceStatus(),
+		'',
+		'Commit the candidate before qualification; the source must be clean',
+	);
+	const exportSql = await readFile(resolve(ROOT, 'ops/laboratory-pilot/export.sql'), 'utf8');
 	await exec(
 		process.execPath,
 		[
@@ -266,9 +277,7 @@ try {
 			).status,
 		),
 	);
-	const exports = await env.sql(
-		"SELECT jsonb_build_object('exportSchemaVersion',1,'gameId',t.game_id,'transcript',t.payload)::text FROM laboratory.transcripts t JOIN laboratory.games g USING(game_id) WHERE g.expires_at > clock_timestamp() ORDER BY t.game_id",
-	);
+	const exports = await env.sql(exportSql);
 	const records = exports.split('\n').map((line) => JSON.parse(line));
 	assert.ok(records.some((record) => verifyTranscript(record.transcript).status === 'verified'));
 	for (const record of records)
@@ -302,16 +311,20 @@ try {
 	await env.downPreservingData();
 	await env.compose(['up', '-d', '--wait', '--wait-timeout', '180']);
 	assert.equal(await env.sql('SELECT count(*) FROM laboratory.games'), count);
-	const after = await env.sql(
-		"SELECT jsonb_build_object('exportSchemaVersion',1,'gameId',t.game_id,'transcript',t.payload)::text FROM laboratory.transcripts t JOIN laboratory.games g USING(game_id) WHERE g.expires_at > clock_timestamp() ORDER BY t.game_id",
-	);
+	const after = await env.sql(exportSql);
 	assert.equal(after, exports);
 	pass('closed-admission-export-and-preserved-volume-recovery');
+	assert.equal(
+		(await exec('git', ['rev-parse', 'HEAD'], { cwd: ROOT })).stdout.trim(),
+		sourceRevision,
+		'Candidate revision changed during qualification',
+	);
+	assert.equal(await sourceStatus(), '', 'Candidate source changed during qualification');
 	result = {
 		schemaVersion: 1,
 		status: 'PASS',
 		publicDeployment: false,
-		clientSourceRevision: (await exec('git', ['rev-parse', 'HEAD'], { cwd: ROOT })).stdout.trim(),
+		clientSourceRevision: sourceRevision,
 		clientArtifactSha256: await artifactDigest(resolve(ROOT, 'dist-laboratory')),
 		serverRevision: SERVER_REVISION,
 		images: IMAGES,

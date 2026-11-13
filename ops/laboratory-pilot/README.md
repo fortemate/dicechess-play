@@ -105,6 +105,8 @@ Do not use `down --volumes` for routine shutdown. Permanent deletion is a separa
 
 Run the isolated harness from the client repository root:
 
+Use a clean, committed checkout with Node 26, installed npm dependencies, Playwright Chromium (`npx playwright install chromium`), OpenSSL and a local Docker Engine/Compose. On Windows the runner uses WSL's local Unix socket and requires NAT networking; the default distribution is `Ubuntu` (`LAB_PILOT_WSL_DISTRO` can select another). Remote Docker contexts are refused. The runner checks that the checkout remains clean at the same revision throughout qualification, and executes the reviewed `export.sql` directly.
+
 ```sh
 npm run test:laboratory:pilot
 ```

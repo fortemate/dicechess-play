@@ -93,7 +93,12 @@ export class PilotEnvironment {
 			literal,
 			'Launcher must preserve arguments without shell expansion',
 		);
-		await this.linux('sh', ['-c', 'test -z "${DOCKER_HOST:-}" && test -z "${DOCKER_CONTEXT:-}"']);
+		const localPath = async (path) =>
+			this.wsl
+				? (await this.linux('wslpath', ['-a', path.replaceAll('\\', '/')])).stdout.trim()
+				: path;
+		this.ops = await localPath(resolve(ROOT, 'ops/laboratory-pilot'));
+		await this.linux('sh', [`${this.ops}/check-rehearsal-host.sh`]);
 		assert.equal(
 			(
 				await this.linux('docker', [
@@ -119,11 +124,6 @@ export class PilotEnvironment {
 			});
 			assert.equal(busy, false, 'A rehearsal port is occupied; refusing to reuse another service');
 		}
-		const localPath = async (path) =>
-			this.wsl
-				? (await this.linux('wslpath', ['-a', path.replaceAll('\\', '/')])).stdout.trim()
-				: path;
-		this.ops = await localPath(resolve(ROOT, 'ops/laboratory-pilot'));
 		const artifact = await localPath(resolve(ROOT, 'dist-laboratory'));
 		this.state = (
 			await this.linux('mktemp', ['-d', '/tmp/dicechess-lab229.XXXXXXXX'])
@@ -210,13 +210,7 @@ export class PilotEnvironment {
 		const id = (await this.compose(['ps', '-q', 'db'])).stdout.trim();
 		assert.match(id, /^[a-f0-9]{64}$/);
 		// The restricted dump never leaves the private temporary directory or enters output buffers.
-		await this.linux('sh', [
-			'-c',
-			'set -eu; umask 077; docker --host unix:///var/run/docker.sock exec "$1" pg_dump -U postgres -d laboratory --format=custom > "$2/backup.dump"; docker --host unix:///var/run/docker.sock exec "$1" createdb -U postgres laboratory_restore; docker --host unix:///var/run/docker.sock exec -i "$1" pg_restore --exit-on-error -U postgres -d laboratory_restore < "$2/backup.dump"',
-			'backup',
-			id,
-			this.state,
-		]);
+		await this.linux('sh', [`${this.ops}/backup-rehearsal.sh`, id, this.state]);
 		assert.equal(
 			await this.sql('SELECT count(*) FROM laboratory.games', 'laboratory_restore'),
 			await this.sql('SELECT count(*) FROM laboratory.games'),

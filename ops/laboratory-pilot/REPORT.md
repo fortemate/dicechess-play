@@ -43,6 +43,8 @@ The isolated run also caught and corrected CRLF shell entrypoint handling, the p
 
 ## Remaining owner gate
 
+The follow-up launcher hardening keeps shell programs in checked-in scripts, supplies paths as separate arguments and forces `shell: false`. Qualification now also requires an unchanged clean checkout and executes the operator's `export.sql` file directly.
+
 This validates the local candidate and preparation package. The [plan](PLAN.md) proposes a seven-day pilot for 2–6 invited active players, subject to owner selection. Hosting, exact live origins, ingress, certificate process, cohort, operator window and restricted-backup retention remain pending. The [operator procedure](README.md) includes closed startup, export, restore, compatible rollback and retirement.
 
 A future host/ingress, freshly built live-origin frontend and physical phone/desktop smoke check require the separate owner go decision recorded in [#229](https://github.com/fortemate/dicechess-play/issues/229). This PR does not close that issue or reopen completed epic #221. The [#225 acceptance report](../../scripts/laboratory-acceptance/REPORT.md) remains the broader rules/protocol acceptance evidence; this report qualifies the additional pilot configuration.
