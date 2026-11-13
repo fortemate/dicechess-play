@@ -8,7 +8,7 @@ import { DiceChess } from '@fortemate/dicechess-engine/rules';
 import type { MoveTree } from '../moveTreeWalker';
 import type { LaboratoryApi, LaboratoryGameState } from './api';
 import { LaboratoryGame } from './game.svelte';
-import type { PublicTurn } from './protocol';
+import type { CommandFrame, PublicTurn } from './protocol';
 
 const START = 'rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1';
 const gameId = 'a12b3456-7890-4abc-def0-1234567890ab';
@@ -107,6 +107,158 @@ afterEach(() => {
 });
 
 describe('LaboratoryGame', () => {
+	it.each(['receipt first', 'state first'])('rolls both pairs with one action (%s)', (order) => {
+		const { game, send } = setup(state('AwaitingFirstRoll'));
+		game.rollDice();
+		game.rollDice();
+		const first = send.mock.calls[0][0] as CommandFrame;
+		const receipt = {
+			LabCommandApplied: { commandId: first.LabCommand.commandId, appliedVersion: 8 },
+		};
+		expect(first.LabCommand).toMatchObject({ expectedVersion: 7, action: { RollFirst: {} } });
+		expect(game.rollingDice).toBe(true);
+		if (order === 'receipt first') game.frame(receipt);
+		else game.accept(state('AwaitingSecondRoll', { version: 8 }), 'White');
+		expect(send).toHaveBeenCalledTimes(1);
+		if (order === 'receipt first')
+			game.accept(state('AwaitingSecondRoll', { version: 8 }), 'White');
+		else game.frame(receipt);
+		const second = send.mock.calls[1][0] as CommandFrame;
+		expect(second.LabCommand).toMatchObject({ expectedVersion: 8, action: { RollSecond: {} } });
+		expect(second.LabCommand.commandId).not.toBe(first.LabCommand.commandId);
+		expect(game.pending).toBe(true);
+		expect(game.rollingDice).toBe(true);
+		game.frame(receipt);
+		game.rollDice();
+		game.confirmPair();
+		expect(send).toHaveBeenCalledTimes(2);
+		game.frame({
+			LabCommandApplied: { commandId: second.LabCommand.commandId, appliedVersion: 9 },
+		});
+		expect(game.pending).toBe(true);
+		game.accept(state('AwaitingPairChoice', { version: 9 }), 'White');
+		expect(game.pending).toBe(false);
+		expect(game.rollingDice).toBe(false);
+		expect(game.tentative).toBeNull();
+		expect(send).toHaveBeenCalledTimes(2);
+	});
+
+	it('finishes an interrupted roll explicitly without repeating the first roll', () => {
+		const { game, send } = setup(state('AwaitingSecondRoll'));
+		game.rollDice();
+		expect(send).toHaveBeenCalledExactlyOnceWith({
+			LabCommand: { commandId: expect.any(String), expectedVersion: 7, action: { RollSecond: {} } },
+		});
+	});
+
+	it.each(['before receipt', 'after receipt', 'after state', 'after second command'])(
+		'cancels automatic rolls on disconnect %s and never resumes on resync',
+		(when) => {
+			const { game, send } = setup(state('AwaitingFirstRoll'));
+			game.rollDice();
+			const first = send.mock.calls[0][0] as CommandFrame;
+			const receipt = {
+				LabCommandApplied: { commandId: first.LabCommand.commandId, appliedVersion: 8 },
+			};
+			if (when === 'after receipt' || when === 'after second command') game.frame(receipt);
+			if (when === 'after state' || when === 'after second command')
+				game.accept(state('AwaitingSecondRoll', { version: 8 }), 'White');
+			const count = send.mock.calls.length;
+			game.status(false);
+			expect(game.rollingDice).toBe(false);
+			game.frame(receipt);
+			game.accept(state('AwaitingSecondRoll', { version: 8 }), 'White');
+			game.status(true, true);
+			game.frame(receipt);
+			expect(game.pending).toBe(false);
+			expect(send).toHaveBeenCalledTimes(count);
+			game.rollDice();
+			expect(send).toHaveBeenCalledTimes(count + 1);
+			expect(send.mock.lastCall?.[0]).toMatchObject({ LabCommand: { action: { RollSecond: {} } } });
+		},
+	);
+
+	it.each(['stale version', 'unexpected phase', 'different seat', 'ended'])(
+		'does not continue after a %s state',
+		(change) => {
+			const { game, send } = setup(state('AwaitingFirstRoll'));
+			game.rollDice();
+			const first = send.mock.calls[0][0] as CommandFrame;
+			const next = state(
+				change === 'unexpected phase' ? 'AwaitingPairChoice' : 'AwaitingSecondRoll',
+				{
+					version: change === 'stale version' ? 9 : 8,
+					...(change === 'ended'
+						? {
+								status: {
+									Ended: {
+										over: {
+											result: { Win: { side: 'Black' as const } },
+											termination: 'Resign' as const,
+										},
+									},
+								},
+							}
+						: {}),
+				},
+			);
+			game.accept(next, change === 'different seat' ? 'Black' : 'White');
+			game.frame({
+				LabCommandApplied: { commandId: first.LabCommand.commandId, appliedVersion: 8 },
+			});
+			expect(game.rollingDice).toBe(false);
+			expect(send).toHaveBeenCalledTimes(1);
+		},
+	);
+
+	it('ignores an unrelated receipt and cancels continuation when the room changes', () => {
+		let id = gameId;
+		const send = vi.fn((_command: unknown) => true);
+		const game = new LaboratoryGame({} as LaboratoryApi, () => id, send);
+		game.status(true);
+		game.accept(state('AwaitingFirstRoll'), 'White');
+		game.rollDice();
+		game.frame({ LabCommandApplied: { commandId: 'unrelated', appliedVersion: 8 } });
+		game.accept(state('AwaitingSecondRoll', { version: 8 }), 'White');
+		expect(send).toHaveBeenCalledTimes(1);
+		id = 'c12b3456-7890-4abc-def0-1234567890ab';
+		const first = send.mock.calls[0][0] as CommandFrame;
+		game.frame({ LabCommandApplied: { commandId: first.LabCommand.commandId, appliedVersion: 8 } });
+		expect(game.rollingDice).toBe(false);
+		expect(send).toHaveBeenCalledTimes(1);
+	});
+
+	it.each([1, 2])('clears the roll intent when command %i cannot be sent', (failed) => {
+		const { game, send } = setup(state('AwaitingFirstRoll'));
+		if (failed === 1) send.mockReturnValueOnce(false);
+		else send.mockReturnValueOnce(true).mockReturnValueOnce(false);
+		game.rollDice();
+		if (failed === 2) {
+			const first = send.mock.calls[0][0] as CommandFrame;
+			game.frame({
+				LabCommandApplied: { commandId: first.LabCommand.commandId, appliedVersion: 8 },
+			});
+			game.accept(state('AwaitingSecondRoll', { version: 8 }), 'White');
+		}
+		expect(send).toHaveBeenCalledTimes(failed);
+		expect(game.pending).toBe(false);
+		expect(game.rollingDice).toBe(false);
+	});
+
+	it.each(['rejection', 'resync', 'reset'])('cancels the roll intent on %s', (event) => {
+		const { game, send } = setup(state('AwaitingFirstRoll'));
+		game.rollDice();
+		const first = send.mock.calls[0][0] as CommandFrame;
+		if (event === 'rejection')
+			game.frame({ LabRejected: { commandId: first.LabCommand.commandId } });
+		else if (event === 'resync') game.status(true, true);
+		else game.reset();
+		game.accept(state('AwaitingSecondRoll', { version: 8 }), 'White');
+		game.frame({ LabCommandApplied: { commandId: first.LabCommand.commandId, appliedVersion: 8 } });
+		expect(game.rollingDice).toBe(false);
+		expect(send).toHaveBeenCalledTimes(1);
+	});
+
 	it('unlocks a declined draw only after the authoritative version advances', () => {
 		const current = state('AwaitingFirstRoll', { drawOffer: { pending: true } });
 		const { game, send } = setup(current);

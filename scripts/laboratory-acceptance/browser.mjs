@@ -91,7 +91,7 @@ function clockValue(clocks, color) {
 
 async function stageAction(page, phase) {
 	if (phase === 'AwaitingFirstRoll' || phase === 'AwaitingSecondRoll') {
-		const label = phase === 'AwaitingFirstRoll' ? /roll first pair/i : /roll second pair/i;
+		const label = phase === 'AwaitingFirstRoll' ? /^roll dice$/i : /^finish roll$/i;
 		const action = page.getByRole('button', { name: label });
 		await action.waitFor({ state: 'visible', timeout: TIMEOUT });
 		await action.click({ timeout: TIMEOUT });
@@ -216,7 +216,9 @@ export async function runBrowserAcceptance({
 	const commandCounts = new WeakMap();
 	const pageErrorCounts = new WeakMap();
 	const monitoredPages = new WeakSet();
-	const auditPage = (page) => {
+	let holdSecondRoll = false;
+	let heldSecondRolls = 0;
+	const auditPage = async (page) => {
 		if (monitoredPages.has(page)) return;
 		monitoredPages.add(page);
 		pageErrorCounts.set(page, 0);
@@ -236,7 +238,7 @@ export async function runBrowserAcceptance({
 				if (error instanceof assert.AssertionError) page.__labExternalRequest = true;
 			}
 		});
-		page.route('**/*', async (route) => {
+		await page.route('**/*', async (route) => {
 			const url = new URL(route.request().url());
 			const ordinaryApi =
 				/^\/(?:lobby|auth|ingest|ratings?|training|profile)(?:\/|$)|^\/api\/(?:games|ratings?|training|profile)(?:\/|$)/.test(
@@ -249,7 +251,7 @@ export async function runBrowserAcceptance({
 				await route.continue();
 			}
 		});
-		page.on('websocket', (socket) => {
+		await page.routeWebSocket('**/*', (socket) => {
 			try {
 				const socketUrl = new URL(socket.url());
 				if (socketUrl.pathname.includes('/games/')) {
@@ -259,11 +261,16 @@ export async function runBrowserAcceptance({
 				socketUrl.protocol = socketUrl.protocol === 'wss:' ? 'https:' : 'http:';
 				assert.ok(origins.has(socketUrl.origin), 'unexpected external websocket');
 			} catch (error) {
-				if (error instanceof assert.AssertionError) page.__labExternalRequest = true;
+				if (error instanceof assert.AssertionError) {
+					page.__labExternalRequest = true;
+					socket.close({ code: 1008, reason: 'Acceptance network boundary' });
+					return;
+				}
 			}
 			commandCounts.set(page, commandCounts.get(page) ?? 0);
-			socket.on('framesent', (frame) => {
-				const raw = typeof frame?.payload === 'string' ? frame.payload : '';
+			const server = socket.connectToServer();
+			socket.onMessage((message) => {
+				const raw = typeof message === 'string' ? message : '';
 				if (
 					raw.includes('LabCommand') ||
 					raw.includes('SubmitTurn') ||
@@ -273,6 +280,16 @@ export async function runBrowserAcceptance({
 				) {
 					commandCounts.set(page, (commandCounts.get(page) ?? 0) + 1);
 				}
+				// Interrupt the one-click sequence only for the persisted first-pair checkpoint.
+				// All other frames reach the real server unchanged; no capability is recorded.
+				if (holdSecondRoll && raw) {
+					const frame = JSON.parse(raw);
+					if (frame?.LabCommand?.action?.RollSecond) {
+						heldSecondRolls += 1;
+						return;
+					}
+				}
+				server.send(message);
 			});
 		});
 	};
@@ -288,8 +305,8 @@ export async function runBrowserAcceptance({
 		});
 		hostPage = await hostContext.newPage();
 		friendPage = await friendContext.newPage();
-		auditPage(hostPage);
-		auditPage(friendPage);
+		await auditPage(hostPage);
+		await auditPage(friendPage);
 		await Promise.all([
 			hostPage.goto(appOrigin, { waitUntil: 'networkidle', timeout: TIMEOUT }),
 			friendPage.goto(appOrigin, { waitUntil: 'domcontentloaded', timeout: TIMEOUT }),
@@ -445,6 +462,8 @@ export async function runBrowserAcceptance({
 		// server passes that turn; continue through the friend's turns until a playable pair appears.
 		const checkpoints = [];
 		for (const phase of PHASES) {
+			holdSecondRoll = phase === 'AwaitingSecondRoll';
+			const heldBefore = heldSecondRolls;
 			let currentPhase = (await publicSnapshot(hostPage.request, apiOrigin, gameId)).lab.turn.phase;
 			const phaseOrder = PHASES;
 			let advances = 0;
@@ -469,6 +488,21 @@ export async function runBrowserAcceptance({
 			);
 			const beforeSafe = publicState(before);
 			const activePage = before.activeSeat === 'White' ? hostPage : friendPage;
+			if (holdSecondRoll) {
+				const deadline = Date.now() + TIMEOUT;
+				while (heldSecondRolls === heldBefore && Date.now() < deadline)
+					await new Promise((resolve) => setTimeout(resolve, 50));
+				assert.equal(
+					heldSecondRolls,
+					heldBefore + 1,
+					'one second-roll command should be interrupted',
+				);
+				assert.equal(
+					await activePage.locator('.lab-pair-card').count(),
+					0,
+					'partial offers should remain hidden while the second roll is interrupted',
+				);
+			}
 			const commandCount = commandCounts.get(activePage) ?? 0;
 			await hostContext.setOffline(true);
 			await friendContext.setOffline(true);
@@ -502,6 +536,7 @@ export async function runBrowserAcceptance({
 				);
 			}
 			const restartResult = await restart(gameId);
+			holdSecondRoll = false;
 			assert.ok(
 				restartResult?.restoredClocks && Number.isFinite(restartResult.sampledAt),
 				'restart hook should return the restored clock baseline and sample time',
@@ -587,7 +622,7 @@ export async function runBrowserAcceptance({
 		assert.equal(selectedState.lab.turn.phase, 'PlayingSelectedPair');
 		const movePage = selectedState.activeSeat === 'White' ? hostPage : friendPage;
 		const movesPlayed = await chooseAndSubmitMove(movePage, movePage.request, apiOrigin, gameId);
-		await waitForState(
+		const nextTurn = await waitForState(
 			hostPage.request,
 			apiOrigin,
 			gameId,
@@ -599,6 +634,34 @@ export async function runBrowserAcceptance({
 				'legal-move-through-ui',
 				true,
 				`submitted a legal move sequence (${movesPlayed} micro-move${movesPlayed === 1 ? '' : 's'})`,
+			),
+		);
+		const rollPage = nextTurn.activeSeat === 'White' ? hostPage : friendPage;
+		const beforeRollCount = commandCounts.get(rollPage) ?? 0;
+		await stageAction(rollPage, 'AwaitingFirstRoll');
+		const rolled = await waitForState(
+			hostPage.request,
+			apiOrigin,
+			gameId,
+			(state) => state?.lab?.turn?.phase === 'AwaitingPairChoice',
+		);
+		assert.equal(
+			rolled.lab.turn.offers.length,
+			2,
+			'one click should reveal both authoritative offers',
+		);
+		assert.equal(rolled.lab.turn.selectedPairIndex, null, 'the player must still choose the pair');
+		assert.equal(
+			commandCounts.get(rollPage),
+			beforeRollCount + 2,
+			'one click should send exactly the two existing roll commands',
+		);
+		await rollPage.locator('.lab-pair-card').nth(1).waitFor({ state: 'visible', timeout: TIMEOUT });
+		findings.push(
+			finding(
+				'one-click-two-pairs',
+				true,
+				'one UI action revealed both pairs through two authoritative commands; no pair auto-selected',
 			),
 		);
 
@@ -741,7 +804,7 @@ export async function runBrowserAcceptance({
 			viewport: { width: 1440, height: 900 },
 		});
 		incompletePage = await incompleteContext.newPage();
-		auditPage(incompletePage);
+		await auditPage(incompletePage);
 		const incompleteUrl = new URL(`/game/${incompleteRoom.gameId}`, appOrigin);
 		incompleteUrl.hash = new URLSearchParams({
 			token: whiteCapability.token,

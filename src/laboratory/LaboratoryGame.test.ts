@@ -45,8 +45,8 @@ function model(turn: PublicTurn = choice, overrides: Record<string, unknown> = {
 		offerPlayable: vi.fn(() => true),
 		chooseTentative: vi.fn(),
 		confirmPair: vi.fn(),
-		rollFirst: vi.fn(),
-		rollSecond: vi.fn(),
+		rollingDice: false,
+		rollDice: vi.fn(),
 		move: vi.fn(),
 		undo: vi.fn(),
 		submit: vi.fn(),
@@ -78,21 +78,50 @@ describe('LaboratoryGame screen', () => {
 		expect(screen.getByRole('button', { name: 'Confirm pair 2' })).toBeDisabled();
 	});
 
-	it('retains the first offer while rolling the second and moves keyboard focus to that action', async () => {
+	it('hides the partial offer while waiting for an interrupted roll to be finished', async () => {
 		const { game, value } = model({
 			phase: 'AwaitingSecondRoll',
 			offers: [[1, 3]],
 			selectedPairIndex: null,
 		});
-		render(LaboratoryGameScreen, { game });
-		expect(screen.getByRole('button', { name: 'Pair 1: pawn and bishop' })).toBeDisabled();
-		expect(screen.getByLabelText('Second pair not rolled')).toBeInTheDocument();
-		await waitFor(() =>
-			expect(screen.getByRole('button', { name: 'Roll second pair' })).toHaveFocus(),
+		const { container, rerender } = render(LaboratoryGameScreen, { game });
+		expect(screen.getByRole('button', { name: 'Finish roll' })).toBeEnabled();
+		expect(screen.queryByLabelText('Rolled pairs')).not.toBeInTheDocument();
+		expect(
+			screen.queryByRole('button', { name: 'Pair 1: pawn and bishop' }),
+		).not.toBeInTheDocument();
+		expect(screen.queryByLabelText('Second pair not rolled')).not.toBeInTheDocument();
+		const announcements = () =>
+			Array.from(container.querySelectorAll('.lab-sr')).at(-1)?.textContent ?? '';
+		expect(announcements()).not.toContain('Pair 1: pawn and bishop');
+		await fireEvent.click(screen.getByRole('button', { name: 'Finish roll' }));
+		expect(value.rollDice).toHaveBeenCalledOnce();
+		const passive = model(
+			{ phase: 'AwaitingSecondRoll', offers: [[1, 3]], selectedPairIndex: null },
+			{ seat: 'Black' },
 		);
-		await fireEvent.click(screen.getByRole('button', { name: 'Roll second pair' }));
-		expect(value.rollSecond).toHaveBeenCalledOnce();
-		expect(value.rollFirst).not.toHaveBeenCalled();
+		await rerender({ game: passive.game });
+		expect(screen.queryByLabelText('Rolled pairs')).not.toBeInTheDocument();
+		expect(
+			screen.queryByRole('button', { name: 'Pair 1: pawn and bishop' }),
+		).not.toBeInTheDocument();
+		expect(announcements()).toContain('Rolling dice');
+		expect(announcements()).not.toContain('Pair 1: pawn and bishop');
+	});
+
+	it('uses one roll action and disables it while both dice commands are pending', async () => {
+		const first = model({ phase: 'AwaitingFirstRoll', offers: [], selectedPairIndex: null });
+		const { rerender } = render(LaboratoryGameScreen, { game: first.game });
+		await fireEvent.click(screen.getByRole('button', { name: 'Roll dice' }));
+		expect(first.value.rollDice).toHaveBeenCalledOnce();
+		const rolling = model(
+			{ phase: 'AwaitingFirstRoll', offers: [], selectedPairIndex: null },
+			{ rollingDice: true, pending: true, canAct: false },
+		);
+		await rerender({ game: rolling.game });
+		expect(screen.getByRole('button', { name: 'Rolling dice…' })).toBeDisabled();
+		await fireEvent.click(screen.getByRole('button', { name: 'Rolling dice…' }));
+		expect(rolling.value.rollDice).not.toHaveBeenCalled();
 	});
 
 	it('keeps equal and unplayable offers selectable and communicates a pass in text', () => {

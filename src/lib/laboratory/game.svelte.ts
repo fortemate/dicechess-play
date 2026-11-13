@@ -13,6 +13,7 @@ import type { Action, CommandFrame, PairIndex } from './protocol';
 
 export const DIE_LETTERS = 'PNBRQK';
 type Send = (command: CommandFrame | ClientCommand) => boolean;
+type RollIntent = { gameId: string; seat: Seat; version: number; first: boolean };
 
 export class LaboratoryGame {
 	state = $state<LaboratoryGameState | null>(null);
@@ -31,6 +32,7 @@ export class LaboratoryGame {
 	private treeEpoch = 0;
 	private simpleVersion: number | null = null;
 	private awaitingArm = false;
+	private rollIntent = $state<RollIntent | null>(null);
 
 	constructor(
 		private readonly api: LaboratoryApi,
@@ -46,6 +48,9 @@ export class LaboratoryGame {
 			!('Ended' in this.state.status) &&
 			this.state.activeSeat === this.seat
 		);
+	}
+	get rollingDice(): boolean {
+		return this.rollIntent !== null;
 	}
 	get canMove(): boolean {
 		return (
@@ -91,7 +96,9 @@ export class LaboratoryGame {
 		this.state = state;
 		this.seat = seat;
 		this.observedAt = performance.now();
-		if (this.appliedVersion !== null && state.version >= this.appliedVersion) this.clearPending();
+		if (this.rollIntent && !this.matchesRoll(state, seat, this.rollIntent)) this.rollIntent = null;
+		if (this.appliedVersion !== null && state.version >= this.appliedVersion)
+			this.completePending();
 		if (this.simpleVersion !== null && state.version > this.simpleVersion) this.clearPending();
 		if ('Ended' in state.status) {
 			this.clearPending();
@@ -121,6 +128,7 @@ export class LaboratoryGame {
 
 	status(connected: boolean, resynced = false): void {
 		this.connected = connected;
+		if (!connected) this.rollIntent = null;
 		if (resynced) {
 			this.clearPending();
 			this.draft = [];
@@ -133,6 +141,36 @@ export class LaboratoryGame {
 		this.appliedVersion = null;
 		this.simpleVersion = null;
 		this.awaitingArm = false;
+		this.rollIntent = null;
+	}
+	private matchesRoll(state: LaboratoryGameState, seat: Seat, intent: RollIntent): boolean {
+		const before = intent.first ? 'AwaitingFirstRoll' : 'AwaitingSecondRoll';
+		const after = intent.first ? 'AwaitingSecondRoll' : 'AwaitingPairChoice';
+		return (
+			this.gameId() === intent.gameId &&
+			seat === intent.seat &&
+			state.activeSeat === intent.seat &&
+			!('Ended' in state.status) &&
+			((state.version === intent.version && state.lab.turn.phase === before) ||
+				(state.version === intent.version + 1 && state.lab.turn.phase === after))
+		);
+	}
+	private completePending(): void {
+		const intent = this.rollIntent;
+		const appliedVersion = this.appliedVersion;
+		this.clearPending();
+		// One UI action spans two existing protocol commands. Continue only after both a matching
+		// receipt and the exact first-roll state; no command is queued across a reconnect.
+		if (
+			intent?.first &&
+			this.state &&
+			appliedVersion === intent.version + 1 &&
+			this.state.version === appliedVersion &&
+			this.state.lab.turn.phase === 'AwaitingSecondRoll' &&
+			this.matchesRoll(this.state, this.seat, intent)
+		) {
+			this.command({ RollSecond: {} }, { ...intent, version: appliedVersion, first: false });
+		}
 	}
 	frame(frame: unknown): void {
 		if (!isRecord(frame)) return;
@@ -156,7 +194,7 @@ export class LaboratoryGame {
 			Number.isSafeInteger(receipt.appliedVersion)
 		) {
 			this.appliedVersion = Number(receipt.appliedVersion);
-			if (this.state && this.state.version >= this.appliedVersion) this.clearPending();
+			if (this.state && this.state.version >= this.appliedVersion) this.completePending();
 		}
 	}
 	private applyRejection(frame: Record<string, unknown>): void {
@@ -197,14 +235,28 @@ export class LaboratoryGame {
 			return null;
 		}
 	}
-	private command(action: Action): void {
+	private command(action: Action, rollIntent: RollIntent | null = null): void {
 		if (!this.canAct || !this.state) return;
 		const commandId = crypto.randomUUID();
 		this.pending = true;
 		this.commandId = commandId;
+		this.rollIntent = rollIntent;
 		this.error = null;
 		if (!this.send({ LabCommand: { commandId, expectedVersion: this.state.version, action } }))
 			this.clearPending();
+	}
+	rollDice(): void {
+		const id = this.gameId();
+		if (!this.canAct || !this.state || !id) return;
+		const phase = this.state.lab.turn.phase;
+		if (phase !== 'AwaitingFirstRoll' && phase !== 'AwaitingSecondRoll') return;
+		const first = phase === 'AwaitingFirstRoll';
+		this.command(first ? { RollFirst: {} } : { RollSecond: {} }, {
+			gameId: id,
+			seat: this.seat,
+			version: this.state.version,
+			first,
+		});
 	}
 	rollFirst(): void {
 		if (this.state?.lab.turn.phase === 'AwaitingFirstRoll') this.command({ RollFirst: {} });

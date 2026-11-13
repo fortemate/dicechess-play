@@ -303,14 +303,17 @@ test('creates and joins one room across independent browser contexts', async ({
 			'SubmitSeed',
 		]);
 		await page.getByRole('link', { name: 'Open my board' }).first().click();
-		await page.getByRole('button', { name: 'Roll first pair' }).click();
-		await page.getByRole('button', { name: 'Roll second pair' }).click();
+		await page.getByRole('button', { name: 'Roll dice' }).click();
+		await expect(page.locator('.lab-pair-card')).toHaveCount(2);
+		await expect(friendPage.locator('.lab-pair-card')).toHaveCount(2);
+		expect(fixture.socketFrames.filter((frame) => 'LabCommand' in frame)).toHaveLength(2);
+		expect(fixture.records.get(gameId)!.state.lab.turn.selectedPairIndex).toBeNull();
 		await page.getByRole('button', { name: /^Pair 1:/ }).click();
 		await page.getByRole('button', { name: 'Confirm pair 1' }).click();
 		for (const square of ['e2', 'e4', 'b1', 'c3'])
 			await page.getByRole('gridcell', { name: new RegExp(`^${square},`) }).click();
 		await page.getByRole('button', { name: 'Submit turn' }).click();
-		await expect(friendPage.getByRole('button', { name: 'Roll first pair' })).toBeEnabled();
+		await expect(friendPage.getByRole('button', { name: 'Roll dice' })).toBeEnabled();
 		expect(fixture.records.get(gameId)!.state.dfen).toContain('/2N5/PPPP1PPP/R1BQKBNR b');
 		expect(
 			fixture.websocketUrls.every((url) => new URL(url).pathname === `/games/${gameId}/ws`),
