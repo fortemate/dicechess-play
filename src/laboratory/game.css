@@ -136,6 +136,9 @@
 	font-family: Georgia, serif;
 	font-size: 27px;
 }
+.lab-remaining-dice {
+	display: none;
+}
 .lab-selected-summary {
 	padding: 11px 12px;
 	background: var(--lab-selection);
@@ -306,7 +309,7 @@
 		gap: 10px;
 	}
 	.lab-game-board-column {
-		max-width: min(100%, max(240px, calc(100svh - 540px)));
+		max-width: 100%;
 	}
 	.lab-game-grid .lab-player {
 		min-height: 43px;
@@ -334,18 +337,82 @@
 	.lab-action-description {
 		display: none;
 	}
+	.lab-play-description {
+		display: block;
+		font-size: 11px;
+		line-height: 1.4;
+	}
 	.lab-pair-card,
 	.lab-pair-placeholder {
-		min-height: 109px;
-		padding: 9px;
-		gap: 7px;
+		min-height: 52px;
+		padding: 6px 8px;
+		gap: 3px 6px;
+		grid-template-columns: minmax(0, 1fr) auto;
+		align-content: center;
+	}
+	.lab-pair-card {
+		grid-template-rows: auto auto;
+	}
+	.lab-pair-caption {
+		grid-column: 1;
+		grid-row: 1;
+		align-items: center;
+		font-size: 11px;
+	}
+	.lab-pair-dice {
+		grid-column: 2;
+		grid-row: 1 / span 2;
+		gap: 3px;
 	}
 	.lab-pair-dice .lab-die {
-		width: 37px;
-		height: 39px;
+		width: 27px;
+		height: 30px;
+		border-radius: 5px;
 	}
 	.lab-pair-state {
+		grid-column: 1 / -1;
+		font-size: 9px;
+		line-height: 1.25;
+	}
+	.lab-pair-state-idle {
+		display: none;
+	}
+	.lab-pair-warning {
 		font-size: 10px;
+	}
+	.lab-pair-cards-playing {
+		display: none;
+	}
+	.lab-selected-summary {
+		display: flex;
+		flex-wrap: wrap;
+		align-items: center;
+		gap: 6px;
+		padding: 7px 9px;
+		font-size: 11px;
+	}
+	.lab-remaining-dice {
+		display: inline-flex;
+		align-items: center;
+		gap: 2px;
+	}
+	.lab-remaining-dice .lab-die {
+		width: 20px;
+		height: 22px;
+		border-radius: 4px;
+	}
+	.lab-remaining-dice .lab-die img {
+		width: 90%;
+		height: 90%;
+	}
+	.lab-pending-status {
+		margin-left: auto;
+		color: var(--lab-muted);
+		white-space: nowrap;
+	}
+	.lab-selected-text {
+		flex: 1;
+		min-width: 120px;
 	}
 	.lab-action-panel .lab-primary {
 		min-height: 44px;

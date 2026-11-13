@@ -127,6 +127,8 @@ async function stageAction(page, phase) {
 }
 
 async function chooseAndSubmitMove(page, request, apiOrigin, gameId) {
+	assert.equal(await page.getByRole('button', { name: /^submit turn$/i }).count(), 0);
+	assert.equal(await page.getByRole('button', { name: /^undo$/i }).count(), 0);
 	const response = await request.get(new URL(`/games/${gameId}/moves`, apiOrigin).toString(), {
 		timeout: TIMEOUT,
 	});
@@ -141,7 +143,6 @@ async function chooseAndSubmitMove(page, request, apiOrigin, gameId) {
 		await to.click({ timeout: TIMEOUT });
 		if (move.length === 5) await page.getByRole('button', { name: /queen/i }).click();
 	}
-	await page.getByRole('button', { name: /submit/i }).click({ timeout: TIMEOUT });
 	return moves.length;
 }
 
@@ -155,14 +156,24 @@ async function checkLayout(page, outputDir, label, width, height, options = {}) 
 			return rect.width > 0 && rect.height > 0;
 		});
 		const rect = primary?.getBoundingClientRect();
+		const board = document.querySelector('.lab-play-board')?.getBoundingClientRect();
+		const layout = document.querySelector('.lab-game-grid')?.getBoundingClientRect();
 		return {
 			viewport: window.innerWidth,
 			document: document.documentElement.scrollWidth,
 			primaryHeight: rect ? rect.height : null,
 			primaryVisible: !!rect && rect.bottom <= window.innerHeight && rect.top >= 0,
+			boardWidth: board?.width ?? null,
+			availableWidth: layout?.width ?? null,
 		};
 	});
 	assert.ok(metrics.document <= metrics.viewport, 'page should not overflow horizontally');
+	if (width <= 430 && metrics.boardWidth !== null) {
+		assert.ok(
+			metrics.boardWidth >= metrics.availableWidth - 2,
+			'portrait mobile board should use the available content width',
+		);
+	}
 	if (width === 390 && height === 844 && metrics.primaryHeight !== null) {
 		assert.ok(metrics.primaryHeight >= 44, 'primary action should have a 44px touch target');
 		if (!metrics.primaryVisible) {
@@ -516,10 +527,8 @@ export async function runBrowserAcceptance({
 					await activePage.getByRole('gridcell').first().getAttribute('aria-disabled'),
 					'true',
 				);
-				assert.equal(
-					await activePage.getByRole('button', { name: /submit turn/i }).isDisabled(),
-					true,
-				);
+				assert.equal(await activePage.getByRole('button', { name: /^submit turn$/i }).count(), 0);
+				assert.equal(await activePage.getByRole('button', { name: /^undo$/i }).count(), 0);
 			} else if (phase === 'AwaitingPairChoice') {
 				const actionable = activePage.locator('.lab-pair-card').first();
 				assert.equal(
@@ -633,7 +642,7 @@ export async function runBrowserAcceptance({
 			finding(
 				'legal-move-through-ui',
 				true,
-				`submitted a legal move sequence (${movesPlayed} micro-move${movesPlayed === 1 ? '' : 's'})`,
+				`automatically submitted a legal move sequence (${movesPlayed} micro-move${movesPlayed === 1 ? '' : 's'})`,
 			),
 		);
 		const rollPage = nextTurn.activeSeat === 'White' ? hostPage : friendPage;

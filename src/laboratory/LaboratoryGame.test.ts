@@ -48,8 +48,6 @@ function model(turn: PublicTurn = choice, overrides: Record<string, unknown> = {
 		rollingDice: false,
 		rollDice: vi.fn(),
 		move: vi.fn(),
-		undo: vi.fn(),
-		submit: vi.fn(),
 		resign: vi.fn(),
 		respondDraw: vi.fn(),
 		armDraw: vi.fn(),
@@ -59,6 +57,21 @@ function model(turn: PublicTurn = choice, overrides: Record<string, unknown> = {
 }
 
 describe('LaboratoryGame screen', () => {
+	it('keeps a selected square through a clock/state refresh with the same board', async () => {
+		const playing: PublicTurn = { ...choice, phase: 'PlayingSelectedPair', selectedPairIndex: 0 };
+		const props = () => model(playing, { canMove: true, moves: ['e2e4'] }).game;
+		const { rerender } = render(LaboratoryGameScreen, { game: props() });
+		await fireEvent.click(screen.getByRole('gridcell', { name: 'e2, White pawn' }));
+		expect(screen.getByRole('gridcell', { name: 'e2, White pawn' })).toHaveAttribute(
+			'aria-selected',
+			'true',
+		);
+		await rerender({ game: props() });
+		expect(
+			screen.getByRole('gridcell', { name: 'e4, empty, legal destination' }),
+		).toBeInTheDocument();
+	});
+
 	it('keeps both whole pairs visible and requires explicit confirmation before play', async () => {
 		const { game, value } = model();
 		const { rerender } = render(LaboratoryGameScreen, { game });
@@ -122,6 +135,31 @@ describe('LaboratoryGame screen', () => {
 		expect(screen.getByRole('button', { name: 'Rolling dice…' })).toBeDisabled();
 		await fireEvent.click(screen.getByRole('button', { name: 'Rolling dice…' }));
 		expect(rolling.value.rollDice).not.toHaveBeenCalled();
+	});
+
+	it('auto-sends the completed turn without undo or submit controls and announces pending sends', async () => {
+		const playing: PublicTurn = {
+			phase: 'PlayingSelectedPair',
+			offers: [
+				[1, 3],
+				[1, 4],
+			],
+			selectedPairIndex: 0,
+		};
+		const { rerender } = render(LaboratoryGameScreen, {
+			game: model(playing, { remainingDice: [1], draft: ['e2e4'] }).game,
+		});
+		expect(screen.getByText(/your last move sends the turn automatically/i)).toBeInTheDocument();
+		expect(screen.queryByRole('button', { name: 'Undo' })).not.toBeInTheDocument();
+		expect(screen.queryByRole('button', { name: 'Submit turn' })).not.toBeInTheDocument();
+		const pending = model(playing, {
+			pending: true,
+			complete: true,
+			remainingDice: [],
+			draft: ['e2e4'],
+		});
+		await rerender({ game: pending.game });
+		expect(screen.getByText('Sending turn…').closest('[role="status"]')).toBeInTheDocument();
 	});
 
 	it('keeps equal and unplayable offers selectable and communicates a pass in text', () => {

@@ -2,7 +2,8 @@
  * Server-authoritative laboratory interaction. A draft follows only the accepted pair's legal
  * prefix tree; the rules-only engine renders that draft (including castling and promotion).
  * Every laboratory mutation has a fresh id and expected version. Reconnection restores server
- * state without replaying a roll or choice. History presentation never feeds live decisions.
+ * state without replaying a roll, choice or completed turn. Legal-tree leaves submit immediately;
+ * incomplete drafts stay local. History presentation never feeds live decisions.
  */
 import { DiceChess } from '@fortemate/dicechess-engine/rules';
 import type { ClientCommand, Seat } from '../live/liveTypes';
@@ -235,15 +236,18 @@ export class LaboratoryGame {
 			return null;
 		}
 	}
-	private command(action: Action, rollIntent: RollIntent | null = null): void {
-		if (!this.canAct || !this.state) return;
+	private command(action: Action, rollIntent: RollIntent | null = null): boolean {
+		if (!this.canAct || !this.state) return false;
 		const commandId = crypto.randomUUID();
 		this.pending = true;
 		this.commandId = commandId;
 		this.rollIntent = rollIntent;
 		this.error = null;
-		if (!this.send({ LabCommand: { commandId, expectedVersion: this.state.version, action } }))
+		if (!this.send({ LabCommand: { commandId, expectedVersion: this.state.version, action } })) {
 			this.clearPending();
+			return false;
+		}
+		return true;
 	}
 	rollDice(): void {
 		const id = this.gameId();
@@ -284,14 +288,18 @@ export class LaboratoryGame {
 			this.error = null;
 		} catch {
 			this.error = 'This move could not be displayed. Reconnect to restore the position.';
+			return;
 		}
+		if (this.complete) this.submit();
 	}
-	undo(): void {
-		if (this.canMove) this.draft = this.draft.slice(0, -1);
-	}
-	submit(): void {
-		if (this.complete && this.draft.length <= 2)
-			this.command({ SubmitTurn: { moves: this.draft as [string] | [string, string] } });
+	private submit(): void {
+		if (!this.canAct || !this.complete || this.draft.length > 2) return;
+		if (!this.command({ SubmitTurn: { moves: this.draft as [string] | [string, string] } })) {
+			// A transport refusal means nothing was queued. Restore the accepted position so the
+			// player can play again after recovery; never strand a complete draft without controls.
+			this.draft = [];
+			this.error = 'The turn was not sent. Play it again from the latest position once connected.';
+		}
 	}
 	private simple(command: ClientCommand): void {
 		if (!this.connected || this.pending || !this.state || 'Ended' in this.state.status) return;
