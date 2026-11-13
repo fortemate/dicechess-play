@@ -45,7 +45,7 @@ export class LiveClient {
 		try {
 			const samples = new Uint32Array(1);
 			crypto.getRandomValues(samples);
-			const jitter = (samples[0] ?? 0) / 0x1_0000_0000;
+			const jitter = (samples[0] ?? 0) / 2 ** 32;
 			return base + jitter * base * 0.2;
 		} catch {
 			// Jitter only spreads reconnect load; it must not prevent a retry when crypto is unavailable.
