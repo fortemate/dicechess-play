@@ -11,6 +11,8 @@
 		type AppearancePreference,
 	} from '#lib/laboratory/appearance.js';
 	import LaboratoryBoard from './LaboratoryBoard.svelte';
+	import LaboratoryGame from './LaboratoryGame.svelte';
+	import LaboratoryReview from './LaboratoryReview.svelte';
 
 	let { api }: { api: LaboratoryApi } = $props();
 	let session = $state<LaboratorySession | null>(null);
@@ -493,6 +495,9 @@
 							>{/if}
 					</aside>
 				</div>
+			{:else if session.started || session.ended}
+				<LaboratoryGame game={session.game} />
+				<LaboratoryReview {api} {session} />
 			{:else}
 				<div class="lab-board-layout">
 					<section class="lab-board-column">

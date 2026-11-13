@@ -3,7 +3,14 @@
  * shared: an old/classic server must never turn a laboratory invitation into an ordinary game.
  * Uses only the explicitly supplied laboratory origin, anonymous identity and cookie-free requests.
  */
-import type { GameStatusWire, PublicGameState, Seat, TimeControl } from '../live/liveTypes';
+import type {
+	GameStatusWire,
+	PublicGameState,
+	Seat,
+	TimeControl,
+	GameMoves,
+} from '../live/liveTypes';
+import type { MoveTree } from '../moveTreeWalker';
 import type { CreationRequest, CreationResponse, PublicState, PublicTurn } from './protocol';
 
 export const LAB_VARIANT = { id: 'choice-2x2d6', revision: 1 } as const;
@@ -27,6 +34,17 @@ export interface LaboratoryGameState extends PublicGameState {
 
 export function isRecord(value: unknown): value is Record<string, unknown> {
 	return typeof value === 'object' && value !== null && !Array.isArray(value);
+}
+
+/** A two-die turn has at most two micro-moves. Invalid trees never enable the board. */
+export function validMoveTree(value: unknown, depth = 0): value is MoveTree {
+	return (
+		isRecord(value) &&
+		Object.entries(value).every(
+			([move, child]) =>
+				depth < 2 && /^[a-h][1-8][a-h][1-8][qrbn]?$/.test(move) && validMoveTree(child, depth + 1),
+		)
+	);
 }
 
 const integer = (value: unknown): value is number =>
@@ -227,6 +245,22 @@ export class LaboratoryApi {
 	async state(gameId: string, signal?: AbortSignal): Promise<LaboratoryGameState> {
 		if (!isGameId(gameId)) throw new LaboratoryError('incompatible');
 		return parseGameState(await this.request(`/games/${gameId}`, { signal }), this.rulesVersion);
+	}
+
+	async moves(gameId: string): Promise<GameMoves> {
+		if (!isGameId(gameId)) throw new LaboratoryError('incompatible');
+		const value = await this.request(`/games/${gameId}/moves`, {
+			signal: AbortSignal.timeout(5000),
+		});
+		if (
+			!isRecord(value) ||
+			!integer(value.version) ||
+			typeof value.dfen !== 'string' ||
+			typeof value.dicePending !== 'boolean' ||
+			(value.legalMoves !== null && !validMoveTree(value.legalMoves))
+		)
+			throw new LaboratoryError('incompatible');
+		return value as unknown as GameMoves;
 	}
 
 	async create(
