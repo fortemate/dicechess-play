@@ -6,6 +6,18 @@ import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { PilotEnvironment, artifactDigest } from './environment.mjs';
 
+test('native command launch preserves literal arguments and cannot enable a shell', async () => {
+	const env = new PilotEnvironment();
+	env.wsl = null;
+	const literal = 'lab229 space ; $(printf altered) "quoted"';
+	const result = await env.linux(
+		process.execPath,
+		['-e', 'process.stdout.write(process.argv[1])', literal],
+		{ shell: true },
+	);
+	assert.equal(result.stdout, literal);
+});
+
 test('cleanup refuses to remove a volume whose ownership label differs', async () => {
 	const env = new PilotEnvironment();
 	env.owned = true;

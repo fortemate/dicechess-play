@@ -50,8 +50,12 @@ export class PilotEnvironment {
 		if (!this.cleaning) qualification.throwIfStopped();
 		try {
 			const result = await (this.wsl
-				? exec('wsl', [...this.wsl, command, ...args], { maxBuffer: 16 * 1024 * 1024, ...options })
-				: exec(command, args, { maxBuffer: 16 * 1024 * 1024, ...options }));
+				? exec('wsl', [...this.wsl, command, ...args], {
+						maxBuffer: 16 * 1024 * 1024,
+						...options,
+						shell: false,
+					})
+				: exec(command, args, { maxBuffer: 16 * 1024 * 1024, ...options, shell: false }));
 			return result;
 		} catch {
 			if (qualification.stopped) qualification.throwIfStopped();
@@ -83,6 +87,12 @@ export class PilotEnvironment {
 		]);
 	}
 	async setup() {
+		const literal = 'lab229 space ; $(printf altered) "quoted"';
+		assert.equal(
+			(await this.linux('printf', ['%s', literal])).stdout,
+			literal,
+			'Launcher must preserve arguments without shell expansion',
+		);
 		await this.linux('sh', ['-c', 'test -z "${DOCKER_HOST:-}" && test -z "${DOCKER_CONTEXT:-}"']);
 		assert.equal(
 			(

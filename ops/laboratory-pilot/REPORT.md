@@ -37,7 +37,7 @@ The three exact image digests are retained in the evidence and [Compose profile]
 
 ## Other validation
 
-Local gates passed: ESLint (existing warnings only), Prettier, Svelte/TypeScript checks, main and laboratory builds, bundled-engine verification, 1,583 Vitest tests, 15 existing acceptance/oracle tests, 15 pilot guard/cleanup/artifact/evidence tests and 6 built-main Playwright smoke tests. The new unit tests run in ordinary `npm test` without Docker. The real-service rehearsal is opt-in through `npm run test:laboratory:pilot`.
+Local gates passed: ESLint (existing warnings only), Prettier, Svelte/TypeScript checks, main and laboratory builds, bundled-engine verification, 1,583 Vitest tests, 15 existing acceptance/oracle tests, 16 pilot launcher/guard/cleanup/artifact/evidence tests and 6 built-main Playwright smoke tests. The new unit tests run in ordinary `npm test` without Docker. The real-service rehearsal is opt-in through `npm run test:laboratory:pilot`. Native command launches force `shell: false`; regression coverage preserves arguments containing spaces, quotes and shell metacharacters, even when a caller supplies `shell: true`.
 
 The isolated run also caught and corrected CRLF shell entrypoint handling, the pinned image's BusyBox healthcheck syntax, and Docker's refusal to publish ports from an internal-only gateway network. Linux entrypoints now have enforced LF endings; only the gateway has an ingress bridge.
 
