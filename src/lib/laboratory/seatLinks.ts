@@ -107,10 +107,18 @@ export function parseLabLocation(url: URL): LabLocation {
 	}
 	const params = new URLSearchParams(fragment);
 	if (hasDuplicateOrInvalidParams(params, new Set(['token', 'as']))) return { kind: 'invalid' };
+	return locationWithAccess(match[1] === 'invite' ? 'invite' : 'board', gameId, params);
+}
+
+function locationWithAccess(
+	kind: 'invite' | 'board',
+	gameId: string,
+	params: URLSearchParams,
+): LabLocation {
 	const token = params.get('token');
 	const as = params.get('as');
 	if (token === null && as === null) {
-		return { kind: match[1] === 'invite' ? 'invite' : 'board', gameId, access: null };
+		return { kind, gameId, access: null };
 	}
 	if (
 		token === null ||
@@ -121,7 +129,7 @@ export function parseLabLocation(url: URL): LabLocation {
 		return { kind: 'invalid' };
 	}
 	return {
-		kind: match[1] === 'invite' ? 'invite' : 'board',
+		kind,
 		gameId,
 		access: { gameId, seat: as === 'white' ? 'White' : 'Black', token },
 	};
