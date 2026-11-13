@@ -10,3 +10,5 @@ project.inlang/*
 !project.inlang/settings.json
 # Vendored sound packs are byte-for-byte upstream copies with recorded digests (scripts/vendor-sounds.mjs).
 static/sounds/*/
+# Captured acceptance artifacts retain the exact bytes recorded in SHA256SUMS.
+scripts/laboratory-acceptance/evidence/

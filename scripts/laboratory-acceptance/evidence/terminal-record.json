@@ -1,0 +1,111 @@
+{
+  "schemaVersion": 1,
+  "variant": {
+    "id": "choice-2x2d6",
+    "revision": 1
+  },
+  "provenance": {
+    "rulesVersion": "0.18.2",
+    "diceAlgorithm": "choice-2x2d6-hmac-sha256-v1"
+  },
+  "timeControl": {
+    "Fischer": {
+      "initialSeconds": 600,
+      "incrementSeconds": 10
+    }
+  },
+  "initialDfen": "rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1",
+  "status": {
+    "Ended": {
+      "over": {
+        "result": {
+          "Win": {
+            "side": "Black"
+          }
+        },
+        "termination": "Resign"
+      }
+    }
+  },
+  "completeness": "complete",
+  "turns": [
+    {
+      "turnNumber": 0,
+      "activeColor": "w",
+      "offers": [
+        [
+          6,
+          4
+        ],
+        [
+          3,
+          5
+        ]
+      ],
+      "selectedPairIndex": 0,
+      "dice": [
+        6,
+        4
+      ],
+      "moves": [],
+      "fenAfter": "rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR b KQkq - 0 1"
+    },
+    {
+      "turnNumber": 1,
+      "activeColor": "b",
+      "offers": [
+        [
+          4,
+          4
+        ],
+        [
+          3,
+          3
+        ]
+      ],
+      "selectedPairIndex": 0,
+      "dice": [
+        4,
+        4
+      ],
+      "moves": [],
+      "fenAfter": "rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 2"
+    },
+    {
+      "turnNumber": 2,
+      "activeColor": "w",
+      "offers": [
+        [
+          3,
+          2
+        ],
+        [
+          5,
+          2
+        ]
+      ],
+      "selectedPairIndex": 0,
+      "dice": [
+        3,
+        2
+      ],
+      "moves": [
+        "b1a3"
+      ],
+      "fenAfter": "rnbqkbnr/pppppppp/8/8/8/N7/PPPPPPPP/R1BQKBNR b KQkq - 1 2"
+    }
+  ],
+  "currentTurn": {
+    "phase": "Ended",
+    "offers": [],
+    "selectedPairIndex": null
+  },
+  "fairness": {
+    "commit": "9ff10bdab492304d0b7ec283a9cd98ac55501eb1ce68b57d5bac29a181075eb9",
+    "serverSeed": "13eb31e4f7fa6113785642bc9850e2396a4f29b90a772de72e362c5b23819efd",
+    "clientSeeds": {
+      "white": "77a5e84fb689e6e838bd2d2fed3220f5",
+      "black": "c1efb2cff30700a40c8b4b75066f9b26"
+    }
+  }
+}

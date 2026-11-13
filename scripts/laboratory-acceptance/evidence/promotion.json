@@ -1,0 +1,66 @@
+{
+  "schemaVersion": 1,
+  "variant": {
+    "id": "choice-2x2d6",
+    "revision": 1
+  },
+  "provenance": {
+    "rulesVersion": "0.18.2",
+    "diceAlgorithm": "choice-2x2d6-hmac-sha256-v1"
+  },
+  "timeControl": {
+    "Unlimited": {}
+  },
+  "initialDfen": "7k/P7/8/8/8/8/8/K7 w - - 0 1",
+  "status": {
+    "Ended": {
+      "over": {
+        "result": {
+          "Win": {
+            "side": "Black"
+          }
+        },
+        "termination": "Resign"
+      }
+    }
+  },
+  "completeness": "complete",
+  "turns": [
+    {
+      "turnNumber": 0,
+      "activeColor": "w",
+      "offers": [
+        [
+          1,
+          1
+        ],
+        [
+          6,
+          1
+        ]
+      ],
+      "selectedPairIndex": 0,
+      "dice": [
+        1,
+        1
+      ],
+      "moves": [
+        "a7a8n"
+      ],
+      "fenAfter": "N6k/8/8/8/8/8/8/K7 b - - 0 1"
+    }
+  ],
+  "currentTurn": {
+    "phase": "Ended",
+    "offers": [],
+    "selectedPairIndex": null
+  },
+  "fairness": {
+    "commit": "3523c1f4f6011d1743fa23d6aeac3c3bb1afc21296cd4f99a48e97e6ef3c0e05",
+    "serverSeed": "0e30f73cd1aff2b4adc6606a9dae336d9ea570eee42b6d30f6ab1f483c3f7e06",
+    "clientSeeds": {
+      "white": "lab225-promotion-21",
+      "black": "acceptance-fixture-black"
+    }
+  }
+}
