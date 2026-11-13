@@ -1,2 +1,5 @@
 # Vendored sound packs keep their bytes: Kenney's licence files are CRLF, and the lock records their digests.
 static/sounds/** -text
+# Linux bind-mounted entrypoints must also work from Windows checkouts.
+ops/laboratory-pilot/*.sh text eol=lf
+ops/laboratory-pilot/evidence/** -text
