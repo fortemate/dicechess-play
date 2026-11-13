@@ -41,6 +41,18 @@ export class LiveClient {
 	private static readonly BACKOFF = [250, 500, 1000, 2000, 4000, 5000];
 	private static readonly MAX_ATTEMPTS = 10;
 
+	private static reconnectDelay(base: number): number {
+		try {
+			const samples = new Uint32Array(1);
+			crypto.getRandomValues(samples);
+			const jitter = (samples[0] ?? 0) / 0x1_0000_0000;
+			return base + jitter * base * 0.2;
+		} catch {
+			// Jitter only spreads reconnect load; it must not prevent a retry when crypto is unavailable.
+			return base;
+		}
+	}
+
 	private queue: ClientCommand[] = [];
 
 	constructor(
@@ -179,7 +191,7 @@ export class LiveClient {
 			return;
 		}
 		const base = LiveClient.BACKOFF[Math.min(this.attempts, LiveClient.BACKOFF.length - 1)];
-		const delay = base + Math.random() * base * 0.2; // light jitter to avoid synchronized retries
+		const delay = LiveClient.reconnectDelay(base);
 		this.attempts += 1;
 		this.statusCb?.('connecting');
 		this.reconnectTimer = setTimeout(() => this.open(), delay);

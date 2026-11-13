@@ -124,6 +124,37 @@ describe('LiveClient', () => {
 		}
 	});
 
+	it('retries on the base delay when secure jitter randomness is unavailable', () => {
+		vi.useFakeTimers();
+		try {
+			for (const unavailableCrypto of [
+				undefined,
+				{
+					getRandomValues: () => {
+						throw new Error('unavailable');
+					},
+				},
+			]) {
+				vi.stubGlobal('crypto', unavailableCrypto);
+				const statuses: string[] = [];
+				const client = new LiveClient('ws://x');
+				client.onStatus((status) => statuses.push(status));
+				client.connect();
+				const first = MockWebSocket.last!;
+				first.onopen!();
+				first.onclose!({ code: 1006 });
+				expect(statuses).not.toContain('closed');
+				vi.advanceTimersByTime(249);
+				expect(MockWebSocket.last).toBe(first);
+				vi.advanceTimersByTime(1);
+				expect(MockWebSocket.last).not.toBe(first);
+				client.close();
+			}
+		} finally {
+			vi.useRealTimers();
+		}
+	});
+
 	it('a fresh connect() cancels a pending reconnect timer (no duplicate socket)', () => {
 		vi.useFakeTimers();
 		try {
