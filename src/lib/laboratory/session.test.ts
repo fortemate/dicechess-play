@@ -17,6 +17,7 @@ vi.mock('./connection', () => ({
 
 import { LaboratoryApi, LaboratoryError, type LaboratoryGameState } from './api';
 import { LaboratorySession, type LaboratoryWindow } from './session.svelte';
+import { LaboratoryRecordsApi } from './records';
 import { loadRoomAccess, saveRoomAccess, type SeatAccess } from './seatLinks';
 import type { CreationResponse, PublicState } from './protocol';
 import type { TimeControl } from '../live/liveTypes';
@@ -431,6 +432,102 @@ describe('laboratory session', () => {
 		expect(session.state?.version).toBe(6);
 		expect(session.ended).toBe(true);
 		expect(session.error).toBe('expired');
+		session.destroy();
+	});
+
+	it('waits for consent, then accepts a swapped-seat rematch with its own capability only', async () => {
+		const nextGameId = 'c12b3456-7890-4abc-def0-1234567890ab';
+		const nextMine: SeatAccess = { gameId: nextGameId, seat: 'Black', token: 'new_black_token_3' };
+		const window = makeWindow(`https://lab.example/game/${gameId}#token=${white.token}&as=white`);
+		const { api, stateSpy } = makeApi(endedGameState(18));
+		stateSpy.mockResolvedValueOnce(endedGameState(18)).mockResolvedValueOnce(gameState(0));
+		const rematch = vi.spyOn(LaboratoryRecordsApi.prototype, 'rematch');
+		rematch.mockResolvedValueOnce({ phase: 'awaiting_consent' }).mockResolvedValueOnce({
+			phase: 'created',
+			gameId: nextGameId,
+			seat: 'Black',
+			token: nextMine.token,
+		});
+		const session = new LaboratorySession(api, window.environment);
+		await session.open();
+
+		await session.rematch(true);
+		expect(rematch).toHaveBeenNthCalledWith(1, gameId, white.token, true);
+		expect(session.rematchWaiting).toBe(true);
+		expect(session.access?.mine).toEqual(white);
+		expect(session.invitationUrl).toBeNull();
+
+		await session.rematch(true);
+		expect(rematch).toHaveBeenNthCalledWith(2, gameId, white.token, true);
+		expect(stateSpy).toHaveBeenLastCalledWith(nextGameId);
+		expect(session.state?.version).toBe(0);
+		expect(session.access).toEqual({ mine: nextMine });
+		expect(session.access).not.toHaveProperty('invitation');
+		expect(session.invitationUrl).toBeNull();
+		expect(session.route).toMatchObject({ kind: 'board', gameId: nextGameId });
+		expect(connectionMocks.open.mock.calls.at(-1)?.[1]).toEqual(nextMine);
+		expect(window.currentUrl().href).not.toContain(black.token);
+		expect(loadRoomAccess(window.storage as unknown as Storage, nextGameId)).toEqual({
+			mine: nextMine,
+		});
+		session.destroy();
+	});
+
+	it.each([
+		['same seat', 'White', timeControl],
+		['changed time control', 'Black', { SuddenDeath: { initialSeconds: 300 } }],
+	] as const)(
+		'rejects a rematch that violates %s conditions',
+		async (_reason, seat, nextTimeControl) => {
+			const nextGameId = 'c12b3456-7890-4abc-def0-1234567890ab';
+			const window = makeWindow(`https://lab.example/game/${gameId}#token=${white.token}&as=white`);
+			const { api, stateSpy } = makeApi(endedGameState(18));
+			stateSpy.mockResolvedValueOnce(endedGameState(18)).mockResolvedValueOnce({
+				...gameState(0),
+				timeControl: nextTimeControl,
+			});
+			vi.spyOn(LaboratoryRecordsApi.prototype, 'rematch').mockResolvedValue({
+				phase: 'created',
+				gameId: nextGameId,
+				seat,
+				token: 'new_candidate_token_4',
+			});
+			const session = new LaboratorySession(api, window.environment);
+			await session.open();
+			await session.rematch(true);
+			expect(session.error).toBe('incompatible');
+			expect(session.access?.mine).toEqual(white);
+			expect(session.state?.version).toBe(18);
+			expect(connectionMocks.open).not.toHaveBeenCalled();
+			session.destroy();
+		},
+	);
+
+	it('ignores a created rematch state when navigation changes during its load', async () => {
+		const nextGameId = 'c12b3456-7890-4abc-def0-1234567890ab';
+		const window = makeWindow(`https://lab.example/game/${gameId}#token=${white.token}&as=white`);
+		const { api, stateSpy } = makeApi(endedGameState(18));
+		const rematch = vi.spyOn(LaboratoryRecordsApi.prototype, 'rematch').mockResolvedValue({
+			phase: 'created',
+			gameId: nextGameId,
+			seat: 'Black',
+			token: 'new_candidate_token_5',
+		});
+		const session = new LaboratorySession(api, window.environment);
+		await session.open();
+		let finishNextState!: (value: LaboratoryGameState) => void;
+		stateSpy.mockImplementationOnce(() => new Promise((resolve) => (finishNextState = resolve)));
+		const pendingRematch = session.rematch(true);
+		await vi.waitFor(() => expect(stateSpy).toHaveBeenCalledTimes(2));
+		session.home();
+		finishNextState(gameState(0));
+		await pendingRematch;
+		await vi.waitFor(() => expect(session.loading).toBe(false));
+		expect(rematch).toHaveBeenCalledTimes(1);
+		expect(session.route).toEqual({ kind: 'home' });
+		expect(session.state).toBeNull();
+		expect(session.access).toBeNull();
+		expect(connectionMocks.open).not.toHaveBeenCalled();
 		session.destroy();
 	});
 

@@ -225,16 +225,38 @@ describe('laboratory room connection', () => {
 		expect(mismatchRules.handlers.onError).toHaveBeenCalledWith('incompatible');
 	});
 
-	it('ignores private receipt frames and polls public state every two seconds', async () => {
+	it('refreshes after a private receipt and also polls public state every two seconds', async () => {
 		const stateFn = vi.fn(async () => state(4));
 		const current = open(asStorage(new MemoryStorage()), stateFn);
 		current.client!.fireEvent({ DrawOfferArmed: { armed: true } });
 		current.client!.fireEvent({ LabCommandApplied: { commandId: 'x', appliedVersion: 4 } });
-		expect(stateFn).not.toHaveBeenCalled();
-		await vi.advanceTimersByTimeAsync(2000);
 		expect(stateFn).toHaveBeenCalledTimes(1);
+		await vi.advanceTimersByTimeAsync(2000);
+		expect(stateFn).toHaveBeenCalledTimes(2);
 		expect(current.handlers.onState).toHaveBeenCalledWith(expect.objectContaining({ version: 4 }));
 		current.connection.close();
+	});
+
+	it('sends commands only after authentication and a fresh snapshot, never queues across reconnect', () => {
+		const current = open();
+		const command = {
+			LabCommand: { commandId: crypto.randomUUID(), expectedVersion: 3, action: { RollFirst: {} } },
+		} as const;
+		expect(current.connection.send(command)).toBe(false);
+		current.client!.fireStatus('open');
+		expect(current.connection.send(command)).toBe(false);
+		current.client!.fireEvent({ Snapshot: { v: 3, state: state() } });
+		expect(current.connection.send(command)).toBe(true);
+		expect(current.client!.send).toHaveBeenCalledExactlyOnceWith(command);
+		current.client!.fireStatus('connecting');
+		expect(current.connection.send(command)).toBe(false);
+		current.client!.fireStatus('open');
+		expect(current.connection.send(command)).toBe(false);
+		current.client!.fireEvent({ Snapshot: { v: 4, state: state(4) } });
+		expect(current.client!.send).toHaveBeenCalledTimes(1);
+		expect(current.connection.send(command)).toBe(true);
+		current.connection.close();
+		expect(current.connection.send(command)).toBe(false);
 	});
 
 	it('coalesces overlapping refreshes and never applies a regressive API response', async () => {

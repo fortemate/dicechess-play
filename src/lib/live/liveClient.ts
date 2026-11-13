@@ -1,4 +1,5 @@
 import type { ClientCommand, ServerEvent } from './liveTypes';
+import type { CommandFrame } from '../laboratory/protocol';
 
 export type ConnStatus = 'connecting' | 'open' | 'closed';
 
@@ -53,7 +54,7 @@ export class LiveClient {
 		}
 	}
 
-	private queue: ClientCommand[] = [];
+	private queue: (ClientCommand | CommandFrame)[] = [];
 
 	constructor(
 		private readonly url: string,
@@ -197,7 +198,7 @@ export class LiveClient {
 		this.reconnectTimer = setTimeout(() => this.open(), delay);
 	}
 
-	send(command: ClientCommand): void {
+	send(command: ClientCommand | CommandFrame): void {
 		if (this.socket?.readyState === WebSocket.OPEN) {
 			if (this.authenticated) this.socket.send(JSON.stringify(command));
 			else this.queue.push(command);

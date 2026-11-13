@@ -1,4 +1,6 @@
 import { expect, test, type Page } from '@playwright/test';
+import type { LaboratoryGameState } from '../../src/lib/laboratory/api';
+import type { Action } from '../../src/lib/laboratory/protocol';
 
 const APP_ORIGIN = 'http://127.0.0.1:4175';
 const API_ORIGIN = 'http://127.0.0.1:8081';
@@ -11,7 +13,12 @@ type Creation = Record<string, unknown> & {
 	commit: string;
 	tokens: Array<{ seat: 'White' | 'Black'; token: string }>;
 };
-type RoomRecord = { creation: Creation; state: GameState };
+type RoomRecord = {
+	creation: Creation;
+	state: GameState;
+	ready: Set<string>;
+	clients: Set<{ send(message: string): void }>;
+};
 type Fixture = {
 	createCount: number;
 	latestGameId: string;
@@ -46,7 +53,7 @@ function stateFor(commit: string, timeControl: unknown) {
 			provenance: { rulesVersion: RULES_VERSION, diceAlgorithm: 'choice-2x2d6-hmac-sha256-v1' },
 			turn: { phase: 'AwaitingPlayers', offers: [], selectedPairIndex: null },
 		},
-	};
+	} as LaboratoryGameState;
 }
 
 function createFixture(): Fixture {
@@ -111,7 +118,7 @@ async function installMocks(page: Page, fixture = createFixture()) {
 				},
 			};
 			const state = stateFor(commit, body.timeControl);
-			fixture.records.set(gameId, { creation, state });
+			fixture.records.set(gameId, { creation, state, ready: new Set(), clients: new Set() });
 			await route.fulfill({ status: 201, headers: jsonHeaders, body: JSON.stringify(creation) });
 			return;
 		}
@@ -143,6 +150,7 @@ async function installMocks(page: Page, fixture = createFixture()) {
 	await page.routeWebSocket(`${API_ORIGIN.replace('http', 'ws')}/**`, (route) => {
 		fixture.websocketUrls.push(route.url());
 		let authenticatedGameId = '';
+		let authenticatedSeat = '';
 		route.onMessage((message) => {
 			if (typeof message !== 'string') return;
 			const frame = JSON.parse(message) as Record<string, unknown>;
@@ -157,12 +165,72 @@ async function installMocks(page: Page, fixture = createFixture()) {
 				const seat = room.creation.tokens.find((seatToken) => seatToken.token === auth.token)?.seat;
 				if (!seat) return;
 				authenticatedGameId = gameId;
+				authenticatedSeat = seat;
+				room.clients.add(route);
 				route.send(JSON.stringify({ LabAuthenticated: { seat } }));
 				return;
 			}
-			if (!('SubmitSeed' in frame) || !authenticatedGameId) return;
-			const state = fixture.records.get(authenticatedGameId)?.state;
-			if (state) route.send(JSON.stringify({ Snapshot: { v: state.version, state, history: [] } }));
+			if (!authenticatedGameId) return;
+			const room = fixture.records.get(authenticatedGameId)!;
+			const state = room.state;
+			if ('SubmitSeed' in frame) {
+				room.ready.add(authenticatedSeat);
+				if (room.ready.size === 2 && state.lab.turn.phase === 'AwaitingPlayers') {
+					state.lab.turn = { phase: 'AwaitingFirstRoll', offers: [], selectedPairIndex: null };
+					state.version++;
+				}
+			} else if ('LabCommand' in frame) {
+				const command = frame.LabCommand as {
+					commandId: string;
+					expectedVersion: number;
+					action: Action;
+				};
+				if (command.expectedVersion !== state.version || authenticatedSeat !== state.activeSeat)
+					return;
+				const action = command.action;
+				if ('RollFirst' in action)
+					state.lab.turn = {
+						phase: 'AwaitingSecondRoll',
+						offers: [[1, 2]],
+						selectedPairIndex: null,
+					};
+				else if ('RollSecond' in action)
+					state.lab.turn = {
+						phase: 'AwaitingPairChoice',
+						offers: [
+							[1, 2],
+							[1, 3],
+						],
+						selectedPairIndex: null,
+					};
+				else if ('ChoosePair' in action && action.ChoosePair.pairIndex === 0) {
+					state.lab.turn = {
+						phase: 'PlayingSelectedPair',
+						offers: [
+							[1, 2],
+							[1, 3],
+						],
+						selectedPairIndex: 0,
+					};
+					state.dfen = `${STANDARD_DFEN} PN`;
+					state.dicePending = true;
+					state.legalMoves = { e2e4: { b1c3: {} } };
+				} else if ('SubmitTurn' in action && action.SubmitTurn.moves.join() === 'e2e4,b1c3') {
+					state.dfen = 'rnbqkbnr/pppppppp/8/8/4P3/2N5/PPPP1PPP/R1BQKBNR b KQkq - 0 1';
+					state.activeSeat = 'Black';
+					state.dicePending = false;
+					state.legalMoves = null;
+					state.lab.turn = { phase: 'AwaitingFirstRoll', offers: [], selectedPairIndex: null };
+				} else return;
+				state.version++;
+				route.send(
+					JSON.stringify({
+						LabCommandApplied: { commandId: command.commandId, appliedVersion: state.version },
+					}),
+				);
+			} else return;
+			for (const client of room.clients)
+				client.send(JSON.stringify({ Snapshot: { v: state.version, state, history: [] } }));
 		});
 	});
 
@@ -224,9 +292,7 @@ test('creates and joins one room across independent browser contexts', async ({
 		).toBeVisible();
 		await expect(friendPage.getByText('Agreed game settings')).toBeVisible();
 		await friendPage.getByRole('button', { name: 'Join as Black' }).click();
-		await expect(
-			friendPage.getByRole('img', { name: 'Chessboard, Black at the bottom' }),
-		).toBeVisible();
+		await expect(friendPage.getByRole('grid', { name: 'Black board' })).toBeVisible();
 		await expect.poll(() => fixture.websocketUrls.length).toBe(2);
 		await expect
 			.poll(() => fixture.socketFrames.filter((frame) => 'SubmitSeed' in frame).length)
@@ -236,6 +302,16 @@ test('creates and joins one room across independent browser contexts', async ({
 			'LabAuthenticate',
 			'SubmitSeed',
 		]);
+		await page.getByRole('link', { name: 'Open my board' }).first().click();
+		await page.getByRole('button', { name: 'Roll first pair' }).click();
+		await page.getByRole('button', { name: 'Roll second pair' }).click();
+		await page.getByRole('button', { name: /^Pair 1:/ }).click();
+		await page.getByRole('button', { name: 'Confirm pair 1' }).click();
+		for (const square of ['e2', 'e4', 'b1', 'c3'])
+			await page.getByRole('gridcell', { name: new RegExp(`^${square},`) }).click();
+		await page.getByRole('button', { name: 'Submit turn' }).click();
+		await expect(friendPage.getByRole('button', { name: 'Roll first pair' })).toBeEnabled();
+		expect(fixture.records.get(gameId)!.state.dfen).toContain('/2N5/PPPP1PPP/R1BQKBNR b');
 		expect(
 			fixture.websocketUrls.every((url) => new URL(url).pathname === `/games/${gameId}/ws`),
 		).toBe(true);
@@ -292,6 +368,46 @@ test('captures desktop and phone creation, invitation, and light/dark waiting bo
 	await page.emulateMedia({ colorScheme: 'dark' });
 	await expectNoHorizontalOverflow(page);
 	await page.screenshot({ path: testInfo.outputPath('lab-board-dark.png') });
+
+	const room = fixture.records.get(fixture.latestGameId)!;
+	room.state.version++;
+	room.state.lab.turn = {
+		phase: 'AwaitingPairChoice',
+		offers: [
+			[1, 3],
+			[1, 4],
+		],
+		selectedPairIndex: null,
+	};
+	await page.reload();
+	await expect(page.getByRole('button', { name: /^Pair 1:/ })).toBeEnabled();
+	for (const [width, height] of [
+		[1440, 960],
+		[390, 844],
+		[320, 900],
+		[844, 390],
+	]) {
+		await page.setViewportSize({ width, height });
+		for (const theme of ['light', 'dark'] as const) {
+			await page.getByRole('combobox', { name: 'Appearance' }).selectOption(theme);
+			await expectNoHorizontalOverflow(page);
+			await expectMinimumTarget(page, page.getByRole('button', { name: 'Confirm one whole pair' }));
+			// Catch collapsed nested board rows as well as overflow in the shipped CSS.
+			const cell = await page.getByRole('gridcell', { name: 'a8, Black rook' }).boundingBox();
+			expect(cell!.height).toBeGreaterThan(25);
+			expect(Math.abs(cell!.height - cell!.width)).toBeLessThan(2);
+			if (width === 390) {
+				const confirm = await page
+					.getByRole('button', { name: 'Confirm one whole pair' })
+					.boundingBox();
+				expect(confirm!.y + confirm!.height).toBeLessThanOrEqual(height);
+			}
+			await page.screenshot({
+				path: testInfo.outputPath(`lab-choice-${width}-${theme}.png`),
+				fullPage: height < 500,
+			});
+		}
+	}
 
 	expect(inviteUrl.pathname).toMatch(/^\/invite\//);
 	expect(fixture.postBodies).toHaveLength(1);

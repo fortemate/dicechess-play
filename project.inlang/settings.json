@@ -16,6 +16,8 @@
 			"./messages/leaderboard.{locale}.json",
 			"./messages/rules.{locale}.json",
 			"./messages/laboratory.{locale}.json",
+			"./messages/laboratory-game.{locale}.json",
+			"./messages/laboratory-review.{locale}.json",
 			"./messages/{locale}.json"
 		]
 	}

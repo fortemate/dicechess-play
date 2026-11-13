@@ -1,5 +1,5 @@
 /**
- * Owns the laboratory room's read-only live connection and resynchronization loop. It sends only
+ * Owns the laboratory room's authenticated live connection and resynchronization loop. It sends
  * the post-commit dice seed, uses laboratory-scoped guest/seed storage, and accepts state only after
  * laboratory provenance, version, commit and time-control checks pass.
  */
@@ -13,6 +13,8 @@ import {
 	type LaboratoryGameState,
 } from './api';
 import type { SeatAccess } from './seatLinks';
+import type { ClientCommand } from '../live/liveTypes';
+import type { CommandFrame } from './protocol';
 
 export const LABORATORY_GUEST_KEY = 'dicechess-laboratory-guest';
 
@@ -63,6 +65,13 @@ export interface RoomConnectionCallbacks {
 	onState(state: LaboratoryGameState): void;
 	onStatus(status: 'connecting' | 'open' | 'closed'): void;
 	onError(code: LabErrorCode): void;
+	onFrame?(frame: unknown): void;
+	onReady?(ready: boolean, resynced: boolean): void;
+}
+
+export interface RoomConnection {
+	close(): void;
+	send(command: CommandFrame | ClientCommand): boolean;
 }
 
 function isValidSeatAccess(access: SeatAccess): boolean {
@@ -118,7 +127,8 @@ function restoreSeatSeed(access: SeatAccess, storage: Storage | null): string {
 
 /**
  * Opens a laboratory WebSocket, polls the public state to cover readiness/expiry changes, and
- * refreshes after public event frames. No room-changing command is sent by this transport.
+ * refreshes after public event frames. Commands are sent only after an authenticated snapshot;
+ * this boundary never queues gameplay across reconnects or retries a roll/choice.
  */
 export function openRoomConnection(
 	api: LaboratoryApi,
@@ -127,8 +137,10 @@ export function openRoomConnection(
 	initialState: LaboratoryGameState,
 	callbacks: RoomConnectionCallbacks,
 	storage: Storage | null,
-): { close(): void } {
+): RoomConnection {
 	let closed = false;
+	let authenticated = false;
+	let ready = false;
 	let acceptedState = initialState;
 	let refreshPromise: Promise<void> | null = null;
 	let pendingRefresh = false;
@@ -137,6 +149,8 @@ export function openRoomConnection(
 	let client: LiveClient | null = null;
 
 	const closeResources = () => {
+		ready = false;
+		callbacks.onReady?.(false, false);
 		if (interval !== null) {
 			clearInterval(interval);
 			interval = null;
@@ -155,8 +169,8 @@ export function openRoomConnection(
 		if (closed || next.version < acceptedState.version) return;
 		acceptedState = next;
 		callbacks.onState(next);
-		// This entrance sends no gameplay commands or outstanding receipts. A terminal state needs
-		// no more transport; otherwise a retained finished room would reconnect after every drain.
+		// A terminal snapshot is authoritative even if its receipt was lost. A finished room needs
+		// no more transport; otherwise it would reconnect after every drain.
 		if ('Ended' in next.status) {
 			closed = true;
 			closeResources();
@@ -203,13 +217,8 @@ export function openRoomConnection(
 		if (closed) return;
 		const name = frameName(frame);
 		if (!name) return;
-		if (
-			name === 'DrawOfferArmed' ||
-			name === 'LabCommandApplied' ||
-			name === 'LabCommandReceipt' ||
-			name === 'LabRejected'
-		)
-			return;
+		callbacks.onFrame?.(frame);
+		if (name === 'DrawOfferArmed') return;
 		if (name === 'Snapshot' && isRecord(frame) && isRecord(frame.Snapshot)) {
 			try {
 				const snapshot = frame.Snapshot;
@@ -223,6 +232,10 @@ export function openRoomConnection(
 					return;
 				}
 				acceptState(next);
+				if (!closed && authenticated && !ready) {
+					ready = true;
+					callbacks.onReady?.(true, true);
+				}
 			} catch (error) {
 				stopFor(connectionError(error) === 'expired' ? 'expired' : 'incompatible');
 			}
@@ -239,7 +252,7 @@ export function openRoomConnection(
 		access.gameId !== access.gameId.toLowerCase()
 	) {
 		stopFor('incompatible');
-		return { close: () => {} };
+		return { close: () => {}, send: () => false };
 	}
 
 	let seed: string;
@@ -247,7 +260,7 @@ export function openRoomConnection(
 		seed = restoreSeatSeed(access, storage);
 	} catch {
 		stopFor('unavailable');
-		return { close: () => {} };
+		return { close: () => {}, send: () => false };
 	}
 
 	const url = new URL(`/games/${access.gameId}/ws`, api.origin);
@@ -258,6 +271,11 @@ export function openRoomConnection(
 	client.onEvent(onEvent);
 	client.onStatus((status) => {
 		if (closed) return;
+		authenticated = status === 'open';
+		if (!authenticated) {
+			ready = false;
+			callbacks.onReady?.(false, false);
+		}
 		callbacks.onStatus(status);
 		if (status === 'closed') callbacks.onError('connection');
 	});
@@ -266,6 +284,11 @@ export function openRoomConnection(
 	if (!closed) interval = setInterval(() => void refresh(), 2000);
 
 	return {
+		send(command) {
+			if (closed || !ready || !authenticated || !client) return false;
+			client.send(command);
+			return true;
+		},
 		close() {
 			if (closed) return;
 			closed = true;

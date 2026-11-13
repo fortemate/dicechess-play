@@ -2,12 +2,15 @@
  * A single laboratory window's create/invite/readiness journey. Capability links never select a
  * different already-owned seat. HTTP replies and socket callbacks are fenced independently so
  * navigating from the invitation to its board cannot disconnect players or rewind live state.
- * Gameplay commands belong to the following client task; this controller sends no roll or move.
+ * The gameplay controller shares this fenced connection and never persists into main-site history.
  */
 import type { Seat, TimeControl } from '../live/liveTypes';
 import { SvelteMap, SvelteURL } from 'svelte/reactivity';
 import { LaboratoryApi, LaboratoryError, type LaboratoryGameState, type LabErrorCode } from './api';
-import { laboratoryGuest, openRoomConnection } from './connection';
+import { laboratoryGuest, openRoomConnection, type RoomConnection } from './connection';
+import { LaboratoryGame } from './game.svelte';
+import { LaboratoryRecordsApi } from './records';
+import { timeControlKey } from './api';
 import {
 	buildLabBoardUrl,
 	buildLabInviteUrl,
@@ -49,9 +52,12 @@ export class LaboratorySession {
 	pending = $state(false);
 	connectionStatus = $state<'connecting' | 'open' | 'closed'>('connecting');
 	persisted = $state(true);
+	rematchPending = $state(false);
+	rematchWaiting = $state(false);
 	private loadEpoch = 0;
 	private connectionEpoch = 0;
-	private connection: { close(): void } | null = null;
+	readonly game: LaboratoryGame;
+	private connection: RoomConnection | null = null;
 	private connectionKey = '';
 	private readonly rooms = new SvelteMap<string, RoomAccess>();
 	private readonly guest: string;
@@ -62,6 +68,11 @@ export class LaboratorySession {
 		private readonly window: LaboratoryWindow,
 	) {
 		this.guest = laboratoryGuest(window.identityStorage);
+		this.game = new LaboratoryGame(
+			api,
+			() => this.access?.mine.gameId ?? null,
+			(command) => this.connection?.send(command) ?? false,
+		);
 	}
 
 	get invitationUrl(): string | null {
@@ -98,6 +109,7 @@ export class LaboratorySession {
 	}
 
 	private closeConnection(): void {
+		this.game.status(false);
 		this.connectionEpoch += 1;
 		this.connection?.close();
 		this.connection = null;
@@ -113,6 +125,7 @@ export class LaboratorySession {
 		const epoch = this.connectionEpoch;
 		this.connectionKey = key;
 		this.connectionStatus = 'connecting';
+		this.game.accept(this.state, access.mine.seat);
 		this.connection = openRoomConnection(
 			this.api,
 			access.mine,
@@ -123,6 +136,7 @@ export class LaboratorySession {
 					if (epoch !== this.connectionEpoch || this.disposed) return;
 					if (this.state && state.version < this.state.version) return;
 					this.state = state;
+					this.game.accept(state, access.mine.seat);
 					if (this.error === 'connection') this.error = null;
 					if (this.ended && this.route.kind === 'invite') this.error = 'expired';
 				},
@@ -138,6 +152,12 @@ export class LaboratorySession {
 				onError: (code) => {
 					if (epoch === this.connectionEpoch && !this.disposed) this.error = code;
 				},
+				onFrame: (frame) => {
+					if (epoch === this.connectionEpoch && !this.disposed) this.game.frame(frame);
+				},
+				onReady: (ready, resynced) => {
+					if (epoch === this.connectionEpoch && !this.disposed) this.game.status(ready, resynced);
+				},
 			},
 			this.window.storage,
 		);
@@ -151,6 +171,7 @@ export class LaboratorySession {
 		const retained = this.retained(route.gameId);
 		if (this.access?.mine.gameId !== route.gameId) {
 			this.closeConnection();
+			this.game.reset();
 			this.state = null;
 		}
 		this.access = retained;
@@ -179,16 +200,19 @@ export class LaboratorySession {
 			return;
 		}
 		if (this.access) {
+			this.game.accept(this.state!, this.access.mine.seat);
 			this.candidate = null;
 			this.connect();
 		} else if (route.kind === 'board' && route.access) {
 			this.access = { mine: route.access };
+			this.game.accept(this.state!, this.access.mine.seat);
 			this.connect();
 		}
 	}
 
 	async open(url = this.window.url()): Promise<void> {
 		const epoch = ++this.loadEpoch;
+		this.rematchWaiting = false;
 		const route = parseLabLocation(url);
 		this.route = route;
 		this.error = null;
@@ -226,11 +250,13 @@ export class LaboratorySession {
 			const mine = creation.tokens.find((token) => token.seat === seat)!;
 			const theirs = creation.tokens.find((token) => token.seat !== seat)!;
 			this.closeConnection();
+			this.game.reset();
 			this.access = {
 				mine: { ...mine, gameId: creation.gameId },
 				invitation: { ...theirs, gameId: creation.gameId },
 			};
 			this.state = state;
+			this.rematchWaiting = false;
 			this.remember(this.access);
 			// With blocked storage, a reload must recover our seat from the private board fragment.
 			// Keep the invitation step visible now; its separate copy control still shares only theirs.
@@ -275,7 +301,49 @@ export class LaboratorySession {
 		void this.open();
 	}
 
+	async rematch(consent = true): Promise<void> {
+		if (
+			!this.access ||
+			!this.state ||
+			!('Ended' in this.state.status) ||
+			this.state.status.Ended.over.termination === 'Aborted' ||
+			this.rematchPending
+		)
+			return;
+		const source = this.access.mine;
+		const conditions = timeControlKey(this.state.timeControl);
+		const epoch = this.loadEpoch;
+		this.rematchPending = true;
+		try {
+			const view = await new LaboratoryRecordsApi(this.api).rematch(
+				source.gameId,
+				source.token,
+				consent,
+			);
+			if (!this.currentLoad(epoch)) return;
+			this.rematchWaiting = consent && view.phase === 'awaiting_consent';
+			if (view.phase !== 'created') return;
+			const state = await this.api.state(view.gameId!);
+			if (!this.currentLoad(epoch)) return;
+			if (timeControlKey(state.timeControl) !== conditions || view.seat === source.seat)
+				throw new LaboratoryError('incompatible');
+			this.closeConnection();
+			this.game.reset();
+			this.access = { mine: { gameId: view.gameId!, seat: view.seat!, token: view.token! } };
+			this.state = state;
+			this.remember(this.access);
+			this.rematchWaiting = false;
+			this.showBoard();
+			this.connect();
+		} catch (error) {
+			if (this.currentLoad(epoch)) this.error = failureCode(error);
+		} finally {
+			this.rematchPending = false;
+		}
+	}
+
 	destroy(): void {
+		this.game.destroy();
 		this.disposed = true;
 		this.loadEpoch += 1;
 		this.closeConnection();
