@@ -40,13 +40,18 @@
 	const otherSeat: Seat = $derived(game.seat === 'White' ? 'Black' : 'White');
 	const ended = $derived(position !== null && 'Ended' in position.status);
 	const ownTurn = $derived(position?.activeSeat === game.seat);
+	const showOffers = $derived(!!turn && (turn.phase !== 'AwaitingSecondRoll' || ended));
 	const phaseTitle = $derived(
 		turn?.phase === 'AwaitingPlayers'
 			? m.lab_game_waiting()
 			: turn?.phase === 'AwaitingFirstRoll'
-				? m.lab_game_first()
+				? game.rollingDice
+					? m.lab_game_rolling_dice()
+					: m.lab_game_roll_dice()
 				: turn?.phase === 'AwaitingSecondRoll'
-					? m.lab_game_second()
+					? game.rollingDice || !ownTurn
+						? m.lab_game_rolling_dice()
+						: m.lab_game_finish_roll()
 					: turn?.phase === 'AwaitingPairChoice'
 						? m.lab_game_choice()
 						: turn?.phase === 'PlayingSelectedPair'
@@ -60,14 +65,14 @@
 	);
 	const announcement = $derived(
 		turn
-			? `${ownTurn ? m.lab_game_your_turn() : m.lab_game_friend_turn()}. ${phaseTitle}. ${turn.offers.map((_, index) => pairLabel(index)).join('. ')} ${turn.selectedPairIndex !== null ? m.lab_game_selected_announcement({ number: turn.selectedPairIndex + 1 }) : ''} ${game.lastPass ?? ''}`
+			? `${ownTurn ? m.lab_game_your_turn() : m.lab_game_friend_turn()}. ${phaseTitle}. ${showOffers ? turn.offers.map((_, index) => pairLabel(index)).join('. ') : ''} ${turn.selectedPairIndex !== null ? m.lab_game_selected_announcement({ number: turn.selectedPairIndex + 1 }) : ''} ${game.lastPass ?? ''}`
 			: m.lab_game_loading(),
 	);
 	$effect(() => {
 		const focusPhase = phase;
-		if (!ownTurn || !game.connected || game.pending) return;
+		if (!ownTurn || !game.connected || game.pending || game.rollingDice) return;
 		void tick().then(() => {
-			if (phase !== focusPhase || !game.connected || game.pending) return;
+			if (phase !== focusPhase || !game.connected || game.pending || game.rollingDice) return;
 			if (focusPhase === 'PlayingSelectedPair') board?.focusBoard();
 			else
 				controls?.querySelector<HTMLButtonElement>('[data-stage-action]:not(:disabled)')?.focus();
@@ -177,7 +182,13 @@
 							: ownTurn
 								? m.lab_game_your_turn()
 								: m.lab_game_friend_turn()}</span
-					><span>{game.pending ? m.lab_game_confirming() : m.lab_game_two_pairs()}</span>
+					><span
+						>{game.rollingDice
+							? m.lab_game_rolling_dice()
+							: game.pending
+								? m.lab_game_confirming()
+								: m.lab_game_two_pairs()}</span
+					>
 				</div>
 				<h2>{ended ? resultLabel() : phaseTitle}</h2>
 				{#if ended}
@@ -204,7 +215,7 @@
 					</p>
 				{:else if turn.phase === 'AwaitingSecondRoll'}
 					<p class="lab-action-description">
-						{m.lab_game_second_description()}
+						{game.rollingDice ? m.lab_game_first_description() : m.lab_game_second_description()}
 					</p>
 				{:else if turn.phase === 'AwaitingPairChoice'}
 					<p class="lab-action-description">
@@ -216,7 +227,7 @@
 						{m.lab_game_play_description()}
 					</p>
 				{/if}
-				{#if turn.offers.length}
+				{#if showOffers && turn.offers.length}
 					<div class="lab-pair-cards" aria-label={m.lab_game_pairs()}>
 						{#each turn.offers as pair, index (index)}
 							{@const chosen = turn.selectedPairIndex === index}
@@ -274,17 +285,23 @@
 						type="button"
 						class="lab-primary"
 						data-stage-action
-						disabled={!game.canAct}
-						onclick={() => game.rollFirst()}
-						>{m.lab_game_roll_first()} <span aria-hidden="true">↗</span></button
+						disabled={!game.canAct || game.rollingDice}
+						onclick={() => {
+							if (game.canAct && !game.rollingDice) game.rollDice();
+						}}
+						>{game.rollingDice ? m.lab_game_rolling_dice() : m.lab_game_roll_dice()}
+						<span aria-hidden="true">↗</span></button
 					>{/if}
 				{#if turn.phase === 'AwaitingSecondRoll' && ownTurn}<button
 						type="button"
 						class="lab-primary"
 						data-stage-action
-						disabled={!game.canAct}
-						onclick={() => game.rollSecond()}
-						>{m.lab_game_roll_second()} <span aria-hidden="true">↗</span></button
+						disabled={!game.canAct || game.rollingDice}
+						onclick={() => {
+							if (game.canAct && !game.rollingDice) game.rollDice();
+						}}
+						>{game.rollingDice ? m.lab_game_rolling_dice() : m.lab_game_finish_roll()}
+						<span aria-hidden="true">↗</span></button
 					>{/if}
 				{#if turn.phase === 'AwaitingPairChoice' && ownTurn}<button
 						type="button"
