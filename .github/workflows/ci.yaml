@@ -50,6 +50,11 @@ jobs:
       - name: Test
         run: npm run test
 
+      - name: Build isolated laboratory bundle
+        run: npm run build:laboratory
+        env:
+          VITE_LAB_API_URL: http://127.0.0.1:8081
+
       # Everything above this line tests source. This tests what actually ships: the smoke drives
       # the built dist/ through `vite preview` and plays a real move. vitest never bundles the
       # Scala.js engine, so without this a bundler that miscompiles it reaches production with a
@@ -68,6 +73,20 @@ jobs:
 
       - name: Smoke test the built bundle
         run: npm run test:e2e
+
+      - name: Smoke test the laboratory bundle
+        run: npm run test:laboratory
+        env:
+          VITE_LAB_API_URL: http://127.0.0.1:8081
+
+      - name: Upload laboratory previews
+        if: always()
+        uses: actions/upload-artifact@v7
+        with:
+          name: laboratory-previews
+          path: test-results/**/lab-*.png
+          if-no-files-found: ignore
+          retention-days: 7
 
       - name: Check production PWA installation and update lifecycle
         run: npm run test:pwa

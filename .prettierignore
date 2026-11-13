@@ -1,5 +1,6 @@
 package-lock.json
 dist/
+dist-laboratory/
 .pwa-test/
 node_modules/
 public/

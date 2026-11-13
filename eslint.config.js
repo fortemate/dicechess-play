@@ -56,6 +56,11 @@ export default ts.config(
 		},
 	},
 	{
+		// The separately built laboratory uses browser capability URLs, without SvelteKit's router.
+		files: ['src/laboratory/**/*.svelte'],
+		rules: { 'svelte/no-navigation-without-resolve': 'off' },
+	},
+	{
 		// The i18n guard (#8). On repo-wide and at 'error': a file is either migrated or carries an
 		// explicit debt suppression, so a NEW component is guarded by default. An allowlist of
 		// migrated files would do the opposite and let new work ship unguarded.
@@ -78,6 +83,7 @@ export default ts.config(
 		// `/* eslint-disable */` headers that would trip unused-directive reporting (i18n epic #8).
 		ignores: [
 			'dist/',
+			'dist-laboratory/',
 			'.pwa-test/',
 			'node_modules/',
 			'.svelte-kit/',
