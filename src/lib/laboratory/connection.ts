@@ -4,7 +4,6 @@
  * laboratory provenance, version, commit and time-control checks pass.
  */
 import { LiveClient, randomClientSeed } from '../live/liveClient';
-import type { ClientCommand } from '../live/liveTypes';
 import {
 	LaboratoryApi,
 	LaboratoryError,
@@ -253,16 +252,16 @@ export function openRoomConnection(
 
 	const url = new URL(`/games/${access.gameId}/ws`, api.origin);
 	url.protocol = url.protocol === 'https:' ? 'wss:' : 'ws:';
-	url.searchParams.set('token', access.token);
-	url.searchParams.set('guest', guest);
-	client = new LiveClient(url.toString());
+	client = new LiveClient(url.toString(), {
+		laboratoryAuth: { token: access.token, guest, seat: access.seat },
+	});
 	client.onEvent(onEvent);
 	client.onStatus((status) => {
 		if (closed) return;
 		callbacks.onStatus(status);
 		if (status === 'closed') callbacks.onError('connection');
 	});
-	const hello: ClientCommand = { SubmitSeed: { seed } };
+	const hello = { SubmitSeed: { seed } } as const;
 	client.connect(hello);
 	if (!closed) interval = setInterval(() => void refresh(), 2000);
 

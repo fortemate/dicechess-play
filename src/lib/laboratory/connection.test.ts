@@ -3,6 +3,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 const transport = vi.hoisted(() => ({
 	instances: [] as Array<{
 		url: string;
+		options: unknown;
 		event: ((value: unknown) => void) | null;
 		status: ((value: 'connecting' | 'open' | 'closed') => void) | null;
 		connect: ReturnType<typeof vi.fn>;
@@ -18,13 +19,15 @@ vi.mock('../live/liveClient', () => ({
 	randomClientSeed: transport.seed,
 	LiveClient: class {
 		url: string;
+		options: unknown;
 		event: ((value: unknown) => void) | null = null;
 		status: ((value: 'connecting' | 'open' | 'closed') => void) | null = null;
 		connect = vi.fn();
 		close = vi.fn();
 		send = vi.fn();
-		constructor(url: string) {
+		constructor(url: string, options?: unknown) {
 			this.url = url;
+			this.options = options;
 			transport.instances.push(this);
 		}
 		onEvent(callback: (value: unknown) => void) {
@@ -138,15 +141,17 @@ describe('laboratory room connection', () => {
 		vi.useRealTimers();
 	});
 
-	it('builds the socket URL from the configured laboratory origin and sends only the stable seed', () => {
+	it('keeps credentials out of the socket URL and supplies them as first-frame auth options', () => {
 		const storage = new MemoryStorage();
 		const first = open(asStorage(storage));
 		const url = new URL(first.client!.url);
 		expect(url.origin).toBe('wss://lab.example');
 		expect(url.pathname).toBe(`/games/${gameId}/ws`);
-		expect([...url.searchParams.keys()].sort()).toEqual(['guest', 'token']);
-		expect(url.searchParams.get('token')).toBe(access.token);
-		expect(url.searchParams.get('guest')).toBe(guest);
+		expect(url.search).toBe('');
+		expect(url.hash).toBe('');
+		expect(first.client!.options).toEqual({
+			laboratoryAuth: { token: access.token, guest, seat: access.seat },
+		});
 		expect(first.client!.connect).toHaveBeenCalledWith({
 			SubmitSeed: { seed: '0123456789abcdef0123456789abcdef' },
 		});
@@ -251,13 +256,13 @@ describe('laboratory room connection', () => {
 		current.connection.close();
 	});
 
-	it('reports exhausted socket retries while preserving the seat capability', () => {
+	it('reports exhausted socket retries without adding credentials to the socket URL', () => {
 		const current = open();
 		current.client!.fireStatus('connecting');
 		current.client!.fireStatus('closed');
 		expect(current.handlers.onStatus).toHaveBeenCalledWith('closed');
 		expect(current.handlers.onError).toHaveBeenCalledWith('connection');
-		expect(current.client!.url).toContain(encodeURIComponent(access.token));
+		expect(new URL(current.client!.url).search).toBe('');
 		current.connection.close();
 	});
 

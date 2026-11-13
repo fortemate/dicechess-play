@@ -50,7 +50,7 @@ async function installMocks(page: Page) {
 	const postBodies: Record<string, unknown>[] = [];
 	const httpUrls: string[] = [];
 	const websocketUrls: string[] = [];
-	const seedFrames: Record<string, unknown>[] = [];
+	const socketFrames: Record<string, unknown>[] = [];
 	const pageErrors: string[] = [];
 	const consoleErrors: string[] = [];
 	page.on('request', (request) => httpUrls.push(request.url()));
@@ -124,14 +124,18 @@ async function installMocks(page: Page) {
 		route.onMessage((message) => {
 			if (typeof message !== 'string') return;
 			const frame = JSON.parse(message) as Record<string, unknown>;
-			seedFrames.push(frame);
+			socketFrames.push(frame);
+			if ('LabAuthenticate' in frame) {
+				route.send(JSON.stringify({ LabAuthenticated: { seat: 'White' } }));
+				return;
+			}
 			if (!('SubmitSeed' in frame)) return;
 			const state = records.get(latestGameId)?.state;
 			if (state) route.send(JSON.stringify({ Snapshot: { v: state.version, state, history: [] } }));
 		});
 	});
 
-	return { records, postBodies, httpUrls, websocketUrls, seedFrames, pageErrors, consoleErrors };
+	return { records, postBodies, httpUrls, websocketUrls, socketFrames, pageErrors, consoleErrors };
 }
 
 const corsHeaders = {
@@ -192,15 +196,19 @@ test('creates an isolated room, keeps only the opponent token in the invitation,
 	expect(stored).toContain(opponentToken);
 	await expect(page.getByText('You · White')).toBeVisible();
 	await expect(page.getByText('Friend · Black')).toBeVisible();
-	await expect.poll(() => mocks.seedFrames.length).toBeGreaterThan(0);
+	await expect.poll(() => mocks.socketFrames.some((frame) => 'SubmitSeed' in frame)).toBe(true);
 	await expect.poll(() => mocks.websocketUrls.length).toBeGreaterThan(0);
-	expect(
-		mocks.seedFrames.every((frame) => Object.keys(frame).length === 1 && 'SubmitSeed' in frame),
-	).toBe(true);
+	expect(mocks.socketFrames.map((frame) => Object.keys(frame)[0])).toEqual([
+		'LabAuthenticate',
+		'SubmitSeed',
+	]);
 	const wsUrl = new URL(mocks.websocketUrls[0]);
 	expect(wsUrl.pathname).toBe(`/games/${gameId}/ws`);
-	expect(wsUrl.searchParams.get('token')).toBe(ownToken);
-	expect(wsUrl.searchParams.get('guest')).toBe(body.white);
+	expect(wsUrl.search).toBe('');
+	expect(wsUrl.hash).toBe('');
+	expect(mocks.socketFrames[0]).toEqual({
+		LabAuthenticate: { token: ownToken, guest: body.white },
+	});
 	expect(mocks.websocketUrls.join('\n')).not.toContain(opponentToken);
 
 	await page.screenshot({ path: testInfo.outputPath('lab-desktop-invite-dark.png') });
@@ -240,7 +248,7 @@ test('shows the invitation settings but waits for Join before opening the oppone
 		Fischer: { initialSeconds: 600, incrementSeconds: 10 },
 	});
 	const websocketUrls: string[] = [];
-	const seedFrames: Record<string, unknown>[] = [];
+	const socketFrames: Record<string, unknown>[] = [];
 	const httpUrls: string[] = [];
 	const pageErrors: string[] = [];
 	const consoleErrors: string[] = [];
@@ -265,8 +273,10 @@ test('shows the invitation settings but waits for Join before opening the oppone
 		route.onMessage((message) => {
 			if (typeof message !== 'string') return;
 			const frame = JSON.parse(message) as Record<string, unknown>;
-			seedFrames.push(frame);
-			if ('SubmitSeed' in frame)
+			socketFrames.push(frame);
+			if ('LabAuthenticate' in frame) {
+				route.send(JSON.stringify({ LabAuthenticated: { seat: 'Black' } }));
+			} else if ('SubmitSeed' in frame)
 				route.send(JSON.stringify({ Snapshot: { v: state.version, state } }));
 		});
 	});
@@ -281,14 +291,18 @@ test('shows the invitation settings but waits for Join before opening the oppone
 	await page.getByRole('button', { name: 'Join as Black' }).click();
 	await expect(page.getByRole('img', { name: 'Chessboard, Black at the bottom' })).toBeVisible();
 	await expect.poll(() => websocketUrls.length).toBeGreaterThan(0);
-	await expect.poll(() => seedFrames.length).toBeGreaterThan(0);
+	await expect.poll(() => socketFrames.some((frame) => 'SubmitSeed' in frame)).toBe(true);
 	const opponentSocket = new URL(websocketUrls[0]);
 	expect(opponentSocket.pathname).toBe(`/games/${gameId}/ws`);
-	expect(opponentSocket.searchParams.get('token')).toBe(token);
-	expect(opponentSocket.searchParams.get('guest')).toMatch(/^[0-9a-f-]{36}$/i);
-	expect(
-		seedFrames.every((frame) => Object.keys(frame).length === 1 && 'SubmitSeed' in frame),
-	).toBe(true);
+	expect(opponentSocket.search).toBe('');
+	expect(opponentSocket.hash).toBe('');
+	expect(socketFrames.map((frame) => Object.keys(frame)[0])).toEqual([
+		'LabAuthenticate',
+		'SubmitSeed',
+	]);
+	expect(socketFrames[0]).toMatchObject({
+		LabAuthenticate: { token, guest: expect.stringMatching(/^[0-9a-f-]{36}$/i) },
+	});
 	expect(httpUrls.every((url) => [APP_ORIGIN, API_ORIGIN].includes(new URL(url).origin))).toBe(
 		true,
 	);

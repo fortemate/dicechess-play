@@ -67,7 +67,11 @@ npm run test:laboratory
 ```
 
 Seat capabilities travel in URL fragments and are kept for reloads in the laboratory's own
-`sessionStorage` namespace. The lab requests anonymous, casual human seats only. Room entry remains
+`sessionStorage` namespace. Seat WebSocket URLs contain no credentials or query parameters: every
+connection sends `LabAuthenticate` as its first message and waits for the expected-seat
+`LabAuthenticated` acknowledgement before sending its seed or commands. Deploy the matching
+laboratory API adapter first; there is no legacy URL-token fallback. The lab requests anonymous,
+casual human seats only. Room entry remains
 read-only until #224 completes the two-player flow. The theme selector follows System by default
 and supports Light and Dark.
 
