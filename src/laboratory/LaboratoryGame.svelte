@@ -223,15 +223,22 @@
 						{equal ? m.lab_game_equal() : ''}
 					</p>
 				{:else if turn.phase === 'PlayingSelectedPair'}
-					<p class="lab-action-description">
+					<p class="lab-action-description lab-play-description">
 						{m.lab_game_play_description()}
 					</p>
 				{/if}
 				{#if showOffers && turn.offers.length}
-					<div class="lab-pair-cards" aria-label={m.lab_game_pairs()}>
+					<div
+						class="lab-pair-cards"
+						class:lab-pair-cards-playing={turn.phase === 'PlayingSelectedPair'}
+						aria-label={m.lab_game_pairs()}
+					>
 						{#each turn.offers as pair, index (index)}
 							{@const chosen = turn.selectedPairIndex === index}
 							{@const selectable = turn.phase === 'AwaitingPairChoice' && game.canAct}
+							{@const unplayable =
+								turn.phase === 'AwaitingPairChoice' &&
+								game.offerPlayable(index as PairIndex) === false}
 							<button
 								type="button"
 								class="lab-pair-card"
@@ -240,6 +247,7 @@
 									turn.selectedPairIndex === null}
 								class:lab-pair-discarded={turn.selectedPairIndex !== null && !chosen}
 								aria-label={pairLabel(index)}
+								aria-describedby={unplayable ? `lab-pair-pass-${index}` : undefined}
 								aria-pressed={chosen || game.tentative === index}
 								disabled={!selectable}
 								data-stage-action={selectable ? '' : undefined}
@@ -258,7 +266,10 @@
 											/></span
 										>{/each}</span
 								>
-								<span class="lab-pair-state"
+								<span
+									class="lab-pair-state"
+									class:lab-pair-state-idle={turn.selectedPairIndex === null &&
+										game.tentative !== index}
 									>{chosen
 										? m.lab_game_locked()
 										: turn.selectedPairIndex !== null
@@ -267,8 +278,9 @@
 												? m.lab_game_tentative()
 												: m.lab_game_whole()}</span
 								>
-								{#if turn.phase === 'AwaitingPairChoice' && game.offerPlayable(index as PairIndex) === false}<span
-										class="lab-pair-state">{m.lab_game_no_moves()}</span
+								{#if unplayable}<span
+										id={`lab-pair-pass-${index}`}
+										class="lab-pair-state lab-pair-warning">{m.lab_game_no_moves()}</span
 									>{/if}
 							</button>
 						{/each}
@@ -318,30 +330,35 @@
 					</p>{/if}
 				{#if turn.phase === 'PlayingSelectedPair'}
 					<div class="lab-selected-summary">
-						{m.lab_game_remaining({
-							number: turn.selectedPairIndex! + 1,
-							count: game.remainingDice.length,
-						})}
+						<span class="lab-selected-pair-name lab-sr">{pairLabel(turn.selectedPairIndex!)}</span>
+						{#if game.remainingDice.length}<span
+								class="lab-remaining-dice"
+								role="img"
+								aria-label={game.remainingDice.map((die) => names[die]).join(', ')}
+							>
+								{#each game.remainingDice as die, dieIndex (dieIndex)}<span class="lab-die"
+										><img
+											src={`/pieces/cburnett/${position.activeSeat === 'White' ? 'w' : 'b'}${pieceLetters[die]}.svg`}
+											alt=""
+										/></span
+									>{/each}
+							</span>{/if}
+						<span class="lab-selected-text"
+							>{m.lab_game_remaining({
+								number: turn.selectedPairIndex! + 1,
+								count: game.remainingDice.length,
+							})}</span
+						>
+						{#if game.pending && game.complete}<span class="lab-pending-status" role="status"
+								>{m.lab_game_sending()}</span
+							>{/if}
 					</div>
 					{#if ownTurn}<div class="lab-draft-moves" aria-label={m.lab_game_draft()}>
 							{#each game.draft as move, index (index)}<span
 									>{move.slice(0, 2)}–{move.slice(2)}{move.length > 4 ? ` (${move[4]})` : ''}</span
 								>{/each}
 						</div>
-						<div class="lab-turn-actions">
-							<button
-								type="button"
-								class="lab-secondary"
-								disabled={!game.canAct || !game.draft.length}
-								onclick={() => game.undo()}>{m.lab_game_undo()}</button
-							><button
-								type="button"
-								class="lab-primary"
-								disabled={!game.canAct || !game.draft.length || game.moves.length > 0}
-								onclick={() => game.submit()}
-								>{m.lab_game_submit()} <span aria-hidden="true">→</span></button
-							>
-						</div>{/if}
+					{/if}
 				{/if}
 			</section>
 			{#if !ended && turn.phase !== 'AwaitingPlayers'}

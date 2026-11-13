@@ -23,6 +23,7 @@
 	let focusIndex = $state(0);
 	let grid = $state<HTMLDivElement>();
 	let promotionPanel = $state<HTMLFieldSetElement>();
+	let previousBoard: { dfen: string; disabled: boolean; seat: Seat } | undefined;
 	const pieces: Record<string, string> = {
 		p: m.lab_game_pawn(),
 		n: m.lab_game_knight(),
@@ -36,9 +37,16 @@
 		source ? moves.filter((move) => move.startsWith(source!)).map((move) => move.slice(2, 4)) : [],
 	);
 	$effect(() => {
-		// A new authoritative/local-preview board invalidates the old square and promotion choice.
-		void dfen;
-		void disabled;
+		// Polls replace the parent's state object even when the board is unchanged. Reset input only
+		// for an actual position, permission or orientation change, including reconnects.
+		const next = { dfen, disabled, seat };
+		if (
+			previousBoard?.dfen === dfen &&
+			previousBoard.disabled === disabled &&
+			previousBoard.seat === seat
+		)
+			return;
+		previousBoard = next;
 		source = null;
 		promotions = [];
 	});

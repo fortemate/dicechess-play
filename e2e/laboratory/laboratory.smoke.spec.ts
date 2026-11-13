@@ -267,7 +267,7 @@ async function expectMinimumTarget(page: Page, locator: ReturnType<Page['getByRo
 test('creates and joins one room across independent browser contexts', async ({
 	page,
 	browser,
-}) => {
+}, testInfo) => {
 	const fixture = await installMocks(page);
 	await page.goto('/');
 	const input = await createGame(page);
@@ -308,12 +308,56 @@ test('creates and joins one room across independent browser contexts', async ({
 		await expect(friendPage.locator('.lab-pair-card')).toHaveCount(2);
 		expect(fixture.socketFrames.filter((frame) => 'LabCommand' in frame)).toHaveLength(2);
 		expect(fixture.records.get(gameId)!.state.lab.turn.selectedPairIndex).toBeNull();
+		await page.screenshot({
+			path: testInfo.outputPath('lab-desktop-pair-choice.png'),
+			fullPage: true,
+		});
+		for (const width of [320, 390, 430]) {
+			await page.setViewportSize({ width, height: 844 });
+			for (const colorScheme of ['light', 'dark'] as const) {
+				await page.emulateMedia({ colorScheme });
+				await expectNoHorizontalOverflow(page);
+				const available = (await page.locator('.lab-game-grid').boundingBox())!.width;
+				const board = (await page.getByRole('grid').boundingBox())!.width;
+				expect(board).toBeGreaterThanOrEqual(available - 2);
+				for (const card of await page.locator('.lab-pair-card').all()) {
+					const box = (await card.boundingBox())!;
+					expect(box.height).toBeGreaterThanOrEqual(44);
+					expect(box.height).toBeLessThanOrEqual(84);
+				}
+				await page.screenshot({
+					path: testInfo.outputPath(`lab-phone-${width}-pairs-${colorScheme}.png`),
+					fullPage: true,
+				});
+			}
+		}
+		await page.setViewportSize({ width: 390, height: 844 });
 		await page.getByRole('button', { name: /^Pair 1:/ }).click();
 		await page.getByRole('button', { name: 'Confirm pair 1' }).click();
-		for (const square of ['e2', 'e4', 'b1', 'c3'])
+		await expect(page.getByRole('button', { name: 'Undo', exact: true })).toHaveCount(0);
+		await expect(page.getByRole('button', { name: 'Submit turn', exact: true })).toHaveCount(0);
+		for (const square of ['e2', 'e4'])
 			await page.getByRole('gridcell', { name: new RegExp(`^${square},`) }).click();
-		await page.getByRole('button', { name: 'Submit turn' }).click();
+		expect(fixture.socketFrames.filter((frame) => 'LabCommand' in frame)).toHaveLength(3);
+		await page.screenshot({
+			path: testInfo.outputPath('lab-phone-390-playing.png'),
+			fullPage: true,
+		});
+		await page.getByRole('gridcell', { name: /^b1,/ }).click();
+		await expect(page.getByRole('gridcell', { name: /^b1,/ })).toHaveAttribute(
+			'aria-selected',
+			'true',
+		);
+		await page.getByRole('gridcell', { name: /^c3,.*legal destination/ }).click();
+		await expect
+			.poll(() => fixture.socketFrames.filter((frame) => 'LabCommand' in frame))
+			.toHaveLength(4);
 		await expect(friendPage.getByRole('button', { name: 'Roll dice' })).toBeEnabled();
+		const commands = fixture.socketFrames.filter((frame) => 'LabCommand' in frame);
+		expect(commands).toHaveLength(4);
+		expect(commands.at(-1)).toMatchObject({
+			LabCommand: { action: { SubmitTurn: { moves: ['e2e4', 'b1c3'] } } },
+		});
 		expect(fixture.records.get(gameId)!.state.dfen).toContain('/2N5/PPPP1PPP/R1BQKBNR b');
 		expect(
 			fixture.websocketUrls.every((url) => new URL(url).pathname === `/games/${gameId}/ws`),

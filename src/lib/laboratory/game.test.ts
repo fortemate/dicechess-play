@@ -371,18 +371,20 @@ describe('LaboratoryGame', () => {
 		);
 		game.move('b1c3');
 		expect(game.complete).toBe(true);
-		game.submit();
 		expect(send).toHaveBeenCalledTimes(1);
 		game.frame({ LabRejected: { commandId, code: 'StaleVersion' } });
 		expect(game.pending).toBe(false);
 		expect(game.draft).toEqual([]);
-		game.submit();
+		game.accept(state('PlayingSelectedPair', { dfen, legalMoves: { b1c3: {} } }), 'White');
 		expect(send).toHaveBeenCalledTimes(1);
 	});
 
 	it('disables a disconnected game and drops its draft on resync without rerolling', () => {
 		const { game, send } = setup(
-			state('PlayingSelectedPair', { dfen: `${START} N`, legalMoves: { b1c3: {} } as MoveTree }),
+			state('PlayingSelectedPair', {
+				dfen: `${START} NN`,
+				legalMoves: { b1c3: { g1f3: {} } } as MoveTree,
+			}),
 		);
 		game.move('b1c3');
 		game.status(false);
@@ -417,6 +419,7 @@ describe('LaboratoryGame', () => {
 		);
 		game.move('b1c3');
 		game.reset();
+		send.mockClear();
 		expect(game.state).toBeNull();
 		expect(game.draft).toEqual([]);
 		expect(game.tree).toBeNull();
@@ -443,11 +446,18 @@ describe('LaboratoryGame', () => {
 		const dfen = `${castleFen} KR`;
 		const tree = treeFor(dfen);
 		expect(tree).toHaveProperty('e1g1');
-		const { game } = setup(state('PlayingSelectedPair', { dfen, legalMoves: tree }));
+		const { game, send } = setup(state('PlayingSelectedPair', { dfen, legalMoves: tree }));
 		game.move('e1g1');
 		expect(game.complete).toBe(true);
 		expect(game.boardDfen.split(' ')[0]).toContain('R4RK1');
 		expect(game.remainingDice).toEqual([]);
+		expect(send).toHaveBeenCalledExactlyOnceWith({
+			LabCommand: {
+				commandId: expect.any(String),
+				expectedVersion: 7,
+				action: { SubmitTurn: { moves: ['e1g1'] } },
+			},
+		});
 	});
 
 	it('requires explicit promotion and preserves a king capture without a promotion suffix', () => {
@@ -459,8 +469,16 @@ describe('LaboratoryGame', () => {
 		);
 		promotion.game.move('a7a8');
 		expect(promotion.game.draft).toEqual([]);
+		expect(promotion.send).not.toHaveBeenCalled();
 		promotion.game.move('a7a8q');
 		expect(promotion.game.boardDfen.split(' ')[0]).toMatch(/^Q/);
+		expect(promotion.send).toHaveBeenCalledExactlyOnceWith({
+			LabCommand: {
+				commandId: expect.any(String),
+				expectedVersion: 7,
+				action: { SubmitTurn: { moves: ['a7a8q'] } },
+			},
+		});
 
 		const captureDfen = 'k7/8/8/8/8/8/8/Q3K3 w - - 0 1 Q';
 		const captureTree = treeFor(captureDfen);
@@ -472,21 +490,92 @@ describe('LaboratoryGame', () => {
 		capture.game.move('a1a8');
 		expect(capture.game.draft).toEqual(['a1a8']);
 		expect(capture.game.draft[0]).toHaveLength(4);
+		expect(capture.send).toHaveBeenCalledExactlyOnceWith({
+			LabCommand: {
+				commandId: expect.any(String),
+				expectedVersion: 7,
+				action: { SubmitTurn: { moves: ['a1a8'] } },
+			},
+		});
 	});
 
-	it('does not submit before the supplied tree has consumed its available dice', () => {
+	it('automatically submits exactly once after the last legal continuation', () => {
 		const dfen = `${START} NN`;
 		const tree: MoveTree = { b1c3: { g1f3: {} } };
 		const { game, send } = setup(state('PlayingSelectedPair', { dfen, legalMoves: tree }));
 		game.move('b1c3');
 		expect(game.complete).toBe(false);
-		game.submit();
 		expect(send).not.toHaveBeenCalled();
 		game.move('g1f3');
 		expect(game.complete).toBe(true);
-		game.submit();
+		expect(game.pending).toBe(true);
+		expect(game.canMove).toBe(false);
+		game.move('g1f3');
 		expect(send).toHaveBeenCalledTimes(1);
+		expect(send.mock.calls[0][0]).toMatchObject({
+			LabCommand: { expectedVersion: 7, action: { SubmitTurn: { moves: ['b1c3', 'g1f3'] } } },
+		});
 	});
+
+	it('submits a one-move leaf even when an unusable die remains', () => {
+		const dfen = `${START} NB`;
+		const { game, send } = setup(state('PlayingSelectedPair', { dfen, legalMoves: treeFor(dfen) }));
+		game.move('b1c3');
+		expect(game.remainingDice).toEqual([3]);
+		expect(game.complete).toBe(true);
+		expect(send).toHaveBeenCalledExactlyOnceWith({
+			LabCommand: {
+				commandId: expect.any(String),
+				expectedVersion: 7,
+				action: { SubmitTurn: { moves: ['b1c3'] } },
+			},
+		});
+	});
+
+	it('restores a playable accepted board when a complete turn cannot be sent', () => {
+		const dfen = `${START} N`;
+		const { game, send } = setup(state('PlayingSelectedPair', { dfen, legalMoves: { b1c3: {} } }));
+		send.mockReturnValueOnce(false);
+		game.move('b1c3');
+		expect(game.pending).toBe(false);
+		expect(game.draft).toEqual([]);
+		expect(game.boardDfen).toBe(dfen);
+		expect(game.moves).toContain('b1c3');
+		expect(game.error).toContain('not sent');
+		game.status(false);
+		game.status(true, true);
+		expect(send).toHaveBeenCalledTimes(1);
+		game.move('b1c3');
+		expect(send).toHaveBeenCalledTimes(2);
+		const first = send.mock.calls[0][0] as CommandFrame;
+		const retry = send.mock.calls[1][0] as CommandFrame;
+		expect(retry.LabCommand.commandId).not.toBe(first.LabCommand.commandId);
+	});
+
+	it.each(['receipt first', 'state first'])(
+		'settles an automatic turn without repeating it (%s)',
+		(order) => {
+			const { game, send } = setup(
+				state('PlayingSelectedPair', { dfen: `${START} N`, legalMoves: { b1c3: {} } }),
+			);
+			game.move('b1c3');
+			const command = send.mock.calls[0][0] as CommandFrame;
+			const receipt = {
+				LabCommandApplied: { commandId: command.LabCommand.commandId, appliedVersion: 8 },
+			};
+			const next = state('AwaitingFirstRoll', { version: 8, activeSeat: 'Black' });
+			if (order === 'receipt first') game.frame(receipt);
+			else game.accept(next, 'White');
+			expect(game.pending).toBe(true);
+			if (order === 'receipt first') game.accept(next, 'White');
+			else game.frame(receipt);
+			expect(game.pending).toBe(false);
+			game.frame(receipt);
+			game.status(false);
+			game.status(true, true);
+			expect(send).toHaveBeenCalledTimes(1);
+		},
+	);
 
 	it('keeps the clock running during second roll, pair choice, and disconnect, but pauses while waiting', async () => {
 		vi.useFakeTimers();
