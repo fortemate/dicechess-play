@@ -82,6 +82,21 @@ SonarCloud's existing configuration excludes `scripts/**`; its green gate does n
 
 ## Retained evidence and limits
 
+### Review follow-up
+
+All six new review findings were addressed in the acceptance harness, without changing the client or API game behavior:
+
+- Docker query capture waits for `close`, including final UTF-8 stdout/stderr chunks after child `exit`.
+- Complete transcripts require supported termination values and the corresponding win/draw result shape. Records with no outcome are refused.
+- A king-capture terminal selection must match the final recorded turn, with both offers retained.
+- Masked WebSocket frames use the shortest length encoding; tests cover 0, 125, 126 and 65,535 bytes and reject overflow.
+- Receipt privacy checks include the opponent's original connection and its replacement after the crash.
+- SIGINT/SIGTERM stop subsequent operations and await idempotent owned-resource cleanup after in-flight setup settles. Interrupted records cannot report PASS.
+
+The full real-service matrix passed again in `run-1794584215679`: [review-acceptance-results.json](./evidence/review-acceptance-results.json), 30/30 scenarios. Original transcript exports and screenshots remain preserved; their verification now runs through the stricter oracle. All 1,583 client unit tests and 15 local harness regression tests passed, along with lint, formatting and type checks.
+
+The separate opt-in `check-interruptions.mjs` check also passed on Linux/WSL with Node 26.8.2: real SIGINT/SIGTERM produced `INTERRUPTED`, exit codes 130/143, and no remaining owned database container. It was rerun after the final cleanup changes. Abrupt SIGKILL, host loss or Docker daemon failure remain outside cooperative shutdown guarantees.
+
 [SHA256SUMS](./evidence/SHA256SUMS) covers every retained evidence file. The final run's transcript/PNG artifacts are preserved verbatim. The versions metadata label for the staged JAR digest was renamed to serverArtifactSha256 after a false-positive API-key scan; its digest value and scenario outcomes are unchanged. Two additional `ui-smoke-choice-*` images come from the separate, passing built-client lab smoke suite with fixture transport; they document choice-screen appearance, not an extra real-service run. All screenshots were visually inspected. Public terminal seeds are intentional fairness reveals; invitation links, capabilities, private snapshots, socket frames and process logs were not retained.
 
 - [Desktop choice, light](./evidence/ui-smoke-choice-desktop-light.png)

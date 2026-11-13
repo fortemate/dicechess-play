@@ -6,6 +6,7 @@ import { dirname, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import net from 'node:net';
 import assert from 'node:assert/strict';
+import { qualification } from './lifecycle.mjs';
 const exec = promisify(execFile);
 const here = dirname(fileURLToPath(import.meta.url));
 export const APP_ORIGIN = 'http://127.0.0.1:4175';
@@ -13,10 +14,36 @@ export const API_ORIGIN = 'http://127.0.0.1:8081';
 export const CLASSIC_ORIGIN = 'http://127.0.0.1:8082';
 export async function until(predicate, label, attempts = 100) {
 	for (let index = 0; index < attempts; index++) {
-		if (await predicate()) return;
+		qualification.throwIfStopped();
+		const ready = await predicate();
+		qualification.throwIfStopped();
+		if (ready) return;
 		await new Promise((r) => setTimeout(r, 100));
 	}
 	throw new Error(`Acceptance timed out: ${label}`);
+}
+/** Wait for pipe closure, not merely child exit: later chunks may still contain snapshot data. */
+export function captureChildOutput(child, input) {
+	return new Promise((resolvePromise, reject) => {
+		let stdout = '';
+		let stderr = '';
+		child.stdout.setEncoding('utf8');
+		child.stderr.setEncoding('utf8');
+		child.stdout.on('data', (chunk) => (stdout += chunk));
+		child.stderr.on('data', (chunk) => (stderr += chunk));
+		child.on('error', reject);
+		child.on('close', (code) =>
+			code === 0
+				? resolvePromise({ stdout, stderr })
+				: reject(
+						new Error(
+							`Disposable database command failed: ${stderr.split('\n')[0].replace(/"[^"]*"|'[^']*'/g, '<value>')}`,
+						),
+					),
+		);
+		child.stdin.on('error', reject);
+		child.stdin.end(input);
+	});
 }
 export class AcceptanceEnvironment {
 	constructor() {
@@ -33,36 +60,31 @@ export class AcceptanceEnvironment {
 		this.container = `dicechess-lab225-${process.pid}-${Date.now()}`;
 		this.bridges = [];
 		this.labSockets = new Set();
+		this.proxySockets = new Set();
 		this.children = [];
 		this.started = false;
 		this.owned = false;
+		this.cleaning = false;
+	}
+	assertRunning() {
+		if (!this.cleaning) qualification.throwIfStopped();
 	}
 	async linux(command, args = [], options = {}) {
-		return this.wsl
+		this.assertRunning();
+		const result = await (this.wsl
 			? exec('wsl', [...this.wsl, command, ...args], options)
-			: exec(command, args, options);
+			: exec(command, args, options));
+		this.assertRunning();
+		return result;
 	}
 	async docker(args, input) {
 		if (input === undefined) return this.linux('docker', args, { maxBuffer: 16 * 1024 * 1024 });
+		this.assertRunning();
 		const prefix = this.wsl ? ['wsl', [...this.wsl, 'docker', ...args]] : ['docker', args];
-		return new Promise((resolvePromise, reject) => {
-			const child = spawn(...prefix, { stdio: ['pipe', 'pipe', 'pipe'] });
-			let stdout = '';
-			let stderr = '';
-			child.stdout.on('data', (chunk) => (stdout += chunk));
-			child.stderr.on('data', (chunk) => (stderr += chunk));
-			child.on('error', reject);
-			child.on('exit', (code) =>
-				code === 0
-					? resolvePromise({ stdout, stderr })
-					: reject(
-							new Error(
-								`Disposable database command failed: ${stderr.split('\n')[0].replace(/"[^"]*"|'[^']*'/g, '<value>')}`,
-							),
-						),
-			);
-			child.stdin.end(input);
-		});
+		const child = spawn(...prefix, { stdio: ['pipe', 'pipe', 'pipe'] });
+		const result = await captureChildOutput(child, input);
+		this.assertRunning();
+		return result;
 	}
 	async sql(database, sql) {
 		assert.ok(['lab225_lab', 'lab225_classic', 'postgres'].includes(database));
@@ -114,6 +136,7 @@ export class AcceptanceEnvironment {
 		}
 	}
 	async start(mode = 'laboratory', options) {
+		this.assertRunning();
 		const { join = 300, admission = true } = options ?? {};
 		const args = [
 			'bash',
@@ -144,6 +167,7 @@ export class AcceptanceEnvironment {
 		await this.start('laboratory', options);
 	}
 	async setup(outputDir) {
+		this.assertRunning();
 		await mkdir(outputDir, { recursive: true });
 		const literal = 'lab225 space ; $(printf altered) "quoted"';
 		assert.equal(
@@ -181,6 +205,8 @@ export class AcceptanceEnvironment {
 					await this.linux('wslpath', ['-a', resolve(here, 'process.sh').replaceAll('\\', '/')])
 				).stdout.trim()
 			: resolve(here, 'process.sh');
+		// Claim only this unique name before creation; an interruption must not skip its cleanup.
+		this.owned = true;
 		await this.docker([
 			'run',
 			'-d',
@@ -195,7 +221,6 @@ export class AcceptanceEnvironment {
 			'127.0.0.1:25433:5432',
 			'postgres:18-alpine',
 		]);
-		this.owned = true;
 		await until(async () => {
 			try {
 				await this.docker([
@@ -221,7 +246,9 @@ REVOKE CONNECT ON DATABASE lab225_lab FROM PUBLIC; GRANT CONNECT ON DATABASE lab
 		);
 		// Owned loopback proxies allow deterministic socket drops without an API restart.
 		for (const port of [8081, 8082]) {
+			this.assertRunning();
 			const server = net.createServer((socket) => {
+				this.proxySockets.add(socket);
 				const upstream = net.connect(port + 10000, this.wsl ? '::1' : '127.0.0.1');
 				if (port === 8081) this.labSockets.add(socket);
 				socket.pipe(upstream);
@@ -231,6 +258,7 @@ REVOKE CONNECT ON DATABASE lab225_lab FROM PUBLIC; GRANT CONNECT ON DATABASE lab
 				socket.on('close', () => {
 					upstream.destroy();
 					this.labSockets.delete(socket);
+					this.proxySockets.delete(socket);
 				});
 				upstream.on('close', () => socket.destroy());
 			});
@@ -239,6 +267,7 @@ REVOKE CONNECT ON DATABASE lab225_lab FROM PUBLIC; GRANT CONNECT ON DATABASE lab
 				server.listen(port, '127.0.0.1', res);
 			});
 			this.bridges.push(server);
+			this.assertRunning();
 		}
 		await this.start('classic');
 		await this.start();
@@ -273,11 +302,18 @@ REVOKE CONNECT ON DATABASE lab225_lab FROM PUBLIC; GRANT CONNECT ON DATABASE lab
 		for (const socket of this.labSockets) socket.destroy();
 	}
 	async cleanup() {
+		return (this.cleanupPromise ??= this.cleanupOwnedResources());
+	}
+	async cleanupOwnedResources() {
+		this.cleaning = true;
 		for (const child of this.children) child.kill();
 		if (this.state && this.script)
 			for (const mode of ['laboratory', 'classic'])
 				await this.process('stop', mode).catch(() => {});
-		for (const bridge of this.bridges) bridge.close();
+		for (const socket of this.proxySockets) socket.destroy();
+		await Promise.all(
+			this.bridges.map((bridge) => new Promise((resolvePromise) => bridge.close(resolvePromise))),
+		);
 		if (this.owned) await this.docker(['stop', this.container]).catch(() => {});
 	}
 }

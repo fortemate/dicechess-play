@@ -118,17 +118,27 @@ export async function joinRoom(
 	return { white, black };
 }
 
+/** Encode one masked text frame for the native WebSocket peer used by local acceptance checks. */
+export function encodeMaskedClientFrame(payload) {
+	if (payload.length > 0xffff)
+		throw new RangeError('WebSocket test frame payload exceeds 65535 bytes');
+	const extended = payload.length >= 126;
+	const headerLength = extended ? 4 : 2;
+	const mask = randomBytes(4);
+	const frame = Buffer.alloc(headerLength + 4 + payload.length);
+	frame[0] = 0x81;
+	frame[1] = 0x80 | (extended ? 126 : payload.length);
+	if (extended) frame.writeUInt16BE(payload.length, 2);
+	mask.copy(frame, headerLength);
+	for (let index = 0; index < payload.length; index++)
+		frame[headerLength + 4 + index] = payload[index] ^ mask[index % 4];
+	return frame;
+}
+
 /** Read the policy close control frame directly; Node's WebSocket close event waits for TCP drain. */
 export async function foreignCapabilityClose(gameId, token) {
 	const payload = Buffer.from(JSON.stringify({ LabAuthenticate: { token, guest: randomUUID() } }));
-	const mask = randomBytes(4);
-	const frame = Buffer.alloc(8 + payload.length);
-	frame[0] = 0x81;
-	frame[1] = 0x80 | 126;
-	frame.writeUInt16BE(payload.length, 2);
-	mask.copy(frame, 4);
-	for (let index = 0; index < payload.length; index++)
-		frame[index + 8] = payload[index] ^ mask[index % 4];
+	const frame = encodeMaskedClientFrame(payload);
 	return new Promise((resolvePromise, reject) => {
 		const socket = net.connect(8081, '127.0.0.1');
 		let buffer = Buffer.alloc(0);

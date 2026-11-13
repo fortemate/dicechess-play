@@ -33,6 +33,10 @@ test('retained real-service evidence keeps its digests, fairness, moves, and exp
 	assert.equal(results.status, 'PASS');
 	assert.ok(results.scenarios.length >= 30);
 	assert.ok(results.scenarios.every((scenario) => scenario.status === 'PASS'));
+	const reviewResults = read('review-acceptance-results');
+	assert.equal(reviewResults.status, 'PASS');
+	assert.equal(reviewResults.scenarios.length, 30);
+	assert.ok(reviewResults.scenarios.every((scenario) => scenario.status === 'PASS'));
 	for (const name of [
 		'equal-offers',
 		'unplayable-over-playable',
@@ -61,6 +65,40 @@ test('retained real-service evidence keeps its digests, fairness, moves, and exp
 			},
 			name,
 		);
+		if (name === 'king-capture') {
+			for (const [label, mutate] of [
+				['missing termination', (bad) => delete bad.status.Ended.over.termination],
+				['unsupported termination', (bad) => (bad.status.Ended.over.termination = 'Unknown')],
+				[
+					'unsupported laboratory DoubleDeclined termination',
+					(bad) => (bad.status.Ended.over.termination = 'DoubleDeclined'),
+				],
+				['missing result', (bad) => delete bad.status.Ended.over.result],
+				['draw for king capture', (bad) => (bad.status.Ended.over.result = { Draw: {} })],
+				['win result for a draw reason', (bad) => (bad.status.Ended.over.termination = 'Draw')],
+				['extra result discriminator', (bad) => (bad.status.Ended.over.result.Draw = {})],
+				['extra win payload key', (bad) => (bad.status.Ended.over.result.Win.unexpected = true)],
+				['missing terminal offers', (bad) => delete bad.currentTurn.offers],
+				['empty terminal offers', (bad) => (bad.currentTurn.offers = [])],
+				['missing terminal selection', (bad) => delete bad.currentTurn.selectedPairIndex],
+				['null terminal selection', (bad) => (bad.currentTurn.selectedPairIndex = null)],
+				[
+					'other terminal selection',
+					(bad) =>
+						(bad.currentTurn.selectedPairIndex = bad.turns.at(-1).selectedPairIndex === 0 ? 1 : 0),
+				],
+			]) {
+				const tampered = structuredClone(record);
+				mutate(tampered);
+				assert.equal(verifyTranscript(tampered).status, 'failed', label);
+			}
+		} else if (name === 'both-unplayable') {
+			const noOutcome = structuredClone(record);
+			delete noOutcome.status.Ended.over.result;
+			delete noOutcome.status.Ended.over.termination;
+			assert.deepEqual(noOutcome.status.Ended.over, {});
+			assert.equal(verifyTranscript(noOutcome).status, 'failed');
+		}
 	}
 	for (const name of ['missing-participant-incomplete', 'incomplete-record']) {
 		const record = read(name);

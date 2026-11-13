@@ -212,12 +212,40 @@ export function verifyTranscript(transcript) {
 		transcript.provenance?.rulesVersion !== '0.18.2'
 	)
 		return fail('unsupported transcript provenance');
+	const over = transcript.status?.Ended?.over;
+	const supportedTerminations = ['KingCaptured', 'Resign', 'Draw', 'Aborted', 'Timeout'];
 	if (
-		!transcript.status?.Ended?.over ||
-		transcript.status.Ended.over.termination === 'Aborted' ||
+		!over ||
+		!supportedTerminations.includes(over.termination) ||
+		over.termination === 'Aborted' ||
 		transcript.currentTurn?.phase !== 'Ended'
 	)
 		return fail('complete transcript is not terminal');
+	const result = over.result;
+	const winTermination = ['KingCaptured', 'Resign', 'Timeout'].includes(over.termination);
+	const resultKeys =
+		result && typeof result === 'object' && !Array.isArray(result) ? Object.keys(result) : [];
+	if (winTermination) {
+		if (
+			resultKeys.length !== 1 ||
+			resultKeys[0] !== 'Win' ||
+			!result.Win ||
+			typeof result.Win !== 'object' ||
+			Array.isArray(result.Win) ||
+			Object.keys(result.Win).length !== 1 ||
+			!['White', 'Black'].includes(result.Win.side)
+		)
+			return fail('terminal win result mismatch');
+	} else if (
+		resultKeys.length !== 1 ||
+		resultKeys[0] !== 'Draw' ||
+		!result.Draw ||
+		typeof result.Draw !== 'object' ||
+		Array.isArray(result.Draw) ||
+		Object.keys(result.Draw).length !== 0
+	) {
+		return fail('terminal draw result mismatch');
+	}
 	if (
 		!Array.isArray(transcript.turns) ||
 		!Number.isSafeInteger(transcript.turns.length) ||
@@ -268,6 +296,14 @@ export function verifyTranscript(transcript) {
 					(terminalSelection !== 0 && terminalSelection !== 1)))
 		)
 			return fail('invalid terminal offers', verified.verifiedTurns);
+		if (
+			termination === 'KingCaptured' &&
+			(transcript.turns.length === 0 ||
+				terminalOffers.length !== OFFER_COUNT ||
+				(terminalSelection !== 0 && terminalSelection !== 1) ||
+				terminalSelection !== transcript.turns.at(-1).selectedPairIndex)
+		)
+			return fail('terminal king capture selection mismatch', verified.verifiedTurns);
 		if (terminalOffers.length > 0) {
 			const terminalTurnNumber =
 				termination === 'KingCaptured' ? transcript.turns.length - 1 : transcript.turns.length;

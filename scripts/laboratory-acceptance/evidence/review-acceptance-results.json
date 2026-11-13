@@ -1,0 +1,164 @@
+{
+  "schemaVersion": 1,
+  "status": "PASS",
+  "versions": {
+    "node": "v26.8.1",
+    "clientRules": "0.18.2",
+    "server": {
+      "status": "ok",
+      "version": "dev",
+      "rulesVersion": "0.18.2"
+    },
+    "postgres": "18.6",
+    "postgresImage": "postgres@sha256:10a5c69a83035ab5239f5620d708520e8b28f5aa1f2b20143e6024532edadfb5",
+    "serverArtifactSha256": "18fdb0a4a2abb8629f81e5e40251ac489f53fefd058b0ff6e3db964b58f3c1fc",
+    "chromium": "156.0.8078.4"
+  },
+  "scenarios": [
+    {
+      "scenario": "classic-three-dice-regression",
+      "status": "PASS",
+      "dice": 3
+    },
+    {
+      "scenario": "equal-offers",
+      "status": "PASS",
+      "verifiedTurns": 1
+    },
+    {
+      "scenario": "unplayable-over-playable",
+      "status": "PASS",
+      "verifiedTurns": 1
+    },
+    {
+      "scenario": "both-unplayable",
+      "status": "PASS",
+      "verifiedTurns": 1
+    },
+    {
+      "scenario": "maximum-consumption",
+      "status": "PASS",
+      "verifiedTurns": 1
+    },
+    {
+      "scenario": "castling",
+      "status": "PASS",
+      "verifiedTurns": 1
+    },
+    {
+      "scenario": "promotion",
+      "status": "PASS",
+      "verifiedTurns": 1
+    },
+    {
+      "scenario": "king-capture",
+      "status": "PASS",
+      "verifiedTurns": 1
+    },
+    {
+      "scenario": "protocol-rejections-and-seat-boundaries",
+      "status": "PASS"
+    },
+    {
+      "scenario": "waiting-stage-restart-preserves-stopped-clocks",
+      "status": "PASS"
+    },
+    {
+      "scenario": "timeout-during-pair-choice",
+      "status": "PASS"
+    },
+    {
+      "scenario": "missing-participant-stopped-clocks-and-incomplete-export",
+      "status": "PASS"
+    },
+    {
+      "scenario": "recover-AwaitingPlayers",
+      "status": "PASS",
+      "details": "waiting room survived API restart before the invited seat joined; no waiting clock ran"
+    },
+    {
+      "scenario": "room-settings-and-ui-seat-grant",
+      "status": "PASS",
+      "details": "10+10 settings and Black invitation seat confirmed"
+    },
+    {
+      "scenario": "layout-desktop-1440x900",
+      "status": "PASS",
+      "details": "no horizontal overflow"
+    },
+    {
+      "scenario": "layout-host-board-320x740",
+      "status": "PASS",
+      "details": "no horizontal overflow"
+    },
+    {
+      "scenario": "layout-host-board-390x844",
+      "status": "PASS",
+      "details": "no horizontal overflow"
+    },
+    {
+      "scenario": "layout-host-board-844x390",
+      "status": "PASS",
+      "details": "no horizontal overflow"
+    },
+    {
+      "scenario": "appearance-and-reduced-motion",
+      "status": "PASS",
+      "details": "light/dark controls and reduced-motion layout exercised"
+    },
+    {
+      "scenario": "recover-AwaitingFirstRoll",
+      "status": "PASS",
+      "details": "offers, selected pair, and variant retained; no automatic gameplay command"
+    },
+    {
+      "scenario": "recover-AwaitingSecondRoll",
+      "status": "PASS",
+      "details": "offers, selected pair, and variant retained; no automatic gameplay command"
+    },
+    {
+      "scenario": "recover-AwaitingPairChoice",
+      "status": "PASS",
+      "details": "offers, selected pair, and variant retained; no automatic gameplay command"
+    },
+    {
+      "scenario": "recover-PlayingSelectedPair",
+      "status": "PASS",
+      "details": "offers, selected pair, and variant retained; no automatic gameplay command"
+    },
+    {
+      "scenario": "legal-move-through-ui",
+      "status": "PASS",
+      "details": "submitted a legal move sequence (2 micro-moves)"
+    },
+    {
+      "scenario": "finished-review-and-public-export",
+      "status": "PASS",
+      "details": "review opened and schema 1 public transcript downloaded"
+    },
+    {
+      "scenario": "mutual-rematch-consent",
+      "status": "PASS",
+      "details": "both seats entered the same new rematch room"
+    },
+    {
+      "scenario": "incomplete-record-review",
+      "status": "PASS",
+      "details": "authorized White seat reviewed the public incomplete record; Aborted, no fairness proof, no verification-pass claim"
+    },
+    {
+      "scenario": "isolated-storage-and-network",
+      "status": "PASS",
+      "details": "no main-site outbox/history storage found; requests stayed on the two configured origins"
+    },
+    {
+      "scenario": "separate-databases-roles-routes-and-ordinary-tables",
+      "status": "PASS",
+      "ordinaryTables": 31
+    },
+    {
+      "scenario": "closed-admission-preserves-export-and-blocks-new-games",
+      "status": "PASS"
+    }
+  ]
+}

@@ -16,6 +16,7 @@ import { Peer, readJson, createRoom, joinRoom, foreignCapabilityClose } from './
 import { fixtures } from './fixtures.mjs';
 import { deterministicOffers, classicRoll, verifyTranscript } from './oracle.mjs';
 import { runBrowserAcceptance } from './browser.mjs';
+import { qualification } from './lifecycle.mjs';
 
 const here = dirname(fileURLToPath(import.meta.url));
 const output = resolve(
@@ -26,7 +27,18 @@ const env = new AcceptanceEnvironment();
 const evidence = [];
 const peers = [];
 let browser;
+const removeSignalHandlers = qualification.install(process, () => {
+	for (const peer of peers) {
+		try {
+			peer.close();
+		} catch {
+			/* Continue stopping other owned connections. */
+		}
+	}
+	void browser?.close().catch(() => {});
+});
 const report = (scenario, details = {}) => {
+	qualification.throwIfStopped();
 	evidence.push({ scenario, status: 'PASS', ...details });
 	process.stdout.write(`PASS ${scenario}\n`);
 };
@@ -269,6 +281,7 @@ async function protocolRejections() {
 		{ expectedVersion: initial.version - 1, reject: 'StaleVersion' },
 	);
 	assert.equal((await room.white.state()).version, initial.version);
+	const originalBlack = room.black;
 	const applied = await room.white.command({ RollFirst: {} });
 	await env.restart({ crash: true });
 	room.white = await new Peer(creation, 'White', 'acceptance-white-seed').open();
@@ -301,7 +314,7 @@ async function protocolRejections() {
 	);
 	const other = await createRoom();
 	assert.equal(await foreignCapabilityClose(creation.gameId, other.tokens[0].token), 1008);
-	for (const frame of room.black.frames)
+	for (const frame of [...originalBlack.frames, ...room.black.frames])
 		assert.notEqual(
 			frame.LabCommandApplied?.commandId,
 			applied.frame.LabCommand.commandId,
@@ -507,6 +520,7 @@ try {
 		).stdout.split(/\s+/)[0],
 		chromium: browser.version(),
 	};
+	qualification.throwIfStopped();
 	await writeFile(
 		resolve(output, 'acceptance-results.json'),
 		JSON.stringify({ schemaVersion: 1, status: 'PASS', versions, scenarios: evidence }, null, 2) +
@@ -518,6 +532,7 @@ try {
 		digests.push(`${createHash('sha256').update(bytes).digest('hex')}  ${name}`);
 	}
 	await writeFile(resolve(output, 'SHA256SUMS'), digests.join('\n') + '\n');
+	qualification.throwIfStopped();
 	process.stdout.write(`Laboratory acceptance passed (${evidence.length} scenarios).\n`);
 } catch (error) {
 	await writeFile(
@@ -525,7 +540,7 @@ try {
 		JSON.stringify(
 			{
 				schemaVersion: 1,
-				status: 'FAIL',
+				status: qualification.interrupted ? 'INTERRUPTED' : 'FAIL',
 				scenarios: evidence,
 				failure: { name: error.name, message: error.message },
 			},
@@ -533,10 +548,22 @@ try {
 			2,
 		) + '\n',
 	);
-	process.stderr.write(`Laboratory acceptance failed: ${error.message}\n`);
-	process.exitCode = 1;
+	process.stderr.write(
+		`Laboratory acceptance ${qualification.interrupted ? 'interrupted' : 'failed'}: ${error.message}\n`,
+	);
+	process.exitCode = qualification.exitCode ?? 1;
 } finally {
-	for (const peer of peers) peer.close();
-	await browser?.close();
-	await env.cleanup();
+	try {
+		await qualification.shutdown(async () => {
+			try {
+				for (const peer of peers) peer.close();
+				await browser?.close();
+			} finally {
+				await env.cleanup();
+			}
+		});
+	} finally {
+		removeSignalHandlers();
+		if (qualification.interrupted) process.exitCode = qualification.exitCode;
+	}
 }

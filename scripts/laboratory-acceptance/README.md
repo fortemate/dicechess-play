@@ -40,7 +40,7 @@ Build the API stage from the API checkout with `sbt 'Universal/stage'` under the
 ## Commands
 
 - `npm test` runs Vitest and then `npm run test:laboratory:oracle`.
-- `npm run test:laboratory:oracle` runs the local deterministic dice and transcript oracle tests; it does not start services or require Docker.
+- `npm run test:laboratory:oracle` runs the local dice/transcript oracle, WebSocket frame, child-output and shutdown regression tests; it does not start services or require Docker.
 - `npm run test:laboratory:acceptance` starts the disposable API/database processes, drives the real browser journey, writes evidence artifacts, and cleans up resources it created.
 - `npm run test:laboratory` is the separate Playwright suite configured by `playwright.laboratory.config.ts`; it is not the disposable end-to-end acceptance runner.
 
@@ -70,6 +70,10 @@ Fixture SQL is restricted to a row created by this run in its disposable lab dat
 On restart the server restores the last successfully committed snapshot. Time since that commit and process downtime are forgiven; graceful shutdown does not write an extra checkpoint. Sudden-death and Fischer clocks resume from the saved clock bank, while the lab per-move clock resumes from the saved active-seat remainder. The restart checks assert the last committed remainder, not elapsed wall-clock time since that commit.
 
 ## Network and isolation notes
+
+The runner handles `SIGINT` and `SIGTERM` cooperatively: it stops further setup/scenario operations, waits for in-flight resource creation to settle, then awaits once-only cleanup of its own processes, proxies and database. Interrupted results have status `INTERRUPTED` and exit code 130/143. `SIGKILL`, host failure and Docker daemon failure cannot provide that cleanup guarantee.
+
+To exercise real POSIX signals against disposable setup, run `node scripts/laboratory-acceptance/check-interruptions.mjs` on Linux/WSL with the same staged API/JDK variables and a local Node installation. This opt-in check requires Docker and verifies both exit codes, interrupted records and removal of the owned containers. It is separate from the service-free unit tests.
 
 The browser uses client `4175` and API proxy ports `8081` and `8082`, all bound to loopback. Those proxies forward to API process ports `18081` (lab) and `18082` (classic) on Linux loopback, or to WSL's IPv6 localhost from the Windows bridge. On Windows/WSL, the harness-owned IPv4 bridges listen only on Windows `127.0.0.1`; the API processes inside WSL bind `0.0.0.0` so the bridge can reach them. On native Linux, the lab binds `127.0.0.1`; the unchanged classic control binds `0.0.0.0`, so run it on an isolated host. Windows execution requires WSL NAT and refuses mirrored networking. Use a local firewall and an isolated host when running under WSL; do not expose those temporary listeners to a shared network. The client origin and API proxy origins remain local-only, and the browser audit fails if a page requests another origin.
 
