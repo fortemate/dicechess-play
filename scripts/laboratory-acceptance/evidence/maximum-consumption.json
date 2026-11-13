@@ -1,0 +1,67 @@
+{
+  "schemaVersion": 1,
+  "variant": {
+    "id": "choice-2x2d6",
+    "revision": 1
+  },
+  "provenance": {
+    "rulesVersion": "0.18.2",
+    "diceAlgorithm": "choice-2x2d6-hmac-sha256-v1"
+  },
+  "timeControl": {
+    "Unlimited": {}
+  },
+  "initialDfen": "rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1",
+  "status": {
+    "Ended": {
+      "over": {
+        "result": {
+          "Win": {
+            "side": "Black"
+          }
+        },
+        "termination": "Resign"
+      }
+    }
+  },
+  "completeness": "complete",
+  "turns": [
+    {
+      "turnNumber": 0,
+      "activeColor": "w",
+      "offers": [
+        [
+          1,
+          3
+        ],
+        [
+          4,
+          1
+        ]
+      ],
+      "selectedPairIndex": 0,
+      "dice": [
+        1,
+        3
+      ],
+      "moves": [
+        "e2e3",
+        "f1c4"
+      ],
+      "fenAfter": "rnbqkbnr/pppppppp/8/8/2B5/4P3/PPPP1PPP/RNBQK1NR b KQkq - 1 1"
+    }
+  ],
+  "currentTurn": {
+    "phase": "Ended",
+    "offers": [],
+    "selectedPairIndex": null
+  },
+  "fairness": {
+    "commit": "8e0c11e7dd606cdb22ab754d1a8a2c6ecd1a0381a04f95b6cf1b9a4384620d41",
+    "serverSeed": "798c791f9108d091cc1d7710c568cc1de0d6f87c2f134311bd2996a6eb573fb6",
+    "clientSeeds": {
+      "white": "lab225-maximum-consumption-106",
+      "black": "acceptance-fixture-black"
+    }
+  }
+}

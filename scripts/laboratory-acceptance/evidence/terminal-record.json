@@ -1,0 +1,91 @@
+{
+  "schemaVersion": 1,
+  "variant": {
+    "id": "choice-2x2d6",
+    "revision": 1
+  },
+  "provenance": {
+    "rulesVersion": "0.18.2",
+    "diceAlgorithm": "choice-2x2d6-hmac-sha256-v1"
+  },
+  "timeControl": {
+    "Fischer": {
+      "initialSeconds": 600,
+      "incrementSeconds": 10
+    }
+  },
+  "initialDfen": "rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1",
+  "status": {
+    "Ended": {
+      "over": {
+        "result": {
+          "Win": {
+            "side": "Black"
+          }
+        },
+        "termination": "Resign"
+      }
+    }
+  },
+  "completeness": "complete",
+  "turns": [
+    {
+      "turnNumber": 0,
+      "activeColor": "w",
+      "offers": [
+        [
+          4,
+          5
+        ],
+        [
+          6,
+          4
+        ]
+      ],
+      "selectedPairIndex": 0,
+      "dice": [
+        4,
+        5
+      ],
+      "moves": [],
+      "fenAfter": "rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR b KQkq - 0 1"
+    },
+    {
+      "turnNumber": 1,
+      "activeColor": "b",
+      "offers": [
+        [
+          1,
+          6
+        ],
+        [
+          3,
+          3
+        ]
+      ],
+      "selectedPairIndex": 0,
+      "dice": [
+        1,
+        6
+      ],
+      "moves": [
+        "d7d5",
+        "e8d7"
+      ],
+      "fenAfter": "rnbq1bnr/pppkpppp/8/3p4/8/8/PPPPPPPP/RNBQKBNR w KQ d6 1 2"
+    }
+  ],
+  "currentTurn": {
+    "phase": "Ended",
+    "offers": [],
+    "selectedPairIndex": null
+  },
+  "fairness": {
+    "commit": "88e3062d187ef2e9c2a14e6a2df8559bf53cd8e2a74ac9a0364e66b0a7b61895",
+    "serverSeed": "0e2d6be3604d755512c963ce05f8872d5eaf7e793b2d173b0e122f2789fb471a",
+    "clientSeeds": {
+      "white": "5a8e6c335b4de1ce613786ecde476759",
+      "black": "188483e14136abc2c19fc7952151bd1d"
+    }
+  }
+}

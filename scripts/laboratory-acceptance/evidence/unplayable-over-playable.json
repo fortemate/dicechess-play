@@ -1,0 +1,64 @@
+{
+  "schemaVersion": 1,
+  "variant": {
+    "id": "choice-2x2d6",
+    "revision": 1
+  },
+  "provenance": {
+    "rulesVersion": "0.18.2",
+    "diceAlgorithm": "choice-2x2d6-hmac-sha256-v1"
+  },
+  "timeControl": {
+    "Unlimited": {}
+  },
+  "initialDfen": "rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1",
+  "status": {
+    "Ended": {
+      "over": {
+        "result": {
+          "Win": {
+            "side": "Black"
+          }
+        },
+        "termination": "Resign"
+      }
+    }
+  },
+  "completeness": "complete",
+  "turns": [
+    {
+      "turnNumber": 0,
+      "activeColor": "w",
+      "offers": [
+        [
+          4,
+          3
+        ],
+        [
+          1,
+          3
+        ]
+      ],
+      "selectedPairIndex": 0,
+      "dice": [
+        4,
+        3
+      ],
+      "moves": [],
+      "fenAfter": "rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR b KQkq - 0 1"
+    }
+  ],
+  "currentTurn": {
+    "phase": "Ended",
+    "offers": [],
+    "selectedPairIndex": null
+  },
+  "fairness": {
+    "commit": "0242d6025371ae6720f9f2255f4ea64e4f758ed6a444692afabc726b6113bb5e",
+    "serverSeed": "c2472ee2c36439a3321dadd95feff2a00e9f61e1dff845af57310eef9fa301b6",
+    "clientSeeds": {
+      "white": "lab225-unplayable-over-playable-728",
+      "black": "acceptance-fixture-black"
+    }
+  }
+}

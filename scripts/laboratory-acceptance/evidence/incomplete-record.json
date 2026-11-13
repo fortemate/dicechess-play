@@ -1,0 +1,35 @@
+{
+  "schemaVersion": 1,
+  "variant": {
+    "id": "choice-2x2d6",
+    "revision": 1
+  },
+  "provenance": {
+    "rulesVersion": "0.18.2",
+    "diceAlgorithm": "choice-2x2d6-hmac-sha256-v1"
+  },
+  "timeControl": {
+    "SuddenDeath": {
+      "initialSeconds": 30
+    }
+  },
+  "initialDfen": "rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1",
+  "status": {
+    "Ended": {
+      "over": {
+        "result": {
+          "Draw": {}
+        },
+        "termination": "Aborted"
+      }
+    }
+  },
+  "completeness": "incomplete",
+  "turns": [],
+  "currentTurn": {
+    "phase": "Ended",
+    "offers": [],
+    "selectedPairIndex": null
+  },
+  "fairness": null
+}

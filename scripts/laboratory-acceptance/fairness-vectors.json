@@ -1,0 +1,170 @@
+{
+	"algorithm": "choice-2x2d6-hmac-sha256-v1",
+	"vectors": [
+		{
+			"name": "ascending-alice-bob-turn-0",
+			"serverSeed": "000102030405060708090a0b0c0d0e0f101112131415161718191a1b1c1d1e1f",
+			"commit": "630dcd2966c4336691125448bbb25b4ff412a49c732db2c8abc1b8581bd710dd",
+			"clientSeeds": {
+				"white": "alice",
+				"black": "bob"
+			},
+			"turnNumber": 0,
+			"offers": [
+				[6, 3],
+				[2, 5]
+			],
+			"classicDice": [1, 2, 3]
+		},
+		{
+			"name": "ascending-alice-bob-turn-1",
+			"serverSeed": "000102030405060708090a0b0c0d0e0f101112131415161718191a1b1c1d1e1f",
+			"commit": "630dcd2966c4336691125448bbb25b4ff412a49c732db2c8abc1b8581bd710dd",
+			"clientSeeds": {
+				"white": "alice",
+				"black": "bob"
+			},
+			"turnNumber": 1,
+			"offers": [
+				[6, 4],
+				[4, 3]
+			],
+			"classicDice": [2, 6, 6]
+		},
+		{
+			"name": "length-boundary-ab-c",
+			"serverSeed": "000102030405060708090a0b0c0d0e0f101112131415161718191a1b1c1d1e1f",
+			"commit": "630dcd2966c4336691125448bbb25b4ff412a49c732db2c8abc1b8581bd710dd",
+			"clientSeeds": {
+				"white": "ab",
+				"black": "c"
+			},
+			"turnNumber": 7,
+			"offers": [
+				[1, 5],
+				[6, 6]
+			],
+			"classicDice": [2, 1, 4]
+		},
+		{
+			"name": "length-boundary-a-bc",
+			"serverSeed": "000102030405060708090a0b0c0d0e0f101112131415161718191a1b1c1d1e1f",
+			"commit": "630dcd2966c4336691125448bbb25b4ff412a49c732db2c8abc1b8581bd710dd",
+			"clientSeeds": {
+				"white": "a",
+				"black": "bc"
+			},
+			"turnNumber": 7,
+			"offers": [
+				[1, 6],
+				[4, 5]
+			],
+			"classicDice": [5, 6, 3]
+		},
+		{
+			"name": "unicode-supplementary-nonascii-nul",
+			"serverSeed": "202122232425262728292a2b2c2d2e2f303132333435363738393a3b3c3d3e3f",
+			"commit": "72dbb7336c76780023f83da4c355f2eeea85733b13d3477697917790c1229084",
+			"clientSeeds": {
+				"white": "雪🙂\u0000white",
+				"black": "черный\u0000♟"
+			},
+			"turnNumber": 42,
+			"offers": [
+				[6, 6],
+				[5, 2]
+			],
+			"classicDice": [1, 2, 2]
+		},
+		{
+			"name": "empty-client-seeds",
+			"serverSeed": "404142434445464748494a4b4c4d4e4f505152535455565758595a5b5c5d5e5f",
+			"commit": "ca2a4fe727faaecf16ecd130a86e0885c5540c05375340445071c0657555fd42",
+			"clientSeeds": {
+				"white": "",
+				"black": ""
+			},
+			"turnNumber": 9,
+			"offers": [
+				[4, 6],
+				[5, 6]
+			],
+			"classicDice": [1, 1, 6]
+		},
+		{
+			"name": "swapped-clients",
+			"serverSeed": "000102030405060708090a0b0c0d0e0f101112131415161718191a1b1c1d1e1f",
+			"commit": "630dcd2966c4336691125448bbb25b4ff412a49c732db2c8abc1b8581bd710dd",
+			"clientSeeds": {
+				"white": "bob",
+				"black": "alice"
+			},
+			"turnNumber": 0,
+			"offers": [
+				[1, 4],
+				[6, 1]
+			],
+			"classicDice": [1, 1, 2]
+		},
+		{
+			"name": "different-server-seed",
+			"serverSeed": "1f1e1d1c1b1a191817161514131211100f0e0d0c0b0a09080706050403020100",
+			"commit": "69c55c9002eb8c7a4e75d0b49629c4cf83d12cfb56670a8cd6e2db1491a996c4",
+			"clientSeeds": {
+				"white": "alice",
+				"black": "bob"
+			},
+			"turnNumber": 0,
+			"offers": [
+				[4, 3],
+				[6, 6]
+			],
+			"classicDice": [2, 2, 4]
+		},
+		{
+			"name": "maximum-wire-turn",
+			"serverSeed": "000102030405060708090a0b0c0d0e0f101112131415161718191a1b1c1d1e1f",
+			"commit": "630dcd2966c4336691125448bbb25b4ff412a49c732db2c8abc1b8581bd710dd",
+			"clientSeeds": {
+				"white": "max",
+				"black": "turn"
+			},
+			"turnNumber": 9007199254740991,
+			"offers": [
+				[5, 3],
+				[1, 5]
+			],
+			"classicDice": [1, 6, 2]
+		},
+		{
+			"name": "equal-offer-pairs-witness",
+			"serverSeed": "000102030405060708090a0b0c0d0e0f101112131415161718191a1b1c1d1e1f",
+			"commit": "630dcd2966c4336691125448bbb25b4ff412a49c732db2c8abc1b8581bd710dd",
+			"clientSeeds": {
+				"white": "equal",
+				"black": "pair"
+			},
+			"turnNumber": 32,
+			"offers": [
+				[2, 4],
+				[2, 4]
+			],
+			"classicDice": [3, 4, 1]
+		},
+		{
+			"name": "leading-rejected-byte-witness",
+			"serverSeed": "000102030405060708090a0b0c0d0e0f101112131415161718191a1b1c1d1e1f",
+			"commit": "630dcd2966c4336691125448bbb25b4ff412a49c732db2c8abc1b8581bd710dd",
+			"clientSeeds": {
+				"white": "reject",
+				"black": "first"
+			},
+			"turnNumber": 15,
+			"offers": [
+				[2, 3],
+				[3, 3]
+			],
+			"classicDice": [2, 2, 2]
+		}
+	]
+}

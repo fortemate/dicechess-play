@@ -83,6 +83,8 @@ including both offers and the selected pair; unrevealed fairness evidence and se
 excluded. A rematch requires both players' consent, preserves rules and time control, and exchanges
 colors. Laboratory games never enter the main site's local history, ingest outbox or rating feeds.
 
+For the opt-in isolated service and browser qualification, see the [laboratory acceptance harness](scripts/laboratory-acceptance/README.md). See the [acceptance report](scripts/laboratory-acceptance/REPORT.md) for the qualified revisions, results and limitations.
+
 ## Configuration
 
 | Variable                  | When            | Effect                                                                                                       |

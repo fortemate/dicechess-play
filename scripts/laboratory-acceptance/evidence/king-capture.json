@@ -1,0 +1,75 @@
+{
+  "schemaVersion": 1,
+  "variant": {
+    "id": "choice-2x2d6",
+    "revision": 1
+  },
+  "provenance": {
+    "rulesVersion": "0.18.2",
+    "diceAlgorithm": "choice-2x2d6-hmac-sha256-v1"
+  },
+  "timeControl": {
+    "Unlimited": {}
+  },
+  "initialDfen": "3k4/2P5/8/8/8/8/8/K7 w - - 0 1",
+  "status": {
+    "Ended": {
+      "over": {
+        "result": {
+          "Win": {
+            "side": "White"
+          }
+        },
+        "termination": "KingCaptured"
+      }
+    }
+  },
+  "completeness": "complete",
+  "turns": [
+    {
+      "turnNumber": 0,
+      "activeColor": "w",
+      "offers": [
+        [
+          1,
+          2
+        ],
+        [
+          1,
+          6
+        ]
+      ],
+      "selectedPairIndex": 0,
+      "dice": [
+        1,
+        2
+      ],
+      "moves": [
+        "c7d8"
+      ],
+      "fenAfter": "3P4/8/8/8/8/8/8/K7 w - - 0 1"
+    }
+  ],
+  "currentTurn": {
+    "phase": "Ended",
+    "offers": [
+      [
+        1,
+        2
+      ],
+      [
+        1,
+        6
+      ]
+    ],
+    "selectedPairIndex": 0
+  },
+  "fairness": {
+    "commit": "a6fc63976af066168e73f4737b752d6737c00c76dd4a68ec025b311cf47e2ddf",
+    "serverSeed": "f291f073e75a077cfa3d8cc77f12627db43870b785fe70b13d046010e1307386",
+    "clientSeeds": {
+      "white": "lab225-king-capture-3",
+      "black": "acceptance-fixture-black"
+    }
+  }
+}

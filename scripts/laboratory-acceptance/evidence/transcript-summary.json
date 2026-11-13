@@ -1,0 +1,12 @@
+{
+  "schemaVersion": 1,
+  "completeness": "complete",
+  "termination": "Resign",
+  "turnCount": 2,
+  "variant": {
+    "id": "choice-2x2d6",
+    "revision": 1
+  },
+  "rulesVersion": "0.18.2",
+  "fairnessIncluded": true
+}
