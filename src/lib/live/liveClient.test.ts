@@ -4,9 +4,10 @@ import type { ServerEvent } from './liveTypes';
 
 class MockWebSocket {
 	static readonly OPEN = 1;
+	static readonly CONNECTING = 0;
 	static last: MockWebSocket | null = null;
 	onopen: (() => void) | null = null;
-	onclose: (() => void) | null = null;
+	onclose: ((event?: { code: number }) => void) | null = null;
 	onerror: (() => void) | null = null;
 	onmessage: ((event: { data: unknown }) => void) | null = null;
 	sent: string[] = [];
@@ -20,7 +21,7 @@ class MockWebSocket {
 	}
 	close() {
 		this.closed = true;
-		this.onclose?.();
+		this.onclose?.({ code: 1000 });
 	}
 }
 
@@ -123,6 +124,37 @@ describe('LiveClient', () => {
 		}
 	});
 
+	it('retries on the base delay when secure jitter randomness is unavailable', () => {
+		vi.useFakeTimers();
+		try {
+			for (const unavailableCrypto of [
+				undefined,
+				{
+					getRandomValues: () => {
+						throw new Error('unavailable');
+					},
+				},
+			]) {
+				vi.stubGlobal('crypto', unavailableCrypto);
+				const statuses: string[] = [];
+				const client = new LiveClient('ws://x');
+				client.onStatus((status) => statuses.push(status));
+				client.connect();
+				const first = MockWebSocket.last!;
+				first.onopen!();
+				first.onclose!({ code: 1006 });
+				expect(statuses).not.toContain('closed');
+				vi.advanceTimersByTime(249);
+				expect(MockWebSocket.last).toBe(first);
+				vi.advanceTimersByTime(1);
+				expect(MockWebSocket.last).not.toBe(first);
+				client.close();
+			}
+		} finally {
+			vi.useRealTimers();
+		}
+	});
+
 	it('a fresh connect() cancels a pending reconnect timer (no duplicate socket)', () => {
 		vi.useFakeTimers();
 		try {
@@ -202,6 +234,147 @@ describe('LiveClient', () => {
 				vi.advanceTimersByTime(6_000);
 			}
 			expect(statuses).toContain('closed');
+		} finally {
+			vi.useRealTimers();
+		}
+	});
+
+	it('authenticates the laboratory socket before opening it or sending the seed and queued commands', () => {
+		const statuses: string[] = [];
+		const events: ServerEvent[] = [];
+		const client = new LiveClient('ws://x/games/g/ws', {
+			laboratoryAuth: { token: 'seat_capability', guest: 'guest-id', seat: 'White' },
+		});
+		client.onStatus((status) => statuses.push(status));
+		client.onEvent((event) => events.push(event));
+		client.connect({ SubmitSeed: { seed: 'stable-seed' } });
+		client.send({ Resign: {} });
+		const socket = MockWebSocket.last!;
+		socket.onopen!();
+		expect(socket.url).toBe('ws://x/games/g/ws');
+		expect(socket.sent).toEqual([
+			'{"LabAuthenticate":{"token":"seat_capability","guest":"guest-id"}}',
+		]);
+		expect(statuses).not.toContain('open');
+		socket.onmessage!({ data: JSON.stringify({ Snapshot: { v: 1 } }) });
+		expect(events).toEqual([]);
+		expect(socket.sent).toHaveLength(1);
+
+		socket.onmessage!({ data: JSON.stringify({ LabAuthenticated: { seat: 'White' } }) });
+		expect(statuses.at(-1)).toBe('open');
+		expect(socket.sent).toEqual([
+			'{"LabAuthenticate":{"token":"seat_capability","guest":"guest-id"}}',
+			'{"SubmitSeed":{"seed":"stable-seed"}}',
+			'{"Resign":{}}',
+		]);
+		socket.onmessage!({ data: JSON.stringify({ DiceRolled: { v: 1 } }) });
+		expect(events).toEqual([{ DiceRolled: { v: 1 } }]);
+		client.close();
+	});
+
+	it('reauthenticates each reconnect and resends hello only after a matching ACK', () => {
+		vi.useFakeTimers();
+		try {
+			const client = new LiveClient('ws://x/games/g/ws', {
+				laboratoryAuth: { token: 'cap', guest: 'guest-id', seat: 'Black' },
+			});
+			client.connect({ SubmitSeed: { seed: 'stable' } });
+			const first = MockWebSocket.last!;
+			first.onopen!();
+			first.onmessage!({ data: '{"LabAuthenticated":{"seat":"Black"}}' });
+			first.onclose!({ code: 1006 });
+			vi.advanceTimersByTime(400);
+			const second = MockWebSocket.last!;
+			expect(second).not.toBe(first);
+			second.onopen!();
+			expect(second.sent).toEqual(['{"LabAuthenticate":{"token":"cap","guest":"guest-id"}}']);
+			second.onmessage!({ data: '{"LabAuthenticated":{"seat":"Black"}}' });
+			expect(second.sent).toEqual([
+				'{"LabAuthenticate":{"token":"cap","guest":"guest-id"}}',
+				'{"SubmitSeed":{"seed":"stable"}}',
+			]);
+			client.close();
+		} finally {
+			vi.useRealTimers();
+		}
+	});
+
+	it('fails closed on a wrong-seat ACK and stops retrying on policy close', () => {
+		vi.useFakeTimers();
+		try {
+			const mismatchStatuses: string[] = [];
+			const mismatch = new LiveClient('ws://x', {
+				laboratoryAuth: { token: 'cap', guest: 'guest-id', seat: 'White' },
+			});
+			mismatch.onStatus((status) => mismatchStatuses.push(status));
+			mismatch.connect({ SubmitSeed: { seed: 'stable' } });
+			const wrongSeat = MockWebSocket.last!;
+			wrongSeat.onopen!();
+			wrongSeat.onmessage!({ data: '{"LabAuthenticated":{"seat":"Black"}}' });
+			expect(mismatchStatuses.at(-1)).toBe('closed');
+			expect(wrongSeat.sent).toEqual(['{"LabAuthenticate":{"token":"cap","guest":"guest-id"}}']);
+			vi.advanceTimersByTime(60_000);
+			expect(MockWebSocket.last).toBe(wrongSeat);
+
+			const rejected = new LiveClient('ws://x', {
+				laboratoryAuth: { token: 'bad-cap', guest: 'guest-id', seat: 'White' },
+			});
+			const statuses: string[] = [];
+			rejected.onStatus((status) => statuses.push(status));
+			rejected.connect();
+			const denied = MockWebSocket.last!;
+			denied.onopen!();
+			denied.onclose!({ code: 1008 });
+			expect(statuses.at(-1)).toBe('closed');
+			vi.advanceTimersByTime(60_000);
+			expect(MockWebSocket.last).toBe(denied);
+		} finally {
+			vi.useRealTimers();
+		}
+	});
+
+	it('retries auth timeouts with bounded backoff and clears auth timers on close', () => {
+		vi.useFakeTimers();
+		try {
+			const statuses: string[] = [];
+			const client = new LiveClient('ws://x', {
+				laboratoryAuth: { token: 'cap', guest: 'guest-id', seat: 'White' },
+			});
+			client.onStatus((status) => statuses.push(status));
+			client.connect();
+			const first = MockWebSocket.last!;
+			first.onopen!();
+			vi.advanceTimersByTime(6000);
+			expect(statuses).not.toContain('open');
+			expect(statuses.at(-1)).toBe('connecting');
+			vi.advanceTimersByTime(400);
+			const second = MockWebSocket.last!;
+			expect(second).not.toBe(first);
+			second.onopen!();
+			client.close();
+			expect(vi.getTimerCount()).toBe(0);
+		} finally {
+			vi.useRealTimers();
+		}
+	});
+
+	it('stops after the bounded auth timeout retry budget is exhausted', () => {
+		vi.useFakeTimers();
+		try {
+			const statuses: string[] = [];
+			const client = new LiveClient('ws://x', {
+				laboratoryAuth: { token: 'cap', guest: 'guest-id', seat: 'White' },
+			});
+			client.onStatus((status) => statuses.push(status));
+			client.connect();
+			for (let attempt = 0; attempt <= 10 && !statuses.includes('closed'); attempt += 1) {
+				MockWebSocket.last!.onopen!();
+				vi.advanceTimersByTime(6000);
+				if (!statuses.includes('closed')) vi.advanceTimersByTime(7000);
+			}
+			expect(statuses).toContain('closed');
+			expect(statuses).not.toContain('open');
+			expect(vi.getTimerCount()).toBe(0);
 		} finally {
 			vi.useRealTimers();
 		}

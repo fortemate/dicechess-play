@@ -15,10 +15,14 @@
 	},
 	"scripts": {
 		"dev": "vite dev",
+		"dev:laboratory": "vite --config vite.laboratory.config.ts",
 		"build": "vite build",
 		"postbuild": "node scripts/verify-bundle.mjs",
+		"build:laboratory": "vite build --config vite.laboratory.config.ts",
+		"postbuild:laboratory": "node scripts/verify-laboratory-bundle.mjs",
 		"verify:bundle": "node scripts/verify-bundle.mjs",
 		"preview": "vite preview",
+		"preview:laboratory": "vite preview --config vite.laboratory.config.ts --port 4175 --strictPort",
 		"check": "paraglide-js compile --project ./project.inlang --outdir ./src/lib/paraglide && svelte-kit sync && svelte-check --tsconfig ./tsconfig.json && npm run check:functions",
 		"check:functions": "tsc --noEmit -p functions/tsconfig.json",
 		"check:rules-version": "node --test scripts/verify-rules-version.test.mjs && node scripts/verify-rules-version.mjs",
@@ -30,6 +34,7 @@
 		"test:coverage": "vitest run --coverage",
 		"prepare": "paraglide-js compile --project ./project.inlang --outdir ./src/lib/paraglide && svelte-kit sync || echo \"\"",
 		"test:e2e": "playwright test",
+		"test:laboratory": "playwright test --config playwright.laboratory.config.ts",
 		"test:pwa": "node scripts/prepare-pwa-test.mjs && playwright test --config playwright.pwa.config.ts",
 		"test:acceptance": "node --experimental-strip-types scripts/showcase-acceptance/runAll.ts"
 	},

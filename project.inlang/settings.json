@@ -15,6 +15,7 @@
 			"./messages/profile.{locale}.json",
 			"./messages/leaderboard.{locale}.json",
 			"./messages/rules.{locale}.json",
+			"./messages/laboratory.{locale}.json",
 			"./messages/{locale}.json"
 		]
 	}
