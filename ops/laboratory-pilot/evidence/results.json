@@ -1,0 +1,152 @@
+{
+  "schemaVersion": 1,
+  "status": "PASS",
+  "publicDeployment": false,
+  "clientSourceRevision": "897901ad0ae1723607c447b7e9fc780904e3a8ef",
+  "clientArtifactSha256": "e2c97b7c20fc78786aec10921851e1abd2339691e4f5aaabd622ed0b1f0b6b51",
+  "serverRevision": "e3254bbc022b02a1635075f62c57d8ab6d410f54",
+  "images": {
+    "gateway": "caddy:2.11.9-alpine@sha256:003a97808e781aa9f7e75cc2f43d34d461099031faf5e20faefb9f61126836f0",
+    "api": "ghcr.io/fortemate/dicechess-play-api@sha256:b37cc8afa7c78c4cead049eab1214085c871944c3cdae5d380808327c9c935ff",
+    "db": "postgres:18.6-alpine@sha256:10a5c69a83035ab5239f5620d708520e8b28f5aa1f2b20143e6024532edadfb5"
+  },
+  "rulesVersion": "0.18.2",
+  "postgres": "18.6",
+  "databaseMigrations": [
+    {
+      "version": "1",
+      "script": "V1__laboratory_storage.sql",
+      "checksum": -1267509805
+    }
+  ],
+  "chromium": "156.0.8078.4",
+  "scenarios": [
+    {
+      "scenario": "standalone-build-and-module-boundary",
+      "status": "PASS"
+    },
+    {
+      "scenario": "closed-loopback-compose-startup",
+      "status": "PASS"
+    },
+    {
+      "scenario": "tls-trust-origin-deep-links-and-security-headers",
+      "status": "PASS"
+    },
+    {
+      "scenario": "closed-admission-exact-cors-routes-and-database-role",
+      "status": "PASS"
+    },
+    {
+      "scenario": "runtime-nonroot-readonly-internal-networks",
+      "status": "PASS"
+    },
+    {
+      "scenario": "wss-missing-participant-and-url-auth-refusal",
+      "status": "PASS"
+    },
+    {
+      "scenario": "recover-AwaitingPlayers",
+      "status": "PASS",
+      "details": "waiting room survived API restart before the invited seat joined; no waiting clock ran"
+    },
+    {
+      "scenario": "room-settings-and-ui-seat-grant",
+      "status": "PASS",
+      "details": "10+10 settings and Black invitation seat confirmed"
+    },
+    {
+      "scenario": "layout-desktop-1440x900",
+      "status": "PASS",
+      "details": "no horizontal overflow"
+    },
+    {
+      "scenario": "layout-host-board-320x740",
+      "status": "PASS",
+      "details": "no horizontal overflow"
+    },
+    {
+      "scenario": "layout-host-board-390x844",
+      "status": "PASS",
+      "details": "no horizontal overflow"
+    },
+    {
+      "scenario": "layout-host-board-844x390",
+      "status": "PASS",
+      "details": "no horizontal overflow"
+    },
+    {
+      "scenario": "appearance-and-reduced-motion",
+      "status": "PASS",
+      "details": "light/dark controls and reduced-motion layout exercised"
+    },
+    {
+      "scenario": "recover-AwaitingFirstRoll",
+      "status": "PASS",
+      "details": "offers, selected pair, and variant retained; no automatic gameplay command"
+    },
+    {
+      "scenario": "recover-AwaitingSecondRoll",
+      "status": "PASS",
+      "details": "offers, selected pair, and variant retained; no automatic gameplay command"
+    },
+    {
+      "scenario": "recover-AwaitingPairChoice",
+      "status": "PASS",
+      "details": "offers, selected pair, and variant retained; no automatic gameplay command"
+    },
+    {
+      "scenario": "recover-PlayingSelectedPair",
+      "status": "PASS",
+      "details": "offers, selected pair, and variant retained; no automatic gameplay command"
+    },
+    {
+      "scenario": "legal-move-through-ui",
+      "status": "PASS",
+      "details": "submitted a legal move sequence (1 micro-move)"
+    },
+    {
+      "scenario": "finished-review-and-public-export",
+      "status": "PASS",
+      "details": "review opened and schema 1 public transcript downloaded"
+    },
+    {
+      "scenario": "mutual-rematch-consent",
+      "status": "PASS",
+      "details": "both seats entered the same new rematch room"
+    },
+    {
+      "scenario": "incomplete-record-review",
+      "status": "PASS",
+      "details": "authorized White seat reviewed the public incomplete record; Aborted, no fairness proof, no verification-pass claim"
+    },
+    {
+      "scenario": "isolated-storage-and-network",
+      "status": "PASS",
+      "details": "no main-site outbox/history storage found; requests stayed on the two configured origins"
+    },
+    {
+      "scenario": "independent-export-verification",
+      "status": "PASS"
+    },
+    {
+      "scenario": "existing-invitation-survives-closed-room-admission",
+      "status": "PASS"
+    },
+    {
+      "scenario": "restricted-backup-and-new-database-restore",
+      "status": "PASS"
+    },
+    {
+      "scenario": "seat-capabilities-absent-from-logs-and-exports",
+      "status": "PASS"
+    },
+    {
+      "scenario": "closed-admission-export-and-preserved-volume-recovery",
+      "status": "PASS"
+    }
+  ],
+  "cleanup": "PASS",
+  "startedAtUtc": "2026-11-13T17:26:49.296Z",
+  "completedAtUtc": "2026-11-13T17:31:32.051Z"
+}

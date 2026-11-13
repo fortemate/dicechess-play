@@ -1,0 +1,47 @@
+{
+	auto_https off
+	admin off
+	servers {
+		protocols h1 h2
+	}
+}
+
+:8443 {
+	tls /run/secrets/lab_tls_cert /run/secrets/lab_tls_key
+
+	header {
+		Referrer-Policy no-referrer
+		X-Robots-Tag "noindex, nofollow"
+		X-Content-Type-Options nosniff
+		Cache-Control no-store
+	}
+
+	@assets path /assets/* /pieces/* /laboratory-build.json /favicon* /robots.txt /_headers /_redirects
+	handle @assets {
+		root * /srv
+		file_server
+	}
+
+	@spa path / /invite/* /game/* /record /record/*
+	handle @spa {
+		try_files {path} /index.html
+		root * /srv
+		file_server
+	}
+
+	handle {
+		root * /srv
+		file_server
+	}
+}
+
+:9443 {
+	tls /run/secrets/lab_tls_cert /run/secrets/lab_tls_key
+	header {
+		Referrer-Policy no-referrer
+		X-Robots-Tag "noindex, nofollow"
+		X-Content-Type-Options nosniff
+		Cache-Control no-store
+	}
+	reverse_proxy api:8081
+}

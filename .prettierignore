@@ -12,3 +12,4 @@ project.inlang/*
 static/sounds/*/
 # Captured acceptance artifacts retain the exact bytes recorded in SHA256SUMS.
 scripts/laboratory-acceptance/evidence/
+ops/laboratory-pilot/evidence/
