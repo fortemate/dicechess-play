@@ -162,6 +162,53 @@ describe('laboratory session', () => {
 		}
 	});
 
+	it.each([
+		['White', 'unavailable'],
+		['White', 'read-blocked'],
+		['White', 'write-blocked'],
+		['Black', 'unavailable'],
+		['Black', 'read-blocked'],
+		['Black', 'write-blocked'],
+	] as const)('recovers the creator %s seat after reload with %s storage', async (seat, mode) => {
+		const window = makeWindow();
+		if (mode === 'unavailable') window.environment.storage = null;
+		else {
+			vi.spyOn(window.storage, mode === 'read-blocked' ? 'getItem' : 'setItem').mockImplementation(
+				() => {
+					throw new Error('storage blocked');
+				},
+			);
+		}
+		const { api } = makeApi();
+		const session = new LaboratorySession(api, window.environment);
+		await session.create(timeControl, seat);
+		const mine = seat === 'White' ? white : black;
+		const friend = seat === 'White' ? black : white;
+		const privateUrl = window.currentUrl();
+		expect(session.route.kind).toBe('invite');
+		expect(session.persisted).toBe(false);
+		expect(privateUrl.pathname).toBe(`/game/${gameId}`);
+		expect(privateUrl.search).toBe('');
+		expect(new URLSearchParams(privateUrl.hash.slice(1)).get('token')).toBe(mine.token);
+		expect(privateUrl.href).not.toContain(friend.token);
+		expect(session.invitationUrl).toContain(friend.token);
+		expect(session.invitationUrl).not.toContain(mine.token);
+		connectionCallbacks().onStatus('open');
+		expect(window.currentUrl().href).toBe(privateUrl.href);
+		session.destroy();
+
+		const reloaded = new LaboratorySession(api, window.environment);
+		await reloaded.open();
+		expect(reloaded.error).toBeNull();
+		expect(reloaded.route.kind).toBe('board');
+		expect(reloaded.access?.mine).toEqual(mine);
+		expect(connectionMocks.open.mock.calls.at(-1)?.[1]).toEqual(mine);
+		connectionCallbacks(connectionMocks.open.mock.calls.length - 1).onStatus('open');
+		expect(reloaded.persisted).toBe(false);
+		expect(window.currentUrl().href).toBe(privateUrl.href);
+		reloaded.destroy();
+	});
+
 	it('coalesces create double-clicks while the first API request is pending', async () => {
 		const window = makeWindow();
 		const { api, createSpy } = makeApi();

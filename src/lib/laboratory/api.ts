@@ -189,7 +189,7 @@ export function parseCreation(value: unknown, rulesVersion: string): CreationRes
 		new Set(value.tokens.map((token) => token.token)).size !== 2
 	)
 		throw new LaboratoryError('incompatible');
-	return value as unknown as CreationResponse;
+	return { ...value, gameId: value.gameId.toLowerCase() } as unknown as CreationResponse;
 }
 
 export class LaboratoryApi {

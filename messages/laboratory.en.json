@@ -87,7 +87,7 @@
 	"laboratory_turn_label": "{color} to play",
 	"laboratory_waiting_board_note": "Keep your table open. The server will confirm when you are both ready.",
 	"laboratory_ready_board_note": "Your game has started. Keep this tab open.",
-	"laboratory_keep_link": "Browser storage is unavailable. Keep your private board link so you can return to your seat.",
+	"laboratory_keep_link": "Browser storage is unavailable. This page's address is your private board link; keep it to return to your seat. Share only the invitation link with your friend.",
 	"laboratory_private_board_link": "My private board link",
 	"laboratory_fischer_short": "{minutes}+{seconds}",
 	"laboratory_seconds": "{seconds} seconds per turn",

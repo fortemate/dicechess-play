@@ -232,10 +232,12 @@ export class LaboratorySession {
 			};
 			this.state = state;
 			this.remember(this.access);
-			this.window.navigate(
-				new SvelteURL(`/invite/${creation.gameId}`, this.window.origin).toString(),
-				false,
-			);
+			// With blocked storage, a reload must recover our seat from the private board fragment.
+			// Keep the invitation step visible now; its separate copy control still shares only theirs.
+			const recoveryUrl = this.persisted
+				? new SvelteURL(`/invite/${creation.gameId}`, this.window.origin).toString()
+				: buildLabBoardUrl(this.window.origin, this.access.mine);
+			this.window.navigate(recoveryUrl, false);
 			this.route = { kind: 'invite', gameId: creation.gameId, access: null };
 			this.connect();
 		} catch (error) {

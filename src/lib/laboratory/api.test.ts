@@ -140,6 +140,30 @@ describe('laboratory API boundary', () => {
 		}
 	});
 
+	it('canonicalizes an uppercase creation UUID before fetching and returning the game', async () => {
+		const uppercaseGameId = gameId.toUpperCase();
+		const serverCreation = { ...creation(), gameId: uppercaseGameId };
+		const { fetcher, requests } = createFetcher(
+			jsonResponse(serverCreation),
+			jsonResponse(gameState()),
+		);
+		const api = new LaboratoryApi('https://lab.example', rulesVersion, fetcher);
+
+		const result = await api.create(guestId, timeControl);
+
+		expect(requests.map(({ input }) => new URL(String(input)).href)).toEqual([
+			'https://lab.example/games',
+			`https://lab.example/games/${gameId}`,
+		]);
+		expect(result.creation.gameId).toBe(gameId);
+		expect(serverCreation.gameId).toBe(uppercaseGameId);
+		expect(result.creation).toEqual({ ...serverCreation, gameId });
+		expect(result.creation.commit).toBe(commit);
+		expect(result.creation.tokens).toEqual(creation().tokens);
+		expect(result.creation.provenance).toEqual(provenance);
+		expect(result.state.commit).toBe(commit);
+	});
+
 	it('rejects bad creation contracts before making the state request or returning capabilities', async () => {
 		const missingVariant = { ...creation(), variant: undefined };
 		const missingProvenance = { ...creation(), provenance: undefined };

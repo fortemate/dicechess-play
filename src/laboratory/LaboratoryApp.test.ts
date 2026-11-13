@@ -164,6 +164,30 @@ describe('LaboratoryApp', () => {
 		expect(document.activeElement).toBe(input);
 	});
 
+	it('keeps the creator recovery address private and copies only the friend invitation with blocked storage', async () => {
+		vi.spyOn(Storage.prototype, 'setItem').mockImplementation(() => {
+			throw new Error('storage blocked');
+		});
+		const { api } = apiFor();
+		render(LaboratoryApp, { props: { api } });
+		const colors = screen.getByRole('group', { name: /your color/i });
+		await fireEvent.click(within(colors).getByRole('button', { name: /white/i }));
+		await fireEvent.click(screen.getByRole('button', { name: /create/i }));
+		const input = (await screen.findByLabelText(/invitation for your friend/i)) as HTMLInputElement;
+		expect(window.location.pathname).toBe(`/game/${gameId}`);
+		expect(window.location.hash).toContain(white.token);
+		expect(window.location.href).not.toContain(black.token);
+		expect(input.value).toContain(black.token);
+		expect(input.value).not.toContain(white.token);
+		expect(await screen.findByText(/share only the invitation link/i)).toBeTruthy();
+		const recovery = screen.getByRole('link', { name: /my private board link/i });
+		expect(recovery.getAttribute('href')).toContain(white.token);
+		const writeText = vi.fn().mockResolvedValue(undefined);
+		Object.defineProperty(navigator, 'clipboard', { configurable: true, value: { writeText } });
+		await fireEvent.click(screen.getByRole('button', { name: /copy/i }));
+		await waitFor(() => expect(writeText).toHaveBeenCalledWith(input.value));
+	});
+
 	it('changes the laboratory palette without touching the game theme, room link, or connection', async () => {
 		localStorage.setItem('dicechess-theme', 'dark');
 		const { api } = apiFor();
