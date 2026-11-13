@@ -86,23 +86,25 @@ function hasDuplicateOrInvalidParams(params: URLSearchParams, allowed: Set<strin
 	return false;
 }
 
+function hasSeatQuery(url: URL): boolean {
+	return ['seat', 'token', 'as'].some((key) => url.searchParams.has(key));
+}
+
 export function parseLabLocation(url: URL): LabLocation {
 	if (url.pathname === '/') {
-		return url.searchParams.has('seat') ||
-			url.searchParams.has('token') ||
-			url.searchParams.has('as')
-			? { kind: 'invalid' }
-			: { kind: 'home' };
+		return hasSeatQuery(url) ? { kind: 'invalid' } : { kind: 'home' };
 	}
 	const match = /^\/(invite|game)\/([^/]+)$/.exec(url.pathname);
 	if (!match) return { kind: 'invalid' };
-	if (url.searchParams.has('seat') || url.searchParams.has('token') || url.searchParams.has('as')) {
+	if (hasSeatQuery(url)) {
 		return { kind: 'invalid' };
 	}
 	const gameId = normalizeGameId(match[2]);
 	if (!gameId) return { kind: 'invalid' };
 	const fragment = url.hash.startsWith('#') ? url.hash.slice(1) : url.hash;
-	if (fragment && fragment.split('&').some((part) => part.length === 0)) return { kind: 'invalid' };
+	if (fragment.startsWith('&') || fragment.endsWith('&') || fragment.includes('&&')) {
+		return { kind: 'invalid' };
+	}
 	const params = new URLSearchParams(fragment);
 	if (hasDuplicateOrInvalidParams(params, new Set(['token', 'as']))) return { kind: 'invalid' };
 	const token = params.get('token');
@@ -136,14 +138,13 @@ function decodeRoom(value: unknown, expectedGameId: string): RoomAccess | null {
 	const mine = isRecord(roomRecord.mine)
 		? validateAccess(roomRecord.mine as unknown as SeatAccess)
 		: null;
-	if (!mine || mine.gameId !== expectedGameId) return null;
+	if (mine?.gameId !== expectedGameId) return null;
 	let invitation: SeatAccess | undefined;
 	if ('invitation' in roomRecord) {
 		if (!isRecord(roomRecord.invitation)) return null;
 		invitation = validateAccess(roomRecord.invitation as unknown as SeatAccess) ?? undefined;
 		if (
-			!invitation ||
-			invitation.gameId !== expectedGameId ||
+			invitation?.gameId !== expectedGameId ||
 			invitation.seat === mine.seat ||
 			invitation.token === mine.token
 		) {
@@ -174,14 +175,9 @@ export function saveRoomAccess(storage: Storage, room: RoomAccess): boolean {
 		if (existing && (existing.mine.seat !== mine.seat || existing.mine.token !== mine.token)) {
 			return false;
 		}
-		const savedRoom: RoomAccess = {
-			mine,
-			...(invitation
-				? { invitation }
-				: existing?.invitation
-					? { invitation: existing.invitation }
-					: {}),
-		};
+		const savedInvitation = invitation ?? existing?.invitation;
+		const savedRoom: RoomAccess = { mine };
+		if (savedInvitation) savedRoom.invitation = savedInvitation;
 		storage.setItem(key, JSON.stringify({ schemaVersion: SCHEMA_VERSION, room: savedRoom }));
 		return true;
 	} catch {

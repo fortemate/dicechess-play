@@ -96,6 +96,27 @@ function connectionError(error: unknown): LabErrorCode {
 	return 'connection';
 }
 
+function restoreSeatSeed(access: SeatAccess, storage: Storage | null): string {
+	const seedKey = `${SEED_KEY_PREFIX}${access.gameId}:${access.seat}`;
+	if (storage) {
+		try {
+			const saved = storage.getItem(seedKey);
+			if (saved && SEED_PATTERN.test(saved)) return saved;
+		} catch {
+			// Seed remains stable for this connection even when storage is unavailable.
+		}
+	}
+	const seed = randomClientSeed();
+	if (storage) {
+		try {
+			storage.setItem(seedKey, seed);
+		} catch {
+			// Keep this seed in memory for reconnects during this page session.
+		}
+	}
+	return seed;
+}
+
 /**
  * Opens a laboratory WebSocket, polls the public state to cover readiness/expiry changes, and
  * refreshes after public event frames. No room-changing command is sent by this transport.
@@ -222,30 +243,12 @@ export function openRoomConnection(
 		return { close: () => {} };
 	}
 
-	let seed: string | null = null;
-	const seedKey = `${SEED_KEY_PREFIX}${access.gameId}:${access.seat}`;
-	if (storage) {
-		try {
-			const saved = storage.getItem(seedKey);
-			if (saved && SEED_PATTERN.test(saved)) seed = saved;
-		} catch {
-			// Seed remains stable for this connection even when storage is unavailable.
-		}
-	}
-	if (!seed) {
-		try {
-			seed = randomClientSeed();
-		} catch {
-			stopFor('unavailable');
-			return { close: () => {} };
-		}
-		if (storage) {
-			try {
-				storage.setItem(seedKey, seed);
-			} catch {
-				// Keep this seed in memory for reconnects during this page session.
-			}
-		}
+	let seed: string;
+	try {
+		seed = restoreSeatSeed(access, storage);
+	} catch {
+		stopFor('unavailable');
+		return { close: () => {} };
 	}
 
 	const url = new URL(`/games/${access.gameId}/ws`, api.origin);

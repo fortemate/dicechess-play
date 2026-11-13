@@ -119,6 +119,8 @@ describe('laboratory seat links', () => {
 			`https://play.example/game/${gameId}#token=x&as=white&as=black`,
 			`https://play.example/game/${gameId}#token=x&as=white&extra=1`,
 			`https://play.example/game/${gameId}#token=x&as=white&`,
+			`https://play.example/game/${gameId}#&token=x&as=white`,
+			`https://play.example/game/${gameId}#token=x&&as=white`,
 			`https://play.example/game/${gameId}#token=has%20space&as=white`,
 			`https://play.example/game/${gameId}?seat=x`,
 			`https://play.example/invite/${gameId}?token=x`,
