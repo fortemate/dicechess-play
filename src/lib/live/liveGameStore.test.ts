@@ -335,6 +335,34 @@ describe('LiveGameStore pacing', () => {
 		expect(live.passNoticeSeat).toBeNull();
 	});
 
+	it('paces ordinary White moves for a spectator instead of treating them as already seen', async () => {
+		live.dispose();
+		live = new LiveGameStore();
+		live.connect('g', null, null);
+		MockWebSocket.last!.onopen?.();
+		deliver(snapshot({ dfen: `${START_FEN} NN` }));
+		deliver({
+			TurnPlayed: { v: 1, seat: 'White', moves: ['b1c3', 'g1f3'], fenAfter: AFTER_WHITE_KNIGHTS },
+		});
+
+		expect(live.spectator).toBe(true);
+		expect(live.playerColor).toBe('w');
+		expect(live.isViewingHistory).toBe(true);
+		expect(getPieceFromFen(live.currentBoardFen, 'b1')).toBe('N');
+		expect(live.lastMove).toBeUndefined();
+
+		await vi.advanceTimersByTimeAsync(999);
+		expect(getPieceFromFen(live.currentBoardFen, 'b1')).toBe('N');
+		await vi.advanceTimersByTimeAsync(1);
+		expect(live.lastMove).toEqual(['b1', 'c3']);
+		expect(getPieceFromFen(live.currentBoardFen, 'g1')).toBe('N');
+		expect(live.isViewingHistory).toBe(true);
+
+		await vi.advanceTimersByTimeAsync(1000);
+		expect(live.lastMove).toEqual(['g1', 'f3']);
+		expect(live.isViewingHistory).toBe(false);
+	});
+
 	it('lets a mid-flight roll reveal finish, then announces after the suspense beat', async () => {
 		deliver(snapshot());
 		deliver({

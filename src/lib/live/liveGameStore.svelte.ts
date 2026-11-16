@@ -1288,6 +1288,18 @@ export class LiveGameStore {
 		return true;
 	}
 
+	private presentEntry(
+		entry: BotMoveHistoryState,
+		nextIndex: number,
+		epoch: number,
+	): Promise<boolean> {
+		const move = entry.gameMoveHistoryMove;
+		if (move === null) return this.presentRoll(nextIndex, epoch);
+		// PASS convention from recordTurn: a turn entry whose move has empty squares.
+		if (move?.from === '') return this.presentPass(entry, nextIndex, epoch);
+		return this.presentMove(entry, nextIndex, epoch);
+	}
+
 	private async presentLoop(epoch: number): Promise<void> {
 		try {
 			while (this.presentedIndex < this.maxMoveIndex) {
@@ -1297,25 +1309,16 @@ export class LiveGameStore {
 				const entry = this.historyMap[String(nextIndex)];
 				if (!entry) return;
 
-				const isRoll = entry.gameMoveHistoryMove === null;
-				// PASS convention from recordTurn: a turn entry whose move has empty squares.
-				const isPass = !isRoll && entry.gameMoveHistoryMove?.from === '';
+				const move = entry.gameMoveHistoryMove;
 				const alreadySeenLive = !this.spectator && entry.active_color === this.playerColor;
 
 				// Own moves were played live by the player; own ROLLS and PASSES present like anyone's.
-				if (alreadySeenLive && !isRoll && !isPass) {
+				if (alreadySeenLive && move !== null && move?.from !== '') {
 					this.presentedIndex = nextIndex;
 					continue;
 				}
 
-				let ok = true;
-				if (isRoll) {
-					ok = await this.presentRoll(nextIndex, epoch);
-				} else if (isPass) {
-					ok = await this.presentPass(entry, nextIndex, epoch);
-				} else {
-					ok = await this.presentMove(entry, nextIndex, epoch);
-				}
+				const ok = await this.presentEntry(entry, nextIndex, epoch);
 				if (!ok) return;
 			}
 			// Fully caught up: if the game already ended on the wire, the final move has now
