@@ -1,10 +1,16 @@
+import { readFileSync } from 'node:fs';
 import { expect, test, type Page } from '@playwright/test';
 import type { LaboratoryGameState } from '../../src/lib/laboratory/api';
 import type { Action } from '../../src/lib/laboratory/protocol';
 
 const APP_ORIGIN = 'http://127.0.0.1:4175';
 const API_ORIGIN = 'http://127.0.0.1:8081';
-const RULES_VERSION = '0.18.2';
+const manifest = JSON.parse(
+	readFileSync(new URL('../../package.json', import.meta.url), 'utf8'),
+) as {
+	dependencies: Record<string, string>;
+};
+const RULES_VERSION = manifest.dependencies['@fortemate/dicechess-engine'];
 const STANDARD_DFEN = 'rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1';
 
 type GameState = ReturnType<typeof stateFor>;
