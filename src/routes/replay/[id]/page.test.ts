@@ -24,7 +24,7 @@ vi.mock('#lib/live/liveApi', () => ({ isLiveEnabled: () => true, apiBase: () => 
 const stub = vi.hoisted(() => async () => ({
 	default: (await import('../../live/[id]/ChildStub.test.svelte')).default,
 }));
-vi.mock('../../../components/MoveHistory.svelte', stub);
+vi.mock('../../../components/MoveList.svelte', stub);
 vi.mock('../../../components/lib/Chessground.svelte', stub);
 
 const historyApi = vi.hoisted(() => ({ fetchGameHistory: vi.fn() }));

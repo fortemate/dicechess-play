@@ -31,9 +31,9 @@ const stub = vi.hoisted(() => async () => ({
 	default: (await import('./ChildStub.test.svelte')).default,
 }));
 vi.mock('../../../components/Board.svelte', stub);
-vi.mock('../../../components/DicePanel.svelte', stub);
+vi.mock('../../../components/TurnCard.svelte', stub);
 vi.mock('../../../components/PreRollDrawGate.svelte', stub);
-vi.mock('../../../components/MoveHistory.svelte', stub);
+vi.mock('../../../components/MoveList.svelte', stub);
 vi.mock('../../../components/PlayerStrip.svelte', stub);
 vi.mock('../../../components/PawnPromotionSelector.svelte', stub);
 vi.mock('../../../components/BotRematchButton.svelte', stub);
