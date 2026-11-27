@@ -44,7 +44,7 @@ export function rememberFriendInvite(gameId: string, url: string): void {
 /** The link to send for `gameId`, if this tab created that game and has not let go of it. */
 export function recallFriendInvite(gameId: string): string | null {
 	const invite = read();
-	return invite && invite.gameId === gameId ? invite.url : null;
+	return invite?.gameId === gameId ? invite.url : null;
 }
 
 /** Lets go of the link of `gameId`: the friend has moved, or the creator hid the card. */
