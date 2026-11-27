@@ -203,7 +203,7 @@
 
 {#if open}
 	<div
-		class="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4 backdrop-blur-sm"
+		class="fixed inset-0 z-50 flex items-center justify-center bg-scrim/50 p-4 backdrop-blur-sm"
 		role="dialog"
 		aria-modal="true"
 		aria-labelledby="onboarding-headline"

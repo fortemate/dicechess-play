@@ -95,7 +95,7 @@
 					<button
 						type="submit"
 						disabled={!matches || deleting}
-						class="shrink-0 rounded-lg border border-danger/30 bg-danger/15 px-4 py-2 text-sm font-bold text-danger transition-colors hover:bg-danger/25 disabled:cursor-not-allowed disabled:opacity-30"
+						class="shrink-0 rounded-lg border border-danger/30 bg-danger/10 px-4 py-2 text-sm font-bold text-danger transition-colors hover:bg-danger/15 disabled:cursor-not-allowed disabled:opacity-30"
 					>
 						{deleting ? 'Deleting' : 'Delete my account'}
 					</button>

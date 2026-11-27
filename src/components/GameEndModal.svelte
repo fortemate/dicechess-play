@@ -57,7 +57,7 @@
 	<!-- svelte-ignore a11y_click_events_have_key_events, a11y_no_static_element_interactions
 	     (backdrop click is a pointer nicety; Escape and the "View board" button cover keyboard) -->
 	<div
-		class="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4 backdrop-blur-sm"
+		class="fixed inset-0 z-50 flex items-center justify-center bg-scrim/50 p-4 backdrop-blur-sm"
 		onclick={onBackdropClick}
 	>
 		<div

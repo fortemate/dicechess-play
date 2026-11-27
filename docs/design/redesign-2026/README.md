@@ -111,19 +111,22 @@ The variables are the ones `src/app.css` already maps to Tailwind names. The val
 | `--badge-accent`     | `#7a4a00` | `#f3bf74` | The highlight edge: the running clock and the die that can be played. |
 | `--success`          | `#1f6b3a` | `#8fdba8` | The "live" mark.                                                      |
 
-New variables the design needs. [#250](https://github.com/fortemate/dicechess-play/issues/250) names them.
+Variables added for the design, and the Tailwind name of each:
 
-| Purpose                             | Light     | Dark      | Used for                                           |
-| ----------------------------------- | --------- | --------- | -------------------------------------------------- |
-| Highlight surface                   | `#fff2dd` | `#413622` | The running clock, "PLAYER" tags, the casual note. |
-| Text on the highlight surface       | `#65451c` | `#f5ddb6` | Text inside those.                                 |
-| Text on a filled destructive button | `#ffffff` | `#3a120b` | The second press of "Resign".                      |
+| Variable           | Tailwind name       | Light     | Dark      | Used for                                           |
+| ------------------ | ------------------- | --------- | --------- | -------------------------------------------------- |
+| `--bg-highlight`   | `highlight`         | `#fff2dd` | `#413622` | The running clock, "PLAYER" tags, the casual note. |
+| `--text-highlight` | `highlight-content` | `#65451c` | `#f5ddb6` | Text inside those.                                 |
+| `--danger-content` | `danger-content`    | `#ffffff` | `#3a120b` | Text on a filled destructive button.               |
+| `--accent-hover`   | `primary-hover`     | `#1d3d2f` | `#dce9d5` | The primary button and a link under the pointer.   |
+| `--scrim`          | `scrim`             | `#0a160d` | `#0a160d` | The veil behind a dialog, at 50 to 60% opacity.    |
 
 Rules:
 
-- Text meets 4.5:1 against the surface it sits on; control edges meet 3:1. A unit test in [#250](https://github.com/fortemate/dicechess-play/issues/250) keeps this from regressing.
+- Text meets 4.5:1 against the surface it sits on; control edges meet 3:1. `src/designTokens.test.ts` computes both from `src/app.css` and fails below them.
+- Text of a status colour on a tint of the same colour (`bg-danger/10 text-danger`) stays readable up to a 15% tint for `danger`; the same test checks every strength in use.
 - Colour never carries meaning alone. "Won" and "lost" are words next to their marks, a win share is a number next to its bar, and tags say "BOT" or "PLAYER".
-- No component uses a palette utility (`bg-slate-*`, `text-red-*` and the like) instead of a token.
+- No component uses a palette utility (`bg-slate-*`, `text-red-*` and the like) instead of a token. The same test scans the sources for them; the showcase components are exempt until they are removed.
 
 ### Board and dice
 

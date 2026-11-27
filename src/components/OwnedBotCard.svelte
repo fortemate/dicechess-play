@@ -360,7 +360,7 @@
 					type="button"
 					onclick={openRelease}
 					disabled={pending !== null}
-					class="rounded-lg border border-danger/30 bg-danger/10 px-3 py-2 text-sm font-bold text-danger transition-colors hover:bg-danger/20 disabled:cursor-not-allowed disabled:opacity-40"
+					class="rounded-lg border border-danger/30 bg-danger/10 px-3 py-2 text-sm font-bold text-danger transition-colors hover:bg-danger/15 disabled:cursor-not-allowed disabled:opacity-40"
 				>
 					Release bot
 				</button>
@@ -440,7 +440,7 @@
 				<button
 					type="submit"
 					disabled={!confirmsBotName || pending !== null}
-					class="rounded-lg border border-danger/30 bg-danger/15 px-3 py-2 text-sm font-bold text-danger transition-colors hover:bg-danger/25 disabled:cursor-not-allowed disabled:opacity-40"
+					class="rounded-lg border border-danger/30 bg-danger/10 px-3 py-2 text-sm font-bold text-danger transition-colors hover:bg-danger/15 disabled:cursor-not-allowed disabled:opacity-40"
 				>
 					{pending === 'release' ? 'Releasing' : 'Confirm release'}
 				</button>

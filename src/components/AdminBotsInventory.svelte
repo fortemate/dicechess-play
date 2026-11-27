@@ -96,7 +96,7 @@
 									<span class="text-content-muted text-[11px]"> ±{wholeNumber.format(bot.rd)}</span>
 									{#if bot.provisional}
 										<span
-											class="ml-1.5 rounded-full border border-amber-500/30 bg-amber-500/10 px-1.5 py-0.5 text-[9px] font-bold text-amber-500"
+											class="ml-1.5 rounded-full border border-badge-accent/30 bg-badge-accent/10 px-1.5 py-0.5 text-[9px] font-bold text-badge-accent"
 										>
 											Prov
 										</span>
@@ -136,7 +136,7 @@
 										<span
 											class={`font-bold ${
 												bot.activeGames >= bot.maxConcurrentGames
-													? 'text-amber-500'
+													? 'text-badge-accent'
 													: 'text-content'
 											}`}
 										>
@@ -144,7 +144,7 @@
 										</span>
 										{#if bot.activeGames >= bot.maxConcurrentGames}
 											<span
-												class="rounded-md border border-amber-500/30 bg-amber-500/15 px-1 py-0.2 text-[9px] font-bold text-amber-500"
+												class="rounded-md border border-badge-accent/30 bg-badge-accent/15 px-1 py-0.2 text-[9px] font-bold text-badge-accent"
 											>
 												Max
 											</span>
@@ -157,7 +157,7 @@
 									{#if bot.webhook}
 										<div class="flex items-center gap-1.5">
 											<span
-												class="inline-block h-2 w-2 rounded-full bg-emerald-500 shadow-sm"
+												class="inline-block h-2 w-2 rounded-full bg-success shadow-sm"
 												title="Webhook verified and active"
 											></span>
 											<span class="max-w-[120px] truncate font-mono text-[11px] text-content-muted">
@@ -249,7 +249,7 @@
 									bot.rd,
 								)}
 								{#if bot.provisional}
-									<span class="ml-1 text-amber-500 font-bold text-[10px]">prov</span>
+									<span class="ml-1 text-badge-accent font-bold text-[10px]">prov</span>
 								{/if}
 							</p>
 						</div>
@@ -258,7 +258,7 @@
 							<span
 								class={`rounded-md border px-2 py-0.5 font-bold ${
 									bot.activeGames >= bot.maxConcurrentGames
-										? 'border-amber-500/30 bg-amber-500/15 text-amber-500'
+										? 'border-badge-accent/30 bg-badge-accent/15 text-badge-accent'
 										: 'border-border bg-surface text-content'
 								}`}
 							>
@@ -290,9 +290,7 @@
 							{bot.owned ? 'Owned' : 'Unclaimed'}
 						</span>
 						{#if bot.webhook}
-							<span
-								class="rounded border border-emerald-500/30 bg-emerald-500/15 px-2 py-0.5 text-emerald-500"
-							>
+							<span class="rounded border border-success/30 bg-success/15 px-2 py-0.5 text-success">
 								Webhook
 							</span>
 							{#if bot.webhook.capabilities && bot.webhook.capabilities.length > 0}

@@ -680,7 +680,7 @@
 									type="button"
 									onclick={() => void remove()}
 									disabled={busy || !confirmsName}
-									class="rounded-lg border border-danger bg-danger/10 px-3 py-1.5 text-xs font-bold text-danger transition-colors hover:bg-danger/20 disabled:cursor-not-allowed disabled:opacity-40"
+									class="rounded-lg border border-danger bg-danger/10 px-3 py-1.5 text-xs font-bold text-danger transition-colors hover:bg-danger/15 disabled:cursor-not-allowed disabled:opacity-40"
 								>
 									{store.busy === 'delete' ? 'Deleting…' : 'Delete webhook'}
 								</button>

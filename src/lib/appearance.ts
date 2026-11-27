@@ -59,8 +59,8 @@ export const SYSTEM_LIGHT_QUERY = '(prefers-color-scheme: light)';
  * `--bg-app` of the matching `[data-theme]` block in `app.css`. A test keeps the two equal.
  */
 export const THEME_COLORS: Record<Theme, string> = {
-	light: '#f8fafc',
-	dark: '#020617',
+	light: '#f6f4ed',
+	dark: '#17231d',
 };
 
 export function isAppearancePreference(value: unknown): value is AppearancePreference {

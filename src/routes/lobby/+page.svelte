@@ -354,7 +354,7 @@
 								<div class="flex items-center justify-between gap-2 min-w-0">
 									<span class="flex items-center gap-1.5 min-w-0 text-xs text-content-muted">
 										<span
-											class="w-2 h-2 rounded-full bg-slate-950 border border-slate-700 shrink-0"
+											class="w-2 h-2 rounded-full bg-piece-black border border-border-strong shrink-0"
 											aria-hidden="true"
 										></span>
 										<span class="truncate">{playerName(game.players?.black)}</span>
@@ -366,7 +366,7 @@
 								<div class="flex items-center justify-between gap-2 min-w-0">
 									<span class="flex items-center gap-1.5 min-w-0 text-xs text-content-muted">
 										<span
-											class="w-2 h-2 rounded-full bg-white border border-slate-300 shrink-0"
+											class="w-2 h-2 rounded-full bg-piece-white border border-border-strong shrink-0"
 											aria-hidden="true"
 										></span>
 										<span class="truncate">{playerName(game.players?.white)}</span>
