@@ -10,6 +10,7 @@ const api = vi.hoisted(() => ({
 	listSeeks: vi.fn(),
 	acceptSeek: vi.fn(),
 	createSeek: vi.fn(),
+	cancelSeek: vi.fn(),
 }));
 vi.mock('#lib/live/liveApi.js', async (importOriginal) => ({
 	...(await importOriginal<typeof import('#lib/live/liveApi.js')>()),
@@ -20,6 +21,7 @@ vi.mock('#lib/live/lobbyApi.js', async (importOriginal) => ({
 	listSeeks: api.listSeeks,
 	acceptSeek: api.acceptSeek,
 	createSeek: api.createSeek,
+	cancelSeek: api.cancelSeek,
 }));
 vi.mock('#lib/ingest/guestIdentity.js', () => ({ getGuestUuid: () => 'guest-uuid' }));
 const auth = vi.hoisted(() => ({
@@ -62,6 +64,7 @@ describe('PlayTables', () => {
 		api.listSeeks.mockReset().mockResolvedValue(SEEKS);
 		api.acceptSeek.mockReset();
 		api.createSeek.mockReset().mockResolvedValue({ seekId: 'seek-9', secret: 'secret-9' });
+		api.cancelSeek.mockReset().mockResolvedValue(undefined);
 		auth.authStore.status = 'signed-out';
 		auth.authStore.canSignIn = true;
 		auth.authStore.signIn.mockReset();
@@ -192,6 +195,19 @@ describe('PlayTables', () => {
 			expect(api.listSeeks.mock.calls).toHaveLength(reads + 1);
 		});
 
+		it('still goes to the board when the visitor left the tab before the answer came', async () => {
+			// The server has seated them: the answer is the only place that knows the way in.
+			let answer!: (value: { gameId: string; token: string; seat: 'White' }) => void;
+			api.acceptSeek.mockReturnValue(new Promise((resolve) => (answer = resolve)));
+			const view = mount();
+			await fireEvent.click(await view.findByRole('button', { name: /table of house oracle/ }));
+			view.unmount();
+			answer({ gameId: 'g1', token: 't1', seat: 'White' });
+			await waitFor(() =>
+				expect(location.href).toBe('https://play.example/live/g1?seat=t1&as=white'),
+			);
+		});
+
 		it('takes one seat at a time', async () => {
 			api.acceptSeek.mockReturnValue(new Promise(() => {}));
 			const view = mount();
@@ -240,6 +256,19 @@ describe('PlayTables', () => {
 			await fireEvent.click(own(view).getByRole('button', { name: 'Open a table' }));
 			await waitFor(() => expect(api.createSeek).toHaveBeenCalledOnce());
 			expect(api.createSeek.mock.calls[0][2]).toBe(true);
+		});
+
+		it('closes a table that was opened after the visitor had left the tab', async () => {
+			let answer!: (value: { seekId: string; secret: string }) => void;
+			api.createSeek.mockReturnValue(new Promise((resolve) => (answer = resolve)));
+			const view = mount();
+			await fireEvent.click(own(view).getByRole('button', { name: 'Open a table' }));
+			view.unmount();
+			answer({ seekId: 'seek-9', secret: 'secret-9' });
+			await waitFor(() =>
+				expect(api.cancelSeek).toHaveBeenCalledExactlyOnceWith('seek-9', 'secret-9'),
+			);
+			expect(onopened).not.toHaveBeenCalled();
 		});
 
 		it('says one plain thing when the table cannot be opened', async () => {

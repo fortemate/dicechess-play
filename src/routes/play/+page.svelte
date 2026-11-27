@@ -55,6 +55,13 @@
 	);
 
 	let waiting = $state<OpenTable | null>(null);
+	// The wait belongs to the table tab. The tabs are addresses, so the Back button can leave the
+	// tab while this page stays mounted: the board must then give way to the tab that was asked
+	// for. Leaving also closes the table (`OpenTableWaiting` does that when it goes away).
+	const waitingShown = $derived(waiting !== null && tab === 'table');
+	$effect(() => {
+		if (tab !== 'table') waiting = null;
+	});
 </script>
 
 <svelte:head>
@@ -62,7 +69,7 @@
 	<meta name="description" content={m.play_meta_description()} />
 </svelte:head>
 
-{#if waiting}
+{#if waiting && waitingShown}
 	<OpenTableWaiting table={waiting} onclose={() => (waiting = null)} />
 {:else}
 	<div class="flex flex-col gap-5">

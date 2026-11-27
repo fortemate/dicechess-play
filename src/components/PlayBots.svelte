@@ -358,7 +358,8 @@
 				},
 				location.origin,
 			);
-			if (destroyed) return;
+			// Even if the visitor has left this tab meanwhile: the game exists and the seat is theirs,
+			// and this answer is the only place that knows how to reach it.
 			// The board offers a rematch on the same terms (#215), and only this place knows them.
 			rememberBotGame({
 				gameId: match.gameId,
@@ -389,7 +390,8 @@
 		phase = 'starting';
 		try {
 			const match = await acceptSeek(table.seekId, getGuestUuid());
-			if (destroyed) return;
+			// Even if the visitor has left this tab meanwhile: the game exists and the seat is theirs,
+			// and this answer is the only place that knows how to reach it.
 			// Never assume a colour: the server draws the seats when the table is taken.
 			left = true;
 			phase = 'leaving';

@@ -58,4 +58,19 @@ describe('OpenTableWaiting', () => {
 		await fireEvent.click(getByRole('button', { name: 'Close the table' }));
 		expect(onclose).toHaveBeenCalledOnce();
 	});
+
+	it('closes the table when the board goes away without a game', () => {
+		// The Back button, another page of the site: nobody waits at the table any more.
+		const { unmount } = render(OpenTableWaiting, { table: TABLE, onclose });
+		unmount();
+		expect(lobby.cancelSeek).toHaveBeenCalledExactlyOnceWith('seek-1', 'secret-1');
+		expect(onclose).not.toHaveBeenCalled();
+	});
+
+	it('tells the server once, however the board goes away after the button', async () => {
+		const { getByRole, unmount } = render(OpenTableWaiting, { table: TABLE, onclose });
+		await fireEvent.click(getByRole('button', { name: 'Close the table' }));
+		unmount();
+		expect(lobby.cancelSeek).toHaveBeenCalledOnce();
+	});
 });

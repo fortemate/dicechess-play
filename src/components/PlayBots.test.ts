@@ -687,6 +687,39 @@ describe('PlayBots', () => {
 		});
 	});
 
+	describe('a start that outlives the tab', () => {
+		// The tabs of Play are addresses (#258), so this component can go away while a request is
+		// on its way. Once the server has made the game, the answer must still be acted on.
+		it('goes to the board of an arena game that was created after the tab was left', async () => {
+			let answer!: (value: { gameId: string; token: string; seat: 'White' }) => void;
+			api.wakeBot.mockResolvedValue({ alive: true });
+			api.playBot.mockReturnValue(new Promise((resolve) => (answer = resolve)));
+			vi.stubGlobal('location', { href: 'about:blank', origin: 'https://play.example' });
+			const view = mount();
+			await fireEvent.click(await view.findByRole('radio', { name: /grove willow/ }));
+			await fireEvent.click(view.getByRole('button', { name: 'Start game' }));
+			await waitFor(() => expect(api.playBot).toHaveBeenCalledOnce());
+			view.unmount();
+			answer({ gameId: 'g1', token: 't1', seat: 'White' });
+			await waitFor(() => expect(location.href).toContain('/live/g1'));
+			expect(api.rememberBotGame).toHaveBeenCalledOnce();
+		});
+
+		it('goes to the board of a table that was taken after the tab was left', async () => {
+			let answer!: (value: { gameId: string; token: string; seat: 'Black' }) => void;
+			api.listSeeks.mockResolvedValue([botSeek('s1', 'house oracle')]);
+			api.acceptSeek.mockReturnValue(new Promise((resolve) => (answer = resolve)));
+			vi.stubGlobal('location', { href: 'about:blank', origin: 'https://play.example' });
+			const view = mount();
+			await fireEvent.click(await view.findByRole('radio', { name: /house oracle/ }));
+			await fireEvent.click(view.getByRole('button', { name: 'Start game' }));
+			await waitFor(() => expect(api.acceptSeek).toHaveBeenCalledOnce());
+			view.unmount();
+			answer({ gameId: 'g9', token: 't9', seat: 'Black' });
+			await waitFor(() => expect(location.href).toContain('/live/g9'));
+		});
+	});
+
 	describe('on a phone', () => {
 		it('sums up the game and folds the choices away until "Change" is pressed', async () => {
 			const view = mount();

@@ -18,7 +18,7 @@
 	import { getGuestUuid } from '#lib/ingest/guestIdentity.js';
 	import { isLiveEnabled } from '#lib/live/liveApi.js';
 	import type { Seek } from '#lib/live/liveTypes.js';
-	import { acceptSeek, listSeeks, SeekAcceptError } from '#lib/live/lobbyApi.js';
+	import { acceptSeek, cancelSeek, listSeeks, SeekAcceptError } from '#lib/live/lobbyApi.js';
 	import { openTable, type OpenTable } from '#lib/live/openTable.js';
 	import { seekOffer } from '#lib/live/playerLabel.js';
 	import { RATING_CATEGORY_LABELS, ratingCategoryOf } from '#lib/live/ratingCategory.js';
@@ -111,7 +111,8 @@
 		let left = false;
 		try {
 			const match = await acceptSeek(seek.id, getGuestUuid());
-			if (destroyed) return;
+			// Even if the visitor has left this tab meanwhile: the game exists and the seat is theirs,
+			// and this answer is the only place that knows how to reach it.
 			// Never assume a colour: the server draws the seats when the table is taken. Full
 			// navigation: the board page connects fresh from the seat token in the address.
 			left = true;
@@ -150,7 +151,15 @@
 		openError = null;
 		try {
 			const table = await openTable(time, rated);
-			if (!destroyed) onopened(table);
+			if (destroyed) {
+				// The visitor left this tab while the table was being opened. Nobody would wait at
+				// it, so it must not stay on the list for someone to sit down at.
+				cancelSeek(table.id, table.secret).catch(() => {
+					/* best effort: the server reaps the seek anyway */
+				});
+				return;
+			}
+			onopened(table);
 		} catch {
 			if (!destroyed) openError = m.play_tables_open_failed();
 		} finally {

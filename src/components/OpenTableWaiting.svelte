@@ -8,6 +8,7 @@
 	// The component owns the wait: it asks for the status of the seek until someone sits down,
 	// then goes to the board as whichever seat the server drew (never assume White, see play-api
 	// #95). Closing tells the server, best effort; its own time limit reaps the seek anyway.
+	import { onDestroy } from 'svelte';
 	import { cancelSeek, seekStatus } from '#lib/live/lobbyApi.js';
 	import type { OpenTable } from '#lib/live/openTable.js';
 	import { buildJoinUrl } from '#lib/live/seatLink.js';
@@ -39,6 +40,8 @@
 			try {
 				const status = await seekStatus(id, secret);
 				if (alive && status.matched && status.gameId && status.token && status.seat) {
+					// Matched: there is nothing left to close.
+					settled = true;
 					// Full navigation: the board page connects fresh from the seat token in the address.
 					window.location.href = buildJoinUrl(
 						location.origin,
@@ -68,12 +71,22 @@
 		};
 	});
 
-	function close() {
-		const { id, secret } = table;
-		onclose(); // stops the wait at once
-		cancelSeek(id, secret).catch(() => {
+	// The table stays open only while this board is on screen. Whichever way the board goes away
+	// without a game (the button, the Back button, another page of the site), the seek is closed,
+	// so nobody sits down at a table whose owner has left.
+	let settled = false;
+	function release() {
+		if (settled) return;
+		settled = true;
+		cancelSeek(table.id, table.secret).catch(() => {
 			/* best effort: the server reaps the seek anyway */
 		});
+	}
+	onDestroy(release);
+
+	function close() {
+		release();
+		onclose();
 	}
 </script>
 
