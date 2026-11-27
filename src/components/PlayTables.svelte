@@ -21,9 +21,8 @@
 	import { acceptSeek, cancelSeek, listSeeks, SeekAcceptError } from '#lib/live/lobbyApi.js';
 	import { openTable, type OpenTable } from '#lib/live/openTable.js';
 	import { seekOffer } from '#lib/live/playerLabel.js';
-	import { RATING_CATEGORY_LABELS, ratingCategoryOf } from '#lib/live/ratingCategory.js';
 	import { buildJoinUrl } from '#lib/live/seatLink.js';
-	import { timeControlChoices, timeControlLabel } from '#lib/live/timeControls.js';
+	import { timeControlChoices, timeControlTerms } from '#lib/live/timeControls.js';
 	import { m } from '#lib/paraglide/messages.js';
 	import GameSetupPanel from './GameSetupPanel.svelte';
 	import Spinner from './Spinner.svelte';
@@ -89,12 +88,7 @@
 		),
 	);
 
-	/** "Blitz 5 + 3": the speed the game counts as, then the clock. */
-	const termsOf = (seek: Seek) => {
-		const category = ratingCategoryOf(seek.timeControl);
-		const clock = timeControlLabel(seek.timeControl);
-		return category ? `${RATING_CATEGORY_LABELS[category]} ${clock}` : clock;
-	};
+	const termsOf = (seek: Seek) => timeControlTerms(seek.timeControl);
 	const signedIn = $derived(authStore.status === 'signed-in');
 
 	// --- Sitting down ------------------------------------------------------------------------
