@@ -15,8 +15,8 @@ const die = (value: string, state: Partial<DieState> = {}): DieState => ({
 });
 
 describe('dieStatus', () => {
-	it('tells a used die, a playable die and one without a move apart', () => {
-		expect(dieStatus(die('N'))).toBe('playable');
+	it('tells a used die, a die that is left and one the store ruled out apart', () => {
+		expect(dieStatus(die('N'))).toBe('available');
 		expect(dieStatus(die('N', { used: true }))).toBe('used');
 		expect(dieStatus(die('N', { allowed: false }))).toBe('idle');
 	});
@@ -66,32 +66,36 @@ describe('diceHint', () => {
 		expect(diceHint([], false)).toBe('');
 	});
 
-	it('counts what the visitor can still play', () => {
+	it('counts the dice the visitor has not used yet', () => {
 		expect(diceHint([die('P'), die('N'), die('B')], true)).toBe(
-			'Three dice to play: pawn, knight, and bishop, in any order.',
+			'Your dice: pawn, knight, and bishop.',
 		);
 		expect(diceHint([die('P', { used: true }), die('N'), die('B')], true)).toBe(
-			'Two dice left: knight and bishop, in either order.',
+			'Two dice left: knight and bishop.',
 		);
 		expect(diceHint([die('P', { used: true }), die('N', { used: true }), die('B')], true)).toBe(
 			'One die left: bishop.',
 		);
 	});
 
-	it('leaves out a die that has no move', () => {
+	it('promises no move and no order of play', () => {
+		// On the opening position a bishop and a rook cannot move at all. The stores mark every
+		// rolled die as allowed, so nothing here can know that: the hint only names what is left.
+		const hint = diceHint([die('P'), die('B'), die('R')], true);
+		expect(hint).toBe('Your dice: pawn, bishop, and rook.');
+		expect(hint).not.toMatch(/order|play|move/i);
+	});
+
+	it('leaves out a die the store has ruled out', () => {
 		expect(diceHint([die('P', { used: true }), die('N'), die('R', { allowed: false })], true)).toBe(
 			'One die left: knight.',
 		);
 	});
 
-	it('says when nothing is left to play', () => {
+	it('says when no die is left', () => {
 		const used = { used: true };
-		expect(diceHint([die('P', used), die('N', used), die('B', used)], true)).toBe(
-			'No die left that can be played.',
-		);
-		expect(diceHint([die('P', used), die('R', { allowed: false })], true)).toBe(
-			'No die left that can be played.',
-		);
+		expect(diceHint([die('P', used), die('N', used), die('B', used)], true)).toBe('No dice left.');
+		expect(diceHint([die('P', used), die('R', { allowed: false })], true)).toBe('No dice left.');
 	});
 
 	it('only names the dice of somebody else, used or not', () => {

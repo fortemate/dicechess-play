@@ -35,14 +35,14 @@ describe('TurnCard', () => {
 		expect(empty.getByLabelText('Dice')).toBeTruthy();
 	});
 
-	it('says who is to move and what is left to play', () => {
+	it('says who is to move and which dice are left', () => {
 		const { getByRole, getByText } = render(TurnCard, {
 			title: 'Your turn',
 			mine: true,
 			dice: [die('P', true), die('N'), die('B')],
 		});
 		expect(getByRole('heading', { name: 'Your turn' })).toBeTruthy();
-		expect(getByText('Two dice left: knight and bishop, in either order.')).toBeTruthy();
+		expect(getByText('Two dice left: knight and bishop.')).toBeTruthy();
 	});
 
 	it('only names the dice when they belong to somebody else', () => {
@@ -64,18 +64,18 @@ describe('TurnCard', () => {
 			expect(labels).toEqual(['Pawn, used', 'Knight', 'Rook, no move']);
 		});
 
-		it('dims the used die, highlights the playable one and leaves the third plain', () => {
+		it('dims the used die, highlights the one that is left and leaves the third plain', () => {
 			const { getByLabelText } = render(TurnCard, { dice, mine: true });
-			const [used, playable, idle] = [...getByLabelText('Dice').querySelectorAll('li')];
+			const [used, available, idle] = [...getByLabelText('Dice').querySelectorAll('li')];
 			const face = (item: Element) => item.querySelector('div')!.className;
 
 			expect(used.getAttribute('data-die')).toBe('used');
 			expect(face(used)).toContain('opacity-40');
 			expect(face(used)).not.toContain('border-badge-accent');
 
-			expect(playable.getAttribute('data-die')).toBe('playable');
-			expect(face(playable)).toContain('border-badge-accent');
-			expect(face(playable)).not.toContain('opacity-40');
+			expect(available.getAttribute('data-die')).toBe('available');
+			expect(face(available)).toContain('border-badge-accent');
+			expect(face(available)).not.toContain('opacity-40');
 
 			expect(idle.getAttribute('data-die')).toBe('idle');
 			expect(face(idle)).toContain('border-board-dark');

@@ -7,18 +7,24 @@
  *
  * A die is in one of three states. The stores decide them; nothing here knows the rules:
  *   - `used`: a move was made with it this turn;
- *   - `playable`: not used and the store allows it (`allowed`), so it carries the highlight;
- *   - `idle`: not used and not allowed, i.e. rolled, but no move can be made with it.
+ *   - `available`: not used yet, and not ruled out by the store. It carries the highlight;
+ *   - `idle`: not used, but the store has ruled it out (`allowed` is false).
+ *
+ * `available` does NOT mean that a move exists for the die on the board. Both stores set
+ * `allowed` to true for every die they roll and never lower it, so today `available` is simply
+ * "not used yet", and no die is ever `idle`. Whether a rook can move at all is in the stores'
+ * legal-move data, which this module does not read. The words below therefore only count and
+ * name the dice that are left; they never promise a move or an order of play.
  */
 import { m } from '#lib/paraglide/messages.js';
 import { getLocale } from '#lib/paraglide/runtime.js';
 import type { DieState } from '#lib/playWithBot/playWithBotDice.svelte.js';
 
-export type DieStatus = 'used' | 'playable' | 'idle';
+export type DieStatus = 'used' | 'available' | 'idle';
 
 export function dieStatus(die: DieState): DieStatus {
 	if (die.used) return 'used';
-	return die.allowed ? 'playable' : 'idle';
+	return die.allowed ? 'available' : 'idle';
 }
 
 const NAMES: Record<string, () => string> = {
@@ -56,7 +62,7 @@ export function pieceList(chars: readonly string[]): string {
 	);
 }
 
-/** The label under a die: the piece, and why it cannot be played when it cannot. */
+/** The label under a die: the piece, and what rules it out when something does. */
 export function dieLabel(die: DieState): string {
 	const piece = pieceName(die.value);
 	const status = dieStatus(die);
@@ -67,17 +73,17 @@ export function dieLabel(die: DieState): string {
 
 /**
  * The line under the title of the turn card. `mine` says whether the dice belong to the
- * visitor: their own dice get advice (what is left to play), anyone else's are only named.
+ * visitor: their own dice are counted down as they are used, anyone else's are only named.
  * Empty when there are no dice to talk about.
  */
 export function diceHint(dice: readonly DieState[], mine: boolean): string {
 	if (dice.length === 0) return '';
 	if (!mine) return m.game_turn_hint_opponent({ pieces: pieceList(dice.map((die) => die.value)) });
 
-	const playable = dice.filter((die) => dieStatus(die) === 'playable').map((die) => die.value);
-	const pieces = pieceList(playable);
-	if (playable.length === 0) return m.game_turn_hint_none();
-	if (playable.length === 1) return m.game_turn_hint_left_one({ pieces });
-	if (playable.length === 2) return m.game_turn_hint_left_two({ pieces });
+	const left = dice.filter((die) => dieStatus(die) === 'available').map((die) => die.value);
+	const pieces = pieceList(left);
+	if (left.length === 0) return m.game_turn_hint_none();
+	if (left.length === 1) return m.game_turn_hint_left_one({ pieces });
+	if (left.length === 2) return m.game_turn_hint_left_two({ pieces });
 	return m.game_turn_hint_left_three({ pieces });
 }

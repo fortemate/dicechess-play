@@ -5,9 +5,10 @@
 	//
 	// It renders what the game stores already expose and decides nothing: `title` comes from the
 	// page (it knows the players), the dice and their states come from the store. A die face is a
-	// light board square, so a white and a black piece both read on it. A die that can be played
-	// carries the highlight edge, a used one is dimmed and says so in words, because colour and
-	// opacity alone must not carry the meaning.
+	// light board square, so a white and a black piece both read on it. A die that is still to be
+	// used carries the highlight edge, a used one is dimmed and says so in words, because colour
+	// and opacity alone must not carry the meaning. The card does not know whether a move exists
+	// for a die (see `turnCard.ts`), so it never says that one can be played.
 	//
 	// Shared by the practice game (which may show a roll button) and the live game (dice arrive
 	// from the server; `emptyText` carries its waiting states).
@@ -21,7 +22,7 @@
 	interface Props {
 		/** Who is to move, in the page's words: "Your turn", "Greedy is thinking". */
 		title?: string;
-		/** Whether the dice are the visitor's own: their dice get advice, others are only named. */
+		/** Whether the dice are the visitor's own: theirs are counted down, others only named. */
 		mine?: boolean;
 		dice: DieState[];
 		animating?: boolean;
@@ -48,7 +49,7 @@
 
 	const EDGE = {
 		used: 'scale-95 border-board-dark opacity-40',
-		playable: 'border-badge-accent shadow-md',
+		available: 'border-badge-accent shadow-md',
 		idle: 'border-board-dark',
 	};
 </script>
@@ -92,7 +93,7 @@
 						/>
 					</div>
 					<span
-						class="text-center text-xs leading-tight font-semibold {status === 'playable'
+						class="text-center text-xs leading-tight font-semibold {status === 'available'
 							? 'text-content'
 							: 'text-content-muted'}"
 					>
