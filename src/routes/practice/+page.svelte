@@ -1,9 +1,10 @@
 <script lang="ts">
-	/* eslint-disable local/no-untranslated-text -- i18n debt: not yet migrated (#8) */
 	import { onMount } from 'svelte';
 	import { playWithBotStore as store } from '#lib/playWithBot/index.js';
 	import GameSetupPanel from '../../components/GameSetupPanel.svelte';
 	import Board from '../../components/Board.svelte';
+	import GameActions from '../../components/GameActions.svelte';
+	import GameFrame from '../../components/GameFrame.svelte';
 	import MoveList from '../../components/MoveList.svelte';
 	import MoveStepper from '../../components/MoveStepper.svelte';
 	import PawnPromotionSelector from '../../components/PawnPromotionSelector.svelte';
@@ -11,6 +12,8 @@
 	import GameEndModal from '../../components/GameEndModal.svelte';
 	import TurnCard from '../../components/TurnCard.svelte';
 	import PreRollDrawGate from '../../components/PreRollDrawGate.svelte';
+	import Button from '../../components/ui/Button.svelte';
+	import Card from '../../components/ui/Card.svelte';
 	import { chromeStore } from '#lib/stores/chromeStore.svelte.js';
 	import { preferencesStore } from '#lib/preferencesStore.svelte.js';
 	import { preloadSounds } from '#lib/sound.js';
@@ -18,6 +21,9 @@
 	import { flushOutbox } from '#lib/ingest/outbox.js';
 	import { BOTS, PLAYABLE_BOTS } from '#lib/bots.js';
 	import { RESIGN_CONFIRM_MS } from '#lib/timings.js';
+	import { m } from '#lib/paraglide/messages.js';
+	import { RATING_CATEGORY_LABELS } from '#lib/live/ratingCategory.js';
+	import { timeControlLabel } from '#lib/live/timeControls.js';
 
 	type ColorChoice = 'random' | 'white' | 'black';
 	// The setup panel speaks of three colours, and so does the store: the values are the same.
@@ -34,33 +40,41 @@
 	 * game with the structured `TimeControl` ADT. Merging them would force one to bend to the other's
 	 * wire format. The two lists also differ in content (this one includes Unlimited and '5 + 3', the
 	 * catalog one includes '1 + 1' and '3 + 3'). Keep them in sync manually if presets are added. */
-	const TIME_PRESETS: {
-		label: string;
-		group: string;
-		limit: number | null;
-		bonus: number;
-	}[] = [
-		{ label: 'Unlimited', group: 'Casual', limit: null, bonus: 0 },
-		{ label: '3 + 2', group: 'Blitz', limit: 3, bonus: 2 },
-		{ label: '5 min', group: 'Blitz', limit: 5, bonus: 0 },
-		{ label: '5 + 3', group: 'Blitz', limit: 5, bonus: 3 },
-		{ label: '10 min', group: 'Rapid', limit: 10, bonus: 0 },
-		{ label: '10 + 5', group: 'Rapid', limit: 10, bonus: 5 },
-		{ label: '15 + 10', group: 'Rapid', limit: 15, bonus: 10 },
+	type TimeGroup = 'casual' | 'blitz' | 'rapid';
+	const TIME_PRESETS: { group: TimeGroup; limit: number | null; bonus: number }[] = [
+		{ group: 'casual', limit: null, bonus: 0 },
+		{ group: 'blitz', limit: 3, bonus: 2 },
+		{ group: 'blitz', limit: 5, bonus: 0 },
+		{ group: 'blitz', limit: 5, bonus: 3 },
+		{ group: 'rapid', limit: 10, bonus: 0 },
+		{ group: 'rapid', limit: 10, bonus: 5 },
+		{ group: 'rapid', limit: 15, bonus: 10 },
 	];
+	/** The words for a preset, from the one place every surface takes them: "Unlimited", "5 min",
+	 * "5 + 3". */
+	const presetLabel = (preset: { limit: number | null; bonus: number }) =>
+		timeControlLabel(
+			preset.limit === null
+				? null
+				: preset.bonus > 0
+					? { Fischer: { initialSeconds: preset.limit * 60, incrementSeconds: preset.bonus } }
+					: { SuddenDeath: { initialSeconds: preset.limit * 60 } },
+		);
+	const GROUP_LABELS: Record<TimeGroup, () => string> = {
+		casual: m.game_practice_group_casual,
+		blitz: () => RATING_CATEGORY_LABELS.blitz,
+		rapid: () => RATING_CATEGORY_LABELS.rapid,
+	};
 	// The rows of the setup panel: one per group, each choice keyed by its index in TIME_PRESETS.
-	const TIME_GROUPS = ['Casual', 'Blitz', 'Rapid'].map((g) => ({
-		label: g,
-		options: TIME_PRESETS.map((p, index) => ({
-			value: index,
-			label: p.label,
-			group: p.group,
-		})).filter((p) => p.group === g),
-	}));
-
-	// Move history is on by default only where a third column fits.
-	const wideScreen = () =>
-		typeof window !== 'undefined' && window.matchMedia('(min-width: 1024px)').matches;
+	// Derived, so the labels are read when they are shown, not once at module load.
+	const timeGroups = $derived(
+		(['casual', 'blitz', 'rapid'] as const).map((group) => ({
+			label: GROUP_LABELS[group](),
+			options: TIME_PRESETS.map((preset, index) => ({ preset, index }))
+				.filter(({ preset }) => preset.group === group)
+				.map(({ preset, index }) => ({ value: index, label: presetLabel(preset) })),
+		})),
+	);
 
 	// Reflect the persisted preference so a stored time control is always VISIBLE in the
 	// picker — a clock must never tick that the player didn't see coming.
@@ -75,7 +89,6 @@
 	let selectedAlgo = $state('greedy');
 	let selectedColor = $state<ColorChoice>(preferencesStore.playerColorPreference);
 	let selectedTime = $state(storedTimeIndex());
-	let showHistory = $state(wideScreen());
 	let confirmResign = $state(false);
 
 	const inLobby = $derived(store.gameStatus === 'idle');
@@ -83,8 +96,11 @@
 		store.gameStatus === 'victory' || store.gameStatus === 'defeat' || store.gameStatus === 'draw',
 	);
 	const bot = $derived(BOTS.find((b) => b.id === selectedAlgo));
-	const yourColorName = $derived(store.playerColor === 'w' ? 'white' : 'black');
-	const botColorName = $derived(store.playerColor === 'w' ? 'black' : 'white');
+	const colorName = (color: 'w' | 'b') =>
+		color === 'w' ? m.common_seat_white_lower() : m.common_seat_black_lower();
+	const yourColorName = $derived(colorName(store.playerColor));
+	const botColorName = $derived(colorName(store.playerColor === 'w' ? 'b' : 'w'));
+	const botName = $derived(bot?.label ?? m.game_practice_bot());
 	// End-of-game modal: shows once per finished game, re-armed when a new game starts.
 	let endModalDismissed = $state(false);
 	$effect(() => {
@@ -106,16 +122,26 @@
 	);
 	const endHeadline = $derived(
 		store.gameStatus === 'victory'
-			? 'You won! 🎉'
+			? m.game_over_won()
 			: store.gameStatus === 'defeat'
-				? 'You lost.'
-				: 'Draw.',
+				? m.game_over_lost()
+				: m.game_over_draw(),
 	);
 
 	const botActive = $derived(!isOver && store.activeColor !== store.playerColor);
 	const youActive = $derived(!isOver && store.activeColor === store.playerColor);
 	const hasClocks = $derived(store.timeLimit !== null);
-	const timeLabel = $derived(TIME_PRESETS[selectedTime]?.label ?? 'Unlimited');
+	const timeLabel = $derived(presetLabel(TIME_PRESETS[selectedTime] ?? TIME_PRESETS[0]));
+	// What this game is, for the top bar of the frame.
+	const frameTitle = $derived(
+		hasClocks
+			? m.game_practice_frame_title_timed({
+					name: botName,
+					level: bot?.level ?? '?',
+					time: timeLabel,
+				})
+			: m.game_practice_frame_title({ name: botName, level: bot?.level ?? '?' }),
+	);
 
 	function startGame() {
 		const t = TIME_PRESETS[selectedTime];
@@ -138,10 +164,7 @@
 
 	// Reset transient panel state whenever a new game starts.
 	$effect(() => {
-		if (inLobby) {
-			showHistory = wideScreen();
-			confirmResign = false;
-		}
+		if (inLobby) confirmResign = false;
 	});
 
 	// Flush finished games to play-api's ingest endpoint exactly once per game. `flushed` is a
@@ -171,17 +194,18 @@
 	const drawLabel = $derived.by(() => {
 		switch (drawControl) {
 			case 'armed':
-				return 'Draw offer armed — sent when your turn completes (click to cancel)';
+				return m.game_draw_label_armed();
 			case 'pending':
-				return 'Draw offered — waiting for the bot';
+				return m.game_draw_label_pending_bot();
 			case 'forbidden': {
 				const turns = store.drawTurnsUntilAvailable;
-				return turns === null
-					? 'The bot offers the next draw'
-					: `Draw offer available in ${turns} ${turns === 1 ? 'turn' : 'turns'}`;
+				if (turns === null) return m.game_draw_label_forbidden_bot();
+				return turns === 1
+					? m.game_draw_label_available_one()
+					: m.game_draw_label_available_many({ turns });
 			}
 			default:
-				return 'Offer a draw with your next turn';
+				return m.game_draw_label_idle();
 		}
 	});
 
@@ -245,72 +269,11 @@
 
 <svelte:window onkeydown={onKeydown} />
 
-{#snippet iconBtn(
-	kind:
-		| 'back'
-		| 'list'
-		| 'flag'
-		| 'first'
-		| 'prev'
-		| 'next'
-		| 'last'
-		| 'sound-on'
-		| 'sound-off'
-		| 'handshake',
-)}
-	<svg
-		viewBox="0 0 24 24"
-		class="h-[17px] w-[17px]"
-		fill="none"
-		stroke="currentColor"
-		stroke-width="1.8"
-		stroke-linecap="round"
-		stroke-linejoin="round"
-		aria-hidden="true"
-	>
-		{#if kind === 'back'}
-			<path d="M19 12H6M11 6l-6 6 6 6" />
-		{:else if kind === 'list'}
-			<path d="M9 6h11M9 12h11M9 18h11" /><circle
-				cx="5"
-				cy="6"
-				r="1.2"
-				fill="currentColor"
-				stroke="none"
-			/><circle cx="5" cy="12" r="1.2" fill="currentColor" stroke="none" /><circle
-				cx="5"
-				cy="18"
-				r="1.2"
-				fill="currentColor"
-				stroke="none"
-			/>
-		{:else if kind === 'sound-on'}
-			<path d="M11 5.5 6.5 9H3.5v6h3l4.5 3.5z" /><path d="M14.5 9.5a3.6 3.6 0 0 1 0 5" /><path
-				d="M17 7.5a6.5 6.5 0 0 1 0 9"
-			/>
-		{:else if kind === 'sound-off'}
-			<path d="M11 5.5 6.5 9H3.5v6h3l4.5 3.5z" /><path d="m15.5 9.5 5 5M20.5 9.5l-5 5" />
-		{:else if kind === 'handshake'}
-			<path
-				d="m11 17 2 2a1 1 0 0 0 1.4 0l4.3-4.3a1 1 0 0 0 0-1.4l-2.4-2.4a1 1 0 0 0-1.4 0L13.5 12"
-			/>
-			<path d="m13 7-2-2a1 1 0 0 0-1.4 0L5.3 9.3a1 1 0 0 0 0 1.4l2.4 2.4a1 1 0 0 0 1.4 0L10.5 12" />
-			<path d="m16 8 2-2a2.83 2.83 0 0 1 4 0 2.83 2.83 0 0 1 0 4l-2 2" />
-			<path d="m8 16-2 2a2.83 2.83 0 0 1-4 0 2.83 2.83 0 0 1 0-4l2-2" />
-		{:else}
-			{#if kind === 'first'}
-				<path d="M11 6l-6 6 6 6M18 6l-6 6 6 6" />
-			{:else if kind === 'prev'}
-				<path d="M15 6l-6 6 6 6" />
-			{:else if kind === 'next'}
-				<path d="M9 6l6 6-6 6" />
-			{:else if kind === 'last'}
-				<path d="M6 6l6 6-6 6M13 6l6 6-6 6" />
-			{:else}
-				<path d="M6 20V4M6 5h11l-2 3 2 3H6" />
-			{/if}
-		{/if}
-	</svg>
+{#snippet endActions()}
+	<Button variant="primary" block onclick={startGame}>{m.game_practice_new_game()}</Button>
+	<Button variant="secondary" block onclick={() => store.endSession()}>
+		{m.game_practice_change_opponent()}
+	</Button>
 {/snippet}
 
 <GameEndModal
@@ -320,41 +283,29 @@
 	reason={endReasonLabel(store.gameEndReason)}
 	onDismiss={() => (endModalDismissed = true)}
 >
-	<button
-		type="button"
-		onclick={startGame}
-		class="w-full rounded-xl bg-primary py-2.5 font-bold text-primary-content shadow-md transition-colors hover:bg-primary-hover"
-	>
-		New game
-	</button>
-	<button
-		type="button"
-		onclick={() => store.endSession()}
-		class="text-sm text-content-muted underline transition-colors hover:text-content"
-	>
-		Change opponent
-	</button>
+	{@render endActions()}
 </GameEndModal>
 
 {#if inLobby}
-	<section class="max-w-md mx-auto flex flex-col gap-6">
-		<h2 class="text-2xl font-bold text-content">Practice game</h2>
+	<section class="mx-auto flex max-w-md flex-col gap-6">
+		<h2 class="text-2xl font-bold text-content">{m.game_practice_title()}</h2>
 
 		<div class="flex flex-col gap-2">
-			<span class="text-sm font-bold text-content-muted">Opponent</span>
+			<span class="text-sm font-bold text-content-muted">{m.game_practice_opponent()}</span>
 			{#each PLAYABLE_BOTS as b (b.id)}
 				<button
 					type="button"
 					onclick={() => (selectedAlgo = b.id)}
-					aria-label="{b.label}, level {b.level}"
+					aria-label={m.game_practice_bot_label({ name: b.label, level: b.level })}
 					aria-pressed={selectedAlgo === b.id}
-					class="flex items-center justify-between px-4 py-3 rounded-lg border transition-colors {selectedAlgo ===
+					class="flex min-h-11 items-center justify-between rounded-control border px-4 py-3 transition-colors focus-visible:focus-ring {selectedAlgo ===
 					b.id
 						? 'border-primary bg-primary/10 text-content'
 						: 'border-border bg-surface text-content-muted hover:text-content'}"
 				>
 					<span class="font-bold">{b.label}</span>
-					<span class="text-xs text-content-muted">Level {b.level}</span>
+					<span class="text-xs text-content-muted">{m.game_practice_level({ level: b.level })}</span
+					>
 				</button>
 			{/each}
 		</div>
@@ -363,240 +314,134 @@
 		     did not see coming. A practice game is local and never rated. -->
 		<GameSetupPanel
 			name="practice"
-			timeGroups={TIME_GROUPS}
+			{timeGroups}
 			bind:time={selectedTime}
 			colorValues={COLOR_VALUES}
 			bind:color={selectedColor}
 			rating="unrated"
-			actionLabel="Start game"
+			actionLabel={m.game_practice_start()}
 			onstart={startGame}
 		/>
 	</section>
 {:else}
-	<section class="w-full">
-		<div
-			class="flex flex-col gap-2.5 md:grid md:grid-cols-[minmax(0,1fr)_280px] md:items-start md:gap-3 lg:gap-4 {showHistory
-				? 'lg:grid-cols-[300px_minmax(0,1fr)_280px]'
-				: ''}"
-		>
-			{#if showHistory}
-				<!-- On phones the move list is a sheet over the lower part of the screen, so the
-				     board stays in view. From md up it is an extra panel alongside the game. -->
-				<aside
-					class="fixed inset-x-0 bottom-0 z-40 h-[40dvh] md:static md:z-auto md:col-span-2 md:row-start-2 md:h-[320px] lg:sticky lg:top-4 lg:col-span-1 lg:col-start-1 lg:row-start-1 lg:h-[calc(100dvh-2rem)]"
-				>
-					<MoveList
-						historyBlocks={store.historyBlocks}
-						currentMoveIndex={store.currentMoveIndex}
-						maxMoveIndex={store.maxMoveIndex}
-						onSetMove={(i) => store.setMoveIndex(i)}
-						keyboardNavEnabled={isOver}
-						onclose={() => (showHistory = false)}
+	<GameFrame title={frameTitle} onleave={() => store.endSession()}>
+		{#snippet top()}
+			<PlayerStrip
+				name={botName}
+				sub={m.game_practice_bot_sub({ color: botColorName })}
+				bot
+				compact
+				active={botActive}
+				thinking={store.gameStatus === 'bot_thinking'}
+				clockMs={hasClocks ? store.botTimeLeft : undefined}
+			/>
+		{/snippet}
+
+		{#snippet board()}
+			<!-- Relative wrapper so the promotion overlay covers the board. The pointer handler is
+			     on the wrapper, not an overlay: nothing is ever laid over the board, so the king
+			     stays one click away at every moment of the game. -->
+			<!-- svelte-ignore a11y_no_static_element_interactions (declining by tapping the board is
+			     a pointer shortcut; Escape and the gate card's own focused button are the
+			     keyboard paths) -->
+			<div class="relative aspect-square w-full" onpointerdown={onBoardPointerDown}>
+				<Board {store} />
+				{#if store.pendingPromotion}
+					<PawnPromotionSelector
+						color={store.pendingPromotion.color}
+						availablePieces={store.pendingPromotion.availablePieces}
+						onSelect={(p) => store.completePromotion(p)}
+						onCancel={() => store.cancelPromotion()}
 					/>
-				</aside>
-			{/if}
-
-			<!-- Board column — the hero. Player strips sit above and below the board and share
-			     its width; the board is width-capped by the column and height-capped by the
-			     screen minus the strips. -->
-			<div
-				class="order-2 min-w-0 justify-center md:order-none md:col-start-1 md:row-start-1 flex {showHistory
-					? 'lg:col-start-2'
-					: ''}"
-			>
-				<!-- Cap the board by the height left after the surrounding chrome (two player strips, the
-				     move-nav row, and — stacked below on phones — the turn line + dice panel), not just
-				     10rem, so a short mobile viewport (browser URL bar showing) doesn't push the dice
-				     panel off the bottom. On a narrow phone the board is width-limited anyway, so this
-				     only engages when height is the tighter constraint. The 200px floor keeps it from
-				     collapsing in landscape. -->
-				<div
-					class="flex w-full max-w-[min(560px,max(200px,calc(100dvh-24rem)))] flex-col gap-2.5 md:max-w-[calc(100dvh-15rem)]"
-				>
-					<PlayerStrip
-						name={bot?.label ?? 'Bot'}
-						sub="bot · {botColorName}"
-						bot
-						active={botActive}
-						thinking={store.gameStatus === 'bot_thinking'}
-						clockMs={hasClocks ? store.botTimeLeft : undefined}
-					/>
-
-					<!-- Relative wrapper so the promotion overlay covers the board. The pointer handler is
-					     on the wrapper, not an overlay: nothing is ever laid over the board, so the king
-					     stays one click away at every moment of the game. -->
-					<!-- svelte-ignore a11y_no_static_element_interactions (declining by tapping the board is
-					     a pointer shortcut; Escape and the gate card's own focused button are the
-					     keyboard paths) -->
-					<div class="relative w-full aspect-square" onpointerdown={onBoardPointerDown}>
-						<Board {store} />
-						{#if store.pendingPromotion}
-							<PawnPromotionSelector
-								color={store.pendingPromotion.color}
-								availablePieces={store.pendingPromotion.availablePieces}
-								onSelect={(p) => store.completePromotion(p)}
-								onCancel={() => store.cancelPromotion()}
-							/>
-						{/if}
-					</div>
-
-					<MoveStepper
-						currentMoveIndex={store.currentMoveIndex}
-						maxMoveIndex={store.maxMoveIndex}
-						onSetMove={(i) => store.setMoveIndex(i)}
-					/>
-
-					<PlayerStrip
-						name="You"
-						sub="guest · {yourColorName}"
-						active={youActive}
-						clockMs={hasClocks ? store.playerTimeLeft : undefined}
-					/>
-				</div>
-			</div>
-
-			<!-- Rail: actions and dice. -->
-			<div
-				class="contents md:sticky md:top-4 md:col-start-2 md:row-start-1 md:flex md:flex-col md:gap-2.5 md:self-stretch md:[max-height:calc(100dvh-2rem)] {showHistory
-					? 'lg:col-start-3'
-					: ''}"
-			>
-				<div class="order-1 flex items-center gap-1.5 md:order-none">
-					<button
-						type="button"
-						onclick={() => store.endSession()}
-						aria-label="Leave game"
-						title="Leave"
-						class="flex h-8 w-8 items-center justify-center rounded-lg border border-border bg-surface text-content-muted transition-colors hover:border-border-strong hover:text-content"
-					>
-						{@render iconBtn('back')}
-					</button>
-					<button
-						type="button"
-						onclick={() => (showHistory = !showHistory)}
-						aria-label="Move history"
-						aria-pressed={showHistory}
-						title="Moves"
-						class="flex h-8 w-8 items-center justify-center rounded-lg border transition-colors {showHistory
-							? 'border-primary bg-primary/10 text-content'
-							: 'border-border bg-surface text-content-muted hover:border-border-strong hover:text-content'}"
-					>
-						{@render iconBtn('list')}
-					</button>
-					<button
-						type="button"
-						onclick={() => preferencesStore.setSoundEnabled(!preferencesStore.soundEnabled)}
-						aria-label="Sound effects"
-						aria-pressed={preferencesStore.soundEnabled}
-						title={preferencesStore.soundEnabled ? 'Sound on' : 'Sound off'}
-						class="flex h-8 w-8 items-center justify-center rounded-lg border border-border bg-surface transition-colors hover:border-border-strong hover:text-content {preferencesStore.soundEnabled
-							? 'text-content-muted'
-							: 'text-content-muted/50'}"
-					>
-						{@render iconBtn(preferencesStore.soundEnabled ? 'sound-on' : 'sound-off')}
-					</button>
-					<!-- Standing draw offer. Available in every phase, the bot's turn included: arming
-					     reaches nobody until this seat's own turn completes, which is the only way an
-					     offer can ride out on a forced pass. -->
-					{#if drawControl !== 'hidden'}
-						<button
-							type="button"
-							onclick={() => store.toggleArmDrawOffer()}
-							disabled={drawControl === 'forbidden' || drawControl === 'pending'}
-							aria-label={drawLabel}
-							title={drawLabel}
-							class="relative flex h-8 items-center justify-center gap-1.5 rounded-lg border transition-colors after:absolute after:-inset-1.5 after:content-[''] disabled:cursor-not-allowed disabled:opacity-40 {drawControl ===
-							'armed'
-								? 'border-primary bg-primary/20 text-primary shadow-sm px-2.5 text-xs font-bold'
-								: drawControl === 'pending'
-									? 'border-primary/50 bg-primary/10 text-primary px-2.5 text-xs font-bold'
-									: 'w-8 border-border bg-surface text-content-muted hover:border-border-strong hover:text-content'}"
-						>
-							{@render iconBtn('handshake')}
-							{#if drawControl === 'armed'}
-								Armed
-							{:else if drawControl === 'pending'}
-								Sent
-							{/if}
-						</button>
-					{/if}
-					{#if !isOver}
-						<button
-							type="button"
-							onclick={resign}
-							aria-label={confirmResign ? 'Click again to confirm resignation' : 'Resign'}
-							title="Resign"
-							class="flex h-8 items-center justify-center gap-1.5 rounded-lg border transition-colors {confirmResign
-								? 'border-danger/50 bg-danger/15 px-2.5 text-xs font-bold text-danger'
-								: 'w-8 border-border bg-surface text-content-muted hover:border-danger/50 hover:text-danger'}"
-						>
-							{@render iconBtn('flag')}
-							{#if confirmResign}Resign?{/if}
-						</button>
-					{/if}
-					<span
-						class="ml-auto truncate rounded-lg border border-border bg-surface px-2.5 py-1.5 text-xs font-bold text-content-muted"
-					>
-						{bot?.label ?? 'Bot'} · lvl {bot?.level ?? '?'}{hasClocks ? ` · ${timeLabel}` : ''}
-					</span>
-				</div>
-
-				{#if isOver}
-					<div
-						class="order-4 flex-col items-center gap-3 rounded-2xl border border-border bg-surface p-4 md:order-none md:flex-1 md:justify-center flex"
-					>
-						<p class="text-lg font-bold text-content">
-							{#if store.gameStatus === 'victory'}You won! 🎉
-							{:else if store.gameStatus === 'defeat'}You lost.
-							{:else}Draw.{/if}
-						</p>
-						{#if endReasonLabel(store.gameEndReason)}
-							<p class="text-sm text-content-muted">{endReasonLabel(store.gameEndReason)}</p>
-						{/if}
-						<button
-							type="button"
-							onclick={startGame}
-							class="w-full rounded-xl bg-primary py-2.5 font-bold text-primary-content shadow-md transition-colors hover:bg-primary-hover"
-						>
-							New game
-						</button>
-						<button
-							type="button"
-							onclick={() => store.endSession()}
-							class="text-sm text-content-muted underline transition-colors hover:text-content"
-						>
-							Change opponent
-						</button>
-					</div>
-				{:else}
-					<div class="order-4 md:order-none md:flex md:min-h-0 md:flex-1 md:flex-col">
-						<!-- The gate takes the dice panel's slot rather than opening a modal: the board and
-						     its history nav stay live while the clock runs, which is what makes declining
-						     cheap enough to be the honest default. -->
-						{#if store.isPreRollGateActive}
-							<PreRollDrawGate
-								isResponder={store.isPreRollResponder}
-								offeredByName={store.activeDrawOffer === 'bot' ? (bot?.label ?? 'Bot') : null}
-								onAccept={() => store.respondDraw(true)}
-								onDecline={() => store.respondDraw(false)}
-							/>
-						{:else}
-							<TurnCard
-								title={store.isViewingHistory
-									? undefined
-									: youActive
-										? 'Your turn'
-										: `${bot?.label ?? 'Bot'} is thinking`}
-								mine={youActive && !store.isViewingHistory}
-								dice={store.currentDice}
-								animating={store.isAnimatingRoll}
-								canRoll={store.canUserRoll && !preferencesStore.autoRollDice}
-								onRoll={() => store.rollDice()}
-							/>
-						{/if}
-					</div>
 				{/if}
 			</div>
-		</div>
-	</section>
+		{/snippet}
+
+		{#snippet underBoard()}
+			<MoveStepper
+				currentMoveIndex={store.currentMoveIndex}
+				maxMoveIndex={store.maxMoveIndex}
+				onSetMove={(i) => store.setMoveIndex(i)}
+			/>
+		{/snippet}
+
+		{#snippet bottom()}
+			<PlayerStrip
+				name={m.common_player_you()}
+				sub={m.game_practice_guest_sub({ color: yourColorName })}
+				compact
+				active={youActive}
+				clockMs={hasClocks ? store.playerTimeLeft : undefined}
+			/>
+		{/snippet}
+
+		{#snippet card()}
+			{#if isOver}
+				<Card class="flex flex-col items-center gap-3">
+					<p class="m-0 text-lg font-bold text-content">{endHeadline}</p>
+					{#if endReasonLabel(store.gameEndReason)}
+						<p class="m-0 text-sm text-content-muted">{endReasonLabel(store.gameEndReason)}</p>
+					{/if}
+					{@render endActions()}
+				</Card>
+			{:else if store.isPreRollGateActive}
+				<!-- The gate takes the turn card's slot rather than opening a modal: the board and its
+				     step controls stay live while the clock runs, which is what makes declining cheap
+				     enough to be the honest default. -->
+				<PreRollDrawGate
+					isResponder={store.isPreRollResponder}
+					offeredByName={store.activeDrawOffer === 'bot' ? botName : null}
+					onAccept={() => store.respondDraw(true)}
+					onDecline={() => store.respondDraw(false)}
+				/>
+			{:else}
+				<TurnCard
+					title={store.isViewingHistory
+						? undefined
+						: youActive
+							? m.game_turn_yours()
+							: m.game_turn_thinking({ name: botName })}
+					mine={youActive && !store.isViewingHistory}
+					dice={store.currentDice}
+					animating={store.isAnimatingRoll}
+					canRoll={store.canUserRoll && !preferencesStore.autoRollDice}
+					onRoll={() => store.rollDice()}
+				/>
+			{/if}
+		{/snippet}
+
+		{#snippet moves(close)}
+			<MoveList
+				historyBlocks={store.historyBlocks}
+				currentMoveIndex={store.currentMoveIndex}
+				maxMoveIndex={store.maxMoveIndex}
+				onSetMove={(i) => store.setMoveIndex(i)}
+				keyboardNavEnabled={isOver}
+				onclose={close}
+			/>
+		{/snippet}
+
+		{#snippet actions(movesControl)}
+			<!-- The standing draw offer is available in every phase, the bot's turn included: arming
+			     reaches nobody until this seat's own turn completes, which is the only way an offer
+			     can ride out on a forced pass. -->
+			<GameActions
+				moves={movesControl}
+				draw={drawControl === 'hidden'
+					? undefined
+					: {
+							state: drawControl,
+							label: drawLabel,
+							ontoggle: () => store.toggleArmDrawOffer(),
+						}}
+				resign={isOver
+					? undefined
+					: {
+							armed: confirmResign,
+							label: confirmResign ? m.game_resign_label_confirm() : m.game_action_resign(),
+							onpress: resign,
+						}}
+			/>
+		{/snippet}
+	</GameFrame>
 {/if}

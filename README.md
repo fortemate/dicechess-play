@@ -148,7 +148,7 @@ src/
 │   ├── GameShell              game navigation, appearance, identity and onboarding
 │   ├── GameHub                the ways-to-start-a-game cards on /play
 │   ├── lib/Chessground.svelte
-│   ├── PlayerStrip · TurnCard · MoveList · MoveStepper · GameEndModal · BotBadge · PawnPromotionSelector
+│   ├── GameFrame · GameActions · PlayerStrip · TurnCard · MoveList · MoveStepper · GameEndModal · BotBadge · PawnPromotionSelector
 │   ├── GameHistoryCard · LiveGameHistoryCard · BotProfileGameCard · WdlBar · WdlCounts
 │   │                     WdlSummaryCard · MiniBoard · GameSetupPanel · ThemeMenu
 │   │                     ToastContainer

@@ -90,7 +90,7 @@
 
 <section
 	aria-label={m.game_moves_title()}
-	class="flex h-full flex-col overflow-hidden rounded-card border border-border bg-surface max-md:rounded-b-none max-md:shadow-2xl"
+	class="flex h-full min-h-0 flex-1 flex-col overflow-hidden rounded-card border border-border bg-surface max-md:rounded-b-none max-md:shadow-2xl"
 >
 	<header class="flex flex-col gap-1 border-b border-border px-4 pt-3 pb-2">
 		<div class="flex items-center justify-between gap-2">

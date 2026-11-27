@@ -1,5 +1,4 @@
 <script lang="ts">
-	/* eslint-disable local/no-untranslated-text -- i18n debt: not yet migrated (#8) */
 	import { untrack } from 'svelte';
 	import { page } from '$app/state';
 	import { resolve } from '$app/paths';
@@ -9,6 +8,8 @@
 	import PlayerStrip from '../../../components/PlayerStrip.svelte';
 	import TurnCard from '../../../components/TurnCard.svelte';
 	import PreRollDrawGate from '../../../components/PreRollDrawGate.svelte';
+	import GameActions from '../../../components/GameActions.svelte';
+	import GameFrame from '../../../components/GameFrame.svelte';
 	import MoveList from '../../../components/MoveList.svelte';
 	import MoveStepper from '../../../components/MoveStepper.svelte';
 	import GameEndModal from '../../../components/GameEndModal.svelte';
@@ -18,6 +19,9 @@
 	import { recallBotGame } from '#lib/catalog/lastBotGame.js';
 	import GameRatingContext from '../../../components/GameRatingContext.svelte';
 	import RatingDeltaLine from '../../../components/RatingDeltaLine.svelte';
+	import Button from '../../../components/ui/Button.svelte';
+	import Card from '../../../components/ui/Card.svelte';
+	import Tag from '../../../components/ui/Tag.svelte';
 	import { chromeStore } from '#lib/stores/chromeStore.svelte.js';
 	import { LiveGameStore } from '#lib/live/liveGameStore.svelte.js';
 	import { RematchStore } from '#lib/live/rematchStore.svelte.js';
@@ -32,7 +36,6 @@
 		seatDisplaySub,
 		seatRating,
 	} from '#lib/live/playerLabel.js';
-	import { preferencesStore } from '#lib/preferencesStore.svelte.js';
 	import { preloadSounds } from '#lib/sound.js';
 	import { endReasonLabel } from '#lib/gameOutcome.js';
 	import { toastStore } from '#lib/toastStore.svelte.js';
@@ -55,8 +58,6 @@
 	const RATING_POLL_MS = 5000;
 
 	const RATING_POLL_ATTEMPTS = 36;
-	const wideScreen = () =>
-		typeof window !== 'undefined' && window.matchMedia('(min-width: 1024px)').matches;
 
 	const live = new LiveGameStore();
 	$effect(() => {
@@ -67,7 +68,6 @@
 	});
 
 	let confirmResign = $state(false);
-	let showHistory = $state(wideScreen());
 
 	function setMove(index: number) {
 		live.setMoveIndex(index);
@@ -108,13 +108,6 @@
 		}
 	}
 
-	$effect(() => {
-		// Reset showHistory to default wideScreen value when game changes
-		if (page.params.id) {
-			showHistory = wideScreen();
-		}
-	});
-
 	// Board is shown from the player's side (white for spectators), so the opponent's clock sits on top.
 	const bottomSeat = $derived<Seat>(live.playerColor === 'b' ? 'Black' : 'White');
 	const topSeat = $derived<Seat>(bottomSeat === 'White' ? 'Black' : 'White');
@@ -144,8 +137,9 @@
 		if (live.rematchStartup?.phase === 'awaiting_joins') {
 			return awaitingOpponentText;
 		}
-		if (live.spectator) return live.activeColor === 'w' ? 'White to move' : 'Black to move';
-		return myMove ? 'Your move' : 'Waiting for opponent…';
+		if (live.spectator)
+			return live.activeColor === 'w' ? m.game_live_turn_white() : m.game_live_turn_black();
+		return myMove ? m.game_live_turn_yours() : m.game_live_turn_waiting();
 	});
 	// The end-of-game modal shows once per finished game; dismissing reveals the board with
 	// the side-rail card as fallback. Any transition away from 'over' (new game) re-arms it.
@@ -324,7 +318,9 @@
 	});
 
 	const awaitingOpponentText = $derived(
-		joinCountdown > 0 ? `Awaiting opponent… (${joinCountdown}s)` : 'Awaiting opponent…',
+		joinCountdown > 0
+			? m.game_live_awaiting_opponent_countdown({ seconds: joinCountdown })
+			: m.game_live_awaiting_opponent(),
 	);
 
 	// The finished game's public replay (#216). Available to spectators too — the replay wire is
@@ -400,14 +396,15 @@
 
 	const statusText = $derived.by(() => {
 		// A dropped connection should show through whatever the last game status was (until it's over).
-		if (live.connection === 'closed' && live.gameStatus !== 'over') return 'Disconnected.';
+		if (live.connection === 'closed' && live.gameStatus !== 'over')
+			return m.game_live_status_disconnected();
 		// Mid-game 'connecting' means a reconnect is in flight (the initial connect still says "Connecting…").
 		if (
 			live.connection === 'connecting' &&
 			live.gameStatus !== 'connecting' &&
 			live.gameStatus !== 'over'
 		)
-			return 'Reconnecting…';
+			return m.game_live_status_reconnecting();
 		// Only while the game is still open: a rematch that aborts on the first-join gate is evicted
 		// with this phase still on record, and the seat that DID join must be told it won rather than
 		// left waiting for an opponent who can no longer come (#109).
@@ -416,17 +413,19 @@
 		}
 		switch (live.gameStatus) {
 			case 'connecting':
-				return 'Connecting…';
+				return m.game_live_status_connecting();
 			case 'playing':
-				return 'Your turn.';
+				return m.game_live_status_your_turn();
 			case 'waiting':
-				return 'Waiting for your opponent…';
+				return m.game_live_status_waiting();
 			case 'over':
-				if (live.termination === 'Aborted') return 'Game aborted.';
-				if (live.outcome === 'won') return 'You won! 🎉';
-				if (live.outcome === 'lost') return 'You lost.';
-				if (live.outcome === 'draw') return 'Draw.';
-				return live.winner ? `${live.winner} won.` : 'Game over.';
+				if (live.termination === 'Aborted') return m.game_live_status_aborted();
+				if (live.outcome === 'won') return m.game_over_won();
+				if (live.outcome === 'lost') return m.game_over_lost();
+				if (live.outcome === 'draw') return m.game_over_draw();
+				return live.winner
+					? m.game_live_status_seat_won({ seat: SEAT_LABELS[live.winner] })
+					: m.game_live_status_over();
 		}
 	});
 
@@ -437,11 +436,11 @@
 	const connectionBadge = $derived.by(() => {
 		if (live.gameStatus === 'over') return null;
 		if (live.rematchStartup?.phase === 'awaiting_joins') {
-			return 'Awaiting opponent';
+			return m.game_live_badge_awaiting();
 		}
-		if (live.connection === 'closed') return 'Disconnected';
+		if (live.connection === 'closed') return m.game_live_badge_disconnected();
 		if (live.connection === 'connecting' && live.gameStatus !== 'connecting')
-			return 'Reconnecting…';
+			return m.game_live_status_reconnecting();
 		return null;
 	});
 
@@ -455,7 +454,7 @@
 			case 'Timeout':
 				return endReasonLabel('timeout');
 			case 'Draw':
-				return 'Draw by agreement';
+				return m.game_live_end_draw_agreed();
 			case 'DoubleDeclined':
 				return endReasonLabel('double_declined');
 			case 'Aborted':
@@ -465,7 +464,7 @@
 				// Aborted gets its own headline
 				// A termination this build does not know (the server may add members): say something
 				// neutral rather than a blank or a debug dump, and never throw.
-				return 'Game over';
+				return m.game_live_end_unknown();
 		}
 	});
 
@@ -492,17 +491,18 @@
 	const drawLabel = $derived.by(() => {
 		switch (drawControl) {
 			case 'armed':
-				return 'Draw offer armed — sent when your turn completes (click to cancel)';
+				return m.game_draw_label_armed();
 			case 'pending':
-				return 'Draw offered — waiting for your opponent';
+				return m.game_draw_label_pending_opponent();
 			case 'forbidden': {
 				const turns = live.drawArmRefusal?.availableAfterTurns ?? null;
-				return turns === null
-					? 'Opponent must offer the next draw'
-					: `Draw offer available in ${turns} ${turns === 1 ? 'turn' : 'turns'}`;
+				if (turns === null) return m.game_draw_label_forbidden_opponent();
+				return turns === 1
+					? m.game_draw_label_available_one()
+					: m.game_draw_label_available_many({ turns });
 			}
 			default:
-				return 'Offer a draw with your next turn';
+				return m.game_draw_label_idle();
 		}
 	});
 
@@ -541,122 +541,56 @@
 	}
 
 	$effect(() => () => clearTimeout(resignTimeout));
+
+	// What the resign button says to assistive technology and in its tooltip.
+	const resignLabel = $derived(
+		live.connection !== 'open'
+			? m.game_resign_label_disconnected()
+			: confirmResign
+				? m.game_resign_label_confirm()
+				: m.game_action_resign(),
+	);
+	// What this game is, for the top bar of the frame.
+	const frameTitle = $derived(
+		m.game_live_title({ white: seatName('White'), black: seatName('Black') }),
+	);
 </script>
-
-{#snippet iconBtn(
-	kind:
-		| 'back'
-		| 'list'
-		| 'flag'
-		| 'first'
-		| 'prev'
-		| 'next'
-		| 'last'
-		| 'sound-on'
-		| 'sound-off'
-		| 'handshake',
-)}
-	<svg
-		viewBox="0 0 24 24"
-		class="h-[17px] w-[17px]"
-		fill="none"
-		stroke="currentColor"
-		stroke-width="1.8"
-		stroke-linecap="round"
-		stroke-linejoin="round"
-		aria-hidden="true"
-	>
-		{#if kind === 'back'}
-			<path d="M19 12H6M11 6l-6 6 6 6"></path>
-		{:else if kind === 'list'}
-			<path d="M9 6h11M9 12h11M9 18h11"></path>
-
-			<circle cx="5" cy="6" r="1.2" fill="currentColor" stroke="none"></circle>
-
-			<circle cx="5" cy="12" r="1.2" fill="currentColor" stroke="none"></circle>
-
-			<circle cx="5" cy="18" r="1.2" fill="currentColor" stroke="none"></circle>
-		{:else if kind === 'sound-on'}
-			<path d="M11 5.5 6.5 9H3.5v6h3l4.5 3.5z"></path>
-			<path d="M14.5 9.5a3.6 3.6 0 0 1 0 5"></path>
-			<path d="M17 7.5a6.5 6.5 0 0 1 0 9"></path>
-		{:else if kind === 'sound-off'}
-			<path d="M11 5.5 6.5 9H3.5v6h3l4.5 3.5z"></path>
-			<path d="m15.5 9.5 5 5M20.5 9.5l-5 5"></path>
-		{:else if kind === 'handshake'}
-			<path d="m11 17 2 2a1 1 0 0 0 1.4 0l4.3-4.3a1 1 0 0 0 0-1.4l-2.4-2.4a1 1 0 0 0-1.4 0L13.5 12"
-			></path>
-
-			<path d="m13 7-2-2a1 1 0 0 0-1.4 0L5.3 9.3a1 1 0 0 0 0 1.4l2.4 2.4a1 1 0 0 0 1.4 0L10.5 12"
-			></path>
-
-			<path d="m16 8 2-2a2.83 2.83 0 0 1 4 0 2.83 2.83 0 0 1 0 4l-2 2"></path>
-
-			<path d="m8 16-2 2a2.83 2.83 0 0 1-4 0 2.83 2.83 0 0 1 0-4l2-2"></path>
-		{:else}
-			{#if kind === 'first'}
-				<path d="M11 6l-6 6 6 6M18 6l-6 6 6 6"></path>
-			{:else if kind === 'prev'}
-				<path d="M15 6l-6 6 6 6"></path>
-			{:else if kind === 'next'}
-				<path d="M9 6l6 6-6 6"></path>
-			{:else if kind === 'last'}
-				<path d="M6 6l6 6-6 6M13 6l6 6-6 6"></path>
-			{:else}
-				<path d="M6 20V4M6 5h11l-2 3 2 3H6"></path>
-			{/if}
-		{/if}
-	</svg>
-{/snippet}
 
 {#snippet endActions()}
 	{#if rematchOffer}
 		<BotRematchButton setup={rematchOffer} />
-		<a
-			href={resolve('bots')}
-			class="text-sm font-semibold text-content-muted transition-colors hover:text-content"
-		>
-			Play another bot →
-		</a>
+		<Button variant="secondary" block href={resolve('bots')}>
+			{m.game_live_play_another_bot()}
+		</Button>
 	{:else if rematchEligible}
 		<RematchControl store={rematchStore} />
 	{:else if spectatorFollows}
 		<SpectatorFollowPanel store={followStore} />
 	{:else}
-		<a
-			href={resolve(opponentIsBot ? '/bots' : '/lobby')}
-			class="w-full rounded-xl bg-primary py-2.5 text-center font-bold text-primary-content shadow-md transition-colors hover:bg-primary-hover"
-		>
-			{opponentIsBot ? 'Play another bot →' : 'Find another game →'}
-		</a>
+		<Button variant="primary" block href={resolve(opponentIsBot ? '/bots' : '/lobby')}>
+			{opponentIsBot ? m.game_live_play_another_bot() : m.game_live_find_another_game()}
+		</Button>
 	{/if}
 	{#if replayId}
-		<div class="flex w-full items-center justify-center gap-2">
-			<a
-				href={resolve('/replay/[id]', { id: replayId })}
-				class="flex-1 rounded-xl border border-border bg-surface py-2 text-center text-sm font-bold text-content transition-colors hover:bg-surface-hover"
-			>
-				Watch replay
-			</a>
-			<button
-				type="button"
-				onclick={copyReplayLink}
-				class="flex-1 rounded-xl border border-border bg-surface py-2 text-center text-sm font-bold text-content-muted transition-colors hover:text-content"
-			>
-				{copiedLink ? 'Copied' : 'Copy link'}
-			</button>
+		<div class="flex w-full items-stretch justify-center gap-2">
+			<Button variant="secondary" class="flex-1" href={resolve('/replay/[id]', { id: replayId })}>
+				{m.game_live_watch_replay()}
+			</Button>
+			<Button variant="secondary" class="flex-1" onclick={copyReplayLink}>
+				{copiedLink ? m.game_live_copied() : m.game_live_copy_link()}
+			</Button>
 		</div>
 	{/if}
 	<a
 		href={resolve('lobby')}
-		class="text-sm font-semibold text-content-muted transition-colors hover:text-content"
+		class="inline-flex min-h-11 items-center rounded-control px-2 text-sm font-semibold text-content-muted transition-colors hover:text-content focus-visible:focus-ring"
 	>
-		← Back to the lobby
+		{m.game_live_back_to_lobby()}
 	</a>
 {/snippet}
 
 <svelte:head>
-	<title>{myMove ? '● Your move · Dice Chess' : 'Dice Chess — Play'}</title>
+	<title>{myMove ? m.game_live_page_title_your_move() : m.game_live_page_title()}</title>
 </svelte:head>
 
 <svelte:window
@@ -668,7 +602,7 @@
 
 <GameEndModal
 	open={showEndModal}
-	headline={statusText ?? 'Game over.'}
+	headline={statusText ?? m.game_live_status_over()}
 	tone={endTone}
 	reason={endReason}
 	settlement={live.settlement}
@@ -678,290 +612,184 @@
 	{@render endActions()}
 </GameEndModal>
 
-<section class="w-full">
-	<div
-		class="flex flex-col gap-2.5 md:grid md:grid-cols-[minmax(0,1fr)_280px] md:items-start md:gap-3 lg:gap-4 {showHistory
-			? 'lg:grid-cols-[300px_minmax(0,1fr)_280px]'
-			: ''}"
-	>
-		{#if showHistory}
-			<!-- On phones the move list is a sheet over the lower part of the screen, so the
-			     board stays in view. From md up it is an extra panel alongside the game. -->
-			<aside
-				id="move-history-panel"
-				class="fixed inset-x-0 bottom-0 z-40 h-[40dvh] md:static md:z-auto md:col-span-2 md:row-start-2 md:h-[320px] lg:sticky lg:top-4 lg:col-span-1 lg:col-start-1 lg:row-start-1 lg:h-[calc(100dvh-2rem)]"
-			>
-				<MoveList
-					historyBlocks={live.historyBlocks}
-					currentMoveIndex={live.currentMoveIndex}
-					maxMoveIndex={live.maxMoveIndex}
-					onSetMove={(i) => setMove(i)}
-					keyboardNavEnabled={live.gameStatus === 'over' || live.spectator}
-					onclose={() => (showHistory = false)}
-				/>
-			</aside>
+<GameFrame title={frameTitle} leaveHref={resolve('lobby')}>
+	{#snippet status()}
+		<!-- A dropped connection is otherwise invisible whenever dice are on the table. -->
+		{#if connectionBadge}
+			<span role="status">
+				<Tag tone={live.connection === 'closed' ? 'danger' : 'highlight'}>{connectionBadge}</Tag>
+			</span>
 		{/if}
+		{#if live.spectator}
+			<Tag>{m.game_live_badge_spectating()}</Tag>
+		{/if}
+	{/snippet}
 
-		<!-- Board column — the hero. Player strips sit above and below the board and share
-		     its width; the board is width-capped by the column and height-capped by the
-		     screen minus the strips. -->
-		<div
-			class="order-2 min-w-0 justify-center md:order-none md:col-start-1 md:row-start-1 flex {showHistory
-				? 'lg:col-start-2'
-				: ''}"
-		>
-			<!-- Cap the board by the height left after the surrounding chrome (two player strips, the
-			     move-nav row, and — stacked below on phones — the turn line + dice panel), not just
-			     10rem, so a short mobile viewport (browser URL bar showing) doesn't push the dice
-			     panel off the bottom. On a narrow phone the board is width-limited anyway, so this
-			     only engages when height is the tighter constraint. The 200px floor keeps it from
-			     collapsing in landscape. -->
-			<div
-				class="flex w-full max-w-[min(560px,max(200px,calc(100dvh-24rem)))] flex-col gap-2.5 md:max-w-[calc(100dvh-15rem)]"
-			>
-				<PlayerStrip
-					name={seatName(topSeat)}
-					sub={seatSub(topSeat)}
-					bot={seatIsBot(topSeat)}
-					active={isActiveSeat(topSeat)}
-					clockMs={clockMs(topSeat)}
-					href={seatProfileHref(topSeat)}
-					rating={seatRatingOf(topSeat)}
+	{#snippet top()}
+		<PlayerStrip
+			name={seatName(topSeat)}
+			sub={seatSub(topSeat)}
+			bot={seatIsBot(topSeat)}
+			compact
+			active={isActiveSeat(topSeat)}
+			clockMs={clockMs(topSeat)}
+			href={seatProfileHref(topSeat)}
+			rating={seatRatingOf(topSeat)}
+		/>
+	{/snippet}
+
+	{#snippet board()}
+		<!-- Relative wrapper so the promotion overlay covers the board. The pointer handler is on
+		     the wrapper, not an overlay: nothing is ever laid over the board, so the king stays
+		     one click away at every moment of the game. -->
+		<!-- svelte-ignore a11y_no_static_element_interactions
+		     (declining by tapping the board is a pointer shortcut; Escape and the card's own
+		     focused button are the keyboard paths) -->
+		<div class="relative aspect-square w-full" onpointerdown={onBoardPointerDown}>
+			<Board store={live} />
+			{#if live.pendingPromotion}
+				<PawnPromotionSelector
+					color={live.pendingPromotion.color}
+					availablePieces={live.pendingPromotion.availablePieces}
+					onSelect={(p) => live.completePromotion(p)}
+					onCancel={() => live.cancelPromotion()}
 				/>
-
-				<!-- Relative wrapper so the promotion overlay covers the board. The pointer handler is on
-				     the wrapper, not an overlay: nothing is ever laid over the board, so the king stays
-				     one click away at every moment of the game. -->
-				<!-- svelte-ignore a11y_no_static_element_interactions, a11y_click_events_have_key_events
-				     (declining by tapping the board is a pointer shortcut; Escape and the card's own
-				     focused button are the keyboard paths) -->
-				<div class="relative w-full aspect-square" onpointerdown={onBoardPointerDown}>
-					<Board store={live} />
-					{#if live.pendingPromotion}
-						<PawnPromotionSelector
-							color={live.pendingPromotion.color}
-							availablePieces={live.pendingPromotion.availablePieces}
-							onSelect={(p) => live.completePromotion(p)}
-							onCancel={() => live.cancelPromotion()}
-						/>
-					{/if}
-				</div>
-
-				{#if live.isManuallyBrowsing}
-					<button
-						type="button"
-						onclick={() => setMove(live.maxMoveIndex)}
-						class="w-full rounded-xl border border-primary bg-primary/10 py-2 text-center text-sm font-bold text-primary transition-colors hover:bg-primary/20"
-					>
-						Viewing history — Return to live
-					</button>
-				{/if}
-
-				<MoveStepper
-					currentMoveIndex={live.currentMoveIndex}
-					maxMoveIndex={live.maxMoveIndex}
-					onSetMove={(i) => setMove(i)}
-				/>
-
-				<PlayerStrip
-					name={seatName(bottomSeat)}
-					sub={seatSub(bottomSeat)}
-					bot={seatIsBot(bottomSeat)}
-					active={isActiveSeat(bottomSeat)}
-					clockMs={clockMs(bottomSeat)}
-					href={seatProfileHref(bottomSeat)}
-					rating={seatRatingOf(bottomSeat)}
-				/>
-			</div>
+			{/if}
 		</div>
+	{/snippet}
 
-		<!-- Rail: actions, players, dice. On mobile its children interleave around the board. -->
-		<div
-			class="contents md:sticky md:top-4 md:col-start-2 md:row-start-1 md:flex md:flex-col md:gap-2.5 md:self-stretch md:[max-height:calc(100dvh-2rem)] {showHistory
-				? 'lg:col-start-3'
-				: ''}"
-		>
-			<div class="order-1 flex items-center gap-1.5 md:order-none">
-				<a
-					href={resolve('lobby')}
-					aria-label="Leave game"
-					title="Leave"
-					class="flex h-8 w-8 items-center justify-center rounded-lg border border-border bg-surface text-content-muted transition-colors hover:border-border-strong hover:text-content"
-				>
-					{@render iconBtn('back')}
-				</a>
-				<button
-					type="button"
-					onclick={() => (showHistory = !showHistory)}
-					aria-label="Move history"
-					aria-expanded={showHistory}
-					aria-controls="move-history-panel"
-					title="Moves"
-					class="flex h-8 w-8 items-center justify-center rounded-lg border transition-colors {showHistory
-						? 'border-primary bg-primary/10 text-content'
-						: 'border-border bg-surface text-content-muted hover:border-border-strong hover:text-content'}"
-				>
-					{@render iconBtn('list')}
-				</button>
-				<button
-					type="button"
-					onclick={() => preferencesStore.setSoundEnabled(!preferencesStore.soundEnabled)}
-					aria-label="Sound effects"
-					aria-pressed={preferencesStore.soundEnabled}
-					title={preferencesStore.soundEnabled ? 'Sound on' : 'Sound off'}
-					class="flex h-8 w-8 items-center justify-center rounded-lg border border-border bg-surface transition-colors hover:border-border-strong hover:text-content {preferencesStore.soundEnabled
-						? 'text-content-muted'
-						: 'text-content-muted/50'}"
-				>
-					{@render iconBtn(preferencesStore.soundEnabled ? 'sound-on' : 'sound-off')}
-				</button>
-				{#if live.canResign}
-					<button
-						type="button"
-						onclick={resign}
-						onblur={disarmResign}
-						disabled={live.connection !== 'open'}
-						aria-label={live.connection !== 'open'
-							? 'Resign unavailable while disconnected'
-							: confirmResign
-								? 'Click again to confirm resignation'
-								: 'Resign'}
-						title={live.connection !== 'open' ? 'Reconnecting…' : 'Resign'}
-						class="relative flex h-8 items-center justify-center gap-1.5 rounded-lg border transition-colors after:absolute after:-inset-1.5 after:content-[''] disabled:cursor-not-allowed disabled:opacity-40 {confirmResign
-							? 'border-danger/50 bg-danger/15 px-2.5 text-xs font-bold text-danger'
-							: 'w-8 border-border bg-surface text-content-muted hover:border-danger/50 hover:text-danger'}"
-					>
-						{@render iconBtn('flag')}
+	{#snippet underBoard()}
+		{#if live.isManuallyBrowsing}
+			<Button variant="secondary" block onclick={() => setMove(live.maxMoveIndex)}>
+				{m.game_live_return_to_live()}
+			</Button>
+		{/if}
+		<MoveStepper
+			currentMoveIndex={live.currentMoveIndex}
+			maxMoveIndex={live.maxMoveIndex}
+			onSetMove={(i) => setMove(i)}
+		/>
+	{/snippet}
 
-						{#if confirmResign}
-							Resign?{#if live.doubling}
-								−{live.doubling.currentStake}
-							{/if}
-						{/if}
-					</button>
+	{#snippet bottom()}
+		<PlayerStrip
+			name={seatName(bottomSeat)}
+			sub={seatSub(bottomSeat)}
+			bot={seatIsBot(bottomSeat)}
+			compact
+			active={isActiveSeat(bottomSeat)}
+			clockMs={clockMs(bottomSeat)}
+			href={seatProfileHref(bottomSeat)}
+			rating={seatRatingOf(bottomSeat)}
+		/>
+	{/snippet}
 
-					<!-- Standing draw offer. Available in every phase, including the opponent's turn: arming
-					     reaches nobody until this seat's own turn completes, which is the only way an
-					     offer can ride on a forced pass. -->
-					{#if drawControl !== 'hidden'}
-						<button
-							type="button"
-							onclick={() => live.toggleArmDrawOffer()}
-							disabled={drawControl === 'forbidden' ||
-								drawControl === 'pending' ||
-								live.connection !== 'open'}
-							aria-label={drawLabel}
-							title={drawLabel}
-							class="relative flex h-8 items-center justify-center gap-1.5 rounded-lg border transition-colors after:absolute after:-inset-1.5 after:content-[''] disabled:cursor-not-allowed disabled:opacity-40 {drawControl ===
-							'armed'
-								? 'border-primary bg-primary/20 text-primary shadow-sm px-2.5 text-xs font-bold'
-								: drawControl === 'pending'
-									? 'border-primary/50 bg-primary/10 text-primary px-2.5 text-xs font-bold'
-									: 'w-8 border-border bg-surface text-content-muted hover:border-border-strong hover:text-content'}"
-						>
-							{@render iconBtn('handshake')}
-							{#if drawControl === 'armed'}
-								Armed
-							{:else if drawControl === 'pending'}
-								Sent
-							{/if}
-						</button>
-					{/if}
+	{#snippet card()}
+		{#if live.gameStatus === 'over'}
+			<Card class="flex flex-col items-center gap-3">
+				<p class="m-0 text-lg font-bold text-content">{statusText}</p>
+				{#if endReason}
+					<p class="m-0 text-sm text-content-muted">{endReason}</p>
 				{/if}
-				{#if connectionBadge || live.spectator}
-					<div class="ml-auto flex items-center gap-1.5">
-						{#if connectionBadge}
-							<span
-								class="rounded-lg border px-2.5 py-1.5 text-xs font-bold {live.connection ===
-								'closed'
-									? 'border-danger/50 bg-danger/15 text-danger'
-									: 'border-badge-accent/50 bg-badge-accent/15 text-badge-accent'}"
-								role="status"
-							>
-								{connectionBadge}
-							</span>
-						{/if}
-						{#if live.spectator}
-							<span
-								class="rounded-lg border border-border bg-surface px-2.5 py-1.5 text-xs font-bold text-content-muted"
-							>
-								Spectating
-							</span>
-						{/if}
-					</div>
+				{#if live.settlement}
+					<p class="m-0 text-sm font-semibold text-content">{live.settlement}</p>
 				{/if}
-			</div>
-
-			<div class="order-5 rounded-xl border border-border bg-surface/40 p-3 md:order-none">
-				<GameRatingContext
-					domain={gameRatingDomain}
-					rated={live.rated}
-					timeControl={gameTimeControl}
-					hasSeatRating={seatRatingOf(topSeat) !== undefined ||
-						seatRatingOf(bottomSeat) !== undefined}
-				/>
-			</div>
-			{#if live.gameStatus === 'over'}
-				<div
-					class="order-4 flex flex-col items-center gap-3 rounded-2xl border border-border bg-surface p-4 md:order-none md:flex-1 md:justify-center"
-				>
-					<p class="text-lg font-bold text-content">{statusText}</p>
-					{#if endReason}
-						<p class="text-sm text-content-muted">{endReason}</p>
-					{/if}
-					{#if live.settlement}
-						<p class="text-sm font-semibold text-content">{live.settlement}</p>
-					{/if}
-					<!-- Silent while the modal is up: this card is mounted underneath it the whole time, and
-					     two live regions announce the same line twice. It takes the duty back on dismissal,
-					     so a delta landing later is still announced. -->
-					<RatingDeltaLine outcome={ratingOutcome} announce={!showEndModal} />
-					{@render endActions()}
-				</div>
-			{:else}
-				{#if rematchEligible && live.authoritativeOver && rematchStore.phase !== 'idle' && rematchStore.phase !== 'closed'}
-					<div
-						class="order-3 mb-2 flex w-full flex-col items-center rounded-2xl border border-border bg-surface p-3 md:order-none"
-					>
-						<RematchControl store={rematchStore} compact={true} />
-					</div>
-				{:else if railFollowPanel}
-					<div
-						class="order-3 mb-2 flex w-full flex-col items-center rounded-2xl border border-border bg-surface p-3 md:order-none"
-					>
-						<SpectatorFollowPanel store={followStore} compact={true} />
-					</div>
-				{/if}
+				<!-- Silent while the modal is up: this card is mounted underneath it the whole time, and
+				     two live regions announce the same line twice. It takes the duty back on dismissal,
+				     so a delta landing later is still announced. -->
+				<RatingDeltaLine outcome={ratingOutcome} announce={!showEndModal} />
+				{@render endActions()}
+			</Card>
+		{:else}
+			{#if rematchEligible && live.authoritativeOver && rematchStore.phase !== 'idle' && rematchStore.phase !== 'closed'}
+				<Card class="flex flex-col items-center">
+					<RematchControl store={rematchStore} compact={true} />
+				</Card>
+			{:else if railFollowPanel}
+				<Card class="flex flex-col items-center">
+					<SpectatorFollowPanel store={followStore} compact={true} />
+				</Card>
+			{/if}
+			{#if live.isPreRollGateActive}
+				<!-- The gate takes the turn card's slot, so the line that says whose move it is stays
+				     above it, as it did before the card carried it. -->
 				{#if turnLine}
 					<p
-						class="order-3 text-center text-sm font-semibold md:order-none {myMove
+						class="m-0 text-center text-sm font-semibold {myMove
 							? 'text-content'
 							: 'text-content-muted'}"
 						aria-live="polite"
 					>
-						<!-- Single line: inter-block whitespace renders as a literal space and would
-						     off-center the text when the dot is absent. -->
-						{#if myMove}<span class="mr-1.5 text-badge-accent">●</span>{/if}{turnLine}
+						{turnLine}
 					</p>
 				{/if}
-				<div class="order-4 md:order-none md:flex md:min-h-0 md:flex-1 md:flex-col">
-					{#if live.isPreRollGateActive}
-						<PreRollDrawGate
-							isResponder={live.isPreRollResponder}
-							offeredByName={live.drawOfferedBy ? seatName(live.drawOfferedBy) : null}
-							onAccept={() => live.respondDraw(true)}
-							onDecline={() => live.respondDraw(false)}
-						/>
-					{:else}
-						<TurnCard
-							mine={myMove && !live.isViewingHistory}
-							dice={live.currentDice}
-							animating={live.isAnimatingRoll}
-							emptyText={live.currentDice.length === 0 ? statusText : undefined}
-						/>
-					{/if}
-				</div>
+				<PreRollDrawGate
+					isResponder={live.isPreRollResponder}
+					offeredByName={live.drawOfferedBy ? seatName(live.drawOfferedBy) : null}
+					onAccept={() => live.respondDraw(true)}
+					onDecline={() => live.respondDraw(false)}
+				/>
+			{:else}
+				<TurnCard
+					title={turnLine ?? undefined}
+					mine={myMove && !live.isViewingHistory}
+					dice={live.currentDice}
+					animating={live.isAnimatingRoll}
+					emptyText={live.currentDice.length === 0 ? statusText : undefined}
+				/>
 			{/if}
+		{/if}
+	{/snippet}
+
+	{#snippet extra()}
+		<div class="rounded-card border border-border bg-surface/40 p-3">
+			<GameRatingContext
+				domain={gameRatingDomain}
+				rated={live.rated}
+				timeControl={gameTimeControl}
+				hasSeatRating={seatRatingOf(topSeat) !== undefined ||
+					seatRatingOf(bottomSeat) !== undefined}
+			/>
 		</div>
-	</div>
-</section>
+	{/snippet}
+
+	{#snippet moves(close)}
+		<MoveList
+			historyBlocks={live.historyBlocks}
+			currentMoveIndex={live.currentMoveIndex}
+			maxMoveIndex={live.maxMoveIndex}
+			onSetMove={(i) => setMove(i)}
+			keyboardNavEnabled={live.gameStatus === 'over' || live.spectator}
+			onclose={close}
+		/>
+	{/snippet}
+
+	{#snippet actions(movesControl)}
+		<!-- The standing draw offer is available in every phase, including the opponent's turn:
+		     arming reaches nobody until this seat's own turn completes, which is the only way an
+		     offer can ride on a forced pass. A spectator has neither control. -->
+		<GameActions
+			moves={movesControl}
+			draw={live.canResign && drawControl !== 'hidden'
+				? {
+						state: drawControl,
+						label: drawLabel,
+						disabled: live.connection !== 'open',
+						ontoggle: () => live.toggleArmDrawOffer(),
+					}
+				: undefined}
+			resign={live.canResign
+				? {
+						armed: confirmResign,
+						label: resignLabel,
+						armedText: live.doubling
+							? m.game_resign_confirm_stake({ stake: live.doubling.currentStake })
+							: undefined,
+						disabled: live.connection !== 'open',
+						onpress: resign,
+						onblur: disarmResign,
+					}
+				: undefined}
+		/>
+	{/snippet}
+</GameFrame>

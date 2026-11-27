@@ -95,7 +95,8 @@ describe('/practice draw offer controls', () => {
 			name: /offer a draw/i,
 		}) as HTMLButtonElement;
 		expect(drawBtn.disabled).toBe(false);
-		expect(drawBtn.textContent?.trim()).toBe('');
+		// A labelled button since the game frame (#255); it was a bare icon before.
+		expect(drawBtn.textContent?.trim()).toBe('Offer a draw');
 
 		await fireEvent.click(drawBtn);
 		expect(store.toggleArmDrawOffer).toHaveBeenCalledOnce();
@@ -105,7 +106,7 @@ describe('/practice draw offer controls', () => {
 		renderPage({ drawOfferControlState: 'armed' });
 		const armed = screen.getByRole('button', { name: /draw offer armed/i }) as HTMLButtonElement;
 		expect(armed.disabled).toBe(false);
-		expect(armed.textContent?.trim()).toBe('Armed');
+		expect(armed.textContent?.trim()).toBe('Draw offer armed');
 
 		cleanup();
 		renderPage({ drawOfferControlState: 'pending', activeDrawOffer: 'player' });
@@ -113,7 +114,7 @@ describe('/practice draw offer controls', () => {
 			name: /waiting for the bot/i,
 		}) as HTMLButtonElement;
 		expect(sent.disabled).toBe(true);
-		expect(sent.textContent?.trim()).toBe('Sent');
+		expect(sent.textContent?.trim()).toBe('Draw offered');
 	});
 
 	it('says whose turn it is to offer once the right has passed to the bot', () => {
