@@ -1,22 +1,24 @@
 <script lang="ts">
-	/* eslint-disable local/no-untranslated-text -- i18n debt: not yet migrated (#8) */
-	// A styled theme picker replacing the native <select>, whose OS-drawn option list
-	// couldn't be themed and clashed with the app chrome. Implemented as an
-	// aria-activedescendant listbox so it keeps the select's keyboard support:
-	// the <ul> holds focus while arrow keys / Home / End move the highlighted option,
-	// Enter selects, Escape closes and returns focus to the trigger.
+	// The appearance control in the header (#249): follow the system, light, or dark. The choices
+	// come from the model in `#lib/appearance.ts`; this component only names and renders them.
+	//
+	// A styled listbox rather than a native <select>, whose OS-drawn option list could not be
+	// themed and clashed with the app chrome. Implemented as an aria-activedescendant listbox so
+	// it keeps the select's keyboard support: the <ul> holds focus while arrow keys / Home / End
+	// move the highlighted option, Enter selects, Escape closes and returns focus to the trigger.
 	import { tick } from 'svelte';
-	import { themeStore, type Theme } from '#lib/stores/themeStore.svelte.js';
+	import { APPEARANCE_PREFERENCES, type AppearancePreference } from '#lib/appearance.js';
+	import { m } from '#lib/paraglide/messages.js';
+	import { themeStore } from '#lib/stores/themeStore.svelte.js';
 
-	const themes: { value: Theme; label: string }[] = [
-		{ value: 'dark', label: 'Dark' },
-		{ value: 'light', label: 'Light' },
-		{ value: 'dracula', label: 'Dracula' },
-		{ value: 'nord', label: 'Nord' },
-		{ value: 'solarized-dark', label: 'Solarized' },
-		{ value: 'tokyo-night', label: 'Tokyo Night' },
-		{ value: 'gruvbox', label: 'Gruvbox' },
-	];
+	// A Record keyed by the preference type, not a list of its own: a value added to the model
+	// without a label here is a type error, so the control cannot silently drop a choice.
+	const labels: Record<AppearancePreference, () => string> = {
+		system: m.nav_theme_system,
+		light: m.nav_theme_light,
+		dark: m.nav_theme_dark,
+	};
+	const options = APPEARANCE_PREFERENCES.map((value) => ({ value, label: labels[value] }));
 
 	let open = $state(false);
 	let activeIndex = $state(0);
@@ -24,8 +26,8 @@
 	let triggerEl: HTMLButtonElement;
 	let listEl = $state<HTMLUListElement | null>(null);
 
-	const currentLabel = $derived(themes.find((t) => t.value === themeStore.theme)?.label ?? 'Theme');
-	const selectedIndex = $derived(themes.findIndex((t) => t.value === themeStore.theme));
+	const currentLabel = $derived(labels[themeStore.preference]());
+	const selectedIndex = $derived(APPEARANCE_PREFERENCES.indexOf(themeStore.preference));
 
 	async function openMenu() {
 		activeIndex = selectedIndex >= 0 ? selectedIndex : 0;
@@ -39,8 +41,8 @@
 		if (returnFocus) triggerEl?.focus();
 	}
 
-	function choose(value: Theme) {
-		themeStore.setTheme(value);
+	function choose(value: AppearancePreference) {
+		themeStore.setPreference(value);
 		closeMenu(true);
 	}
 
@@ -55,11 +57,11 @@
 		switch (event.key) {
 			case 'ArrowDown':
 				event.preventDefault();
-				activeIndex = (activeIndex + 1) % themes.length;
+				activeIndex = (activeIndex + 1) % options.length;
 				break;
 			case 'ArrowUp':
 				event.preventDefault();
-				activeIndex = (activeIndex - 1 + themes.length) % themes.length;
+				activeIndex = (activeIndex - 1 + options.length) % options.length;
 				break;
 			case 'Home':
 				event.preventDefault();
@@ -67,12 +69,12 @@
 				break;
 			case 'End':
 				event.preventDefault();
-				activeIndex = themes.length - 1;
+				activeIndex = options.length - 1;
 				break;
 			case 'Enter':
 			case ' ':
 				event.preventDefault();
-				choose(themes[activeIndex].value);
+				choose(options[activeIndex].value);
 				break;
 			case 'Escape':
 				event.preventDefault();
@@ -96,18 +98,19 @@
 </script>
 
 <div class="relative" bind:this={rootEl}>
+	<!-- The accessible name states the current choice ("Theme: System") and contains the visible
+	     label, so speech input can still target the button by the word on screen. One message
+	     with a placeholder, not "Theme:" plus a label: a translation must be free to reorder. -->
 	<button
 		bind:this={triggerEl}
 		type="button"
 		aria-haspopup="listbox"
 		aria-expanded={open}
+		aria-label={m.nav_theme_current({ choice: currentLabel })}
 		onclick={() => (open ? closeMenu() : openMenu())}
 		onkeydown={onTriggerKeydown}
 		class="flex items-center gap-1.5 rounded-md border border-border bg-surface px-2 py-1 text-xs font-bold text-content-muted outline-none transition-colors hover:text-content focus-visible:border-primary"
 	>
-		<!-- No aria-label: it would override the content and hide the current theme from screen
-		     readers. The name is composed from content instead — "Theme: <current>". -->
-		<span class="sr-only">Theme:</span>
 		<span>{currentLabel}</span>
 		<svg
 			viewBox="0 0 24 24"
@@ -124,31 +127,31 @@
 	</button>
 
 	{#if open}
-		<!-- svelte-ignore a11y_click_events_have_key_events, a11y_no_noninteractive_element_interactions
+		<!-- svelte-ignore a11y_click_events_have_key_events
 		     (listbox keyboard handling lives on the <ul> via aria-activedescendant; the option
 		     click is the pointer path, which needs no per-option key handler) -->
 		<ul
 			bind:this={listEl}
 			role="listbox"
-			aria-label="Theme"
+			aria-label={m.nav_theme_label()}
 			aria-activedescendant="theme-opt-{activeIndex}"
 			tabindex="-1"
 			onkeydown={onListKeydown}
 			class="absolute right-0 z-50 mt-1.5 min-w-[9rem] overflow-hidden rounded-lg border border-border bg-surface py-1 shadow-xl outline-none"
 		>
-			{#each themes as t, i (t.value)}
+			{#each options as option, i (option.value)}
 				<li
 					id="theme-opt-{i}"
 					role="option"
-					aria-selected={themeStore.theme === t.value}
-					onclick={() => choose(t.value)}
+					aria-selected={themeStore.preference === option.value}
+					onclick={() => choose(option.value)}
 					class="flex cursor-pointer items-center justify-between gap-3 px-3 py-1.5 text-xs font-bold transition-colors hover:bg-surface-hover hover:text-content {i ===
 					activeIndex
 						? 'bg-surface-hover text-content'
 						: 'text-content-muted'}"
 				>
-					<span>{t.label}</span>
-					{#if themeStore.theme === t.value}
+					<span>{option.label()}</span>
+					{#if themeStore.preference === option.value}
 						<svg
 							viewBox="0 0 24 24"
 							class="h-3.5 w-3.5 shrink-0 text-primary"

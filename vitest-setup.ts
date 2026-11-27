@@ -2,7 +2,7 @@
 import 'fake-indexeddb/auto';
 
 // jsdom has no matchMedia, which themeStore reads on construction (the singleton is built at
-// import time). Stub it as "no light preference" so the store defaults to its dark theme.
+// import time). Stub it as "no light preference", so its default `system` preference renders dark.
 if (typeof window !== 'undefined' && !window.matchMedia) {
 	window.matchMedia = (query: string) =>
 		({

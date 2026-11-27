@@ -22,7 +22,7 @@ dicechess-play is the public Dice Chess play site: a fully client-side SvelteKit
 - `src/lib/ingest/` — finished-game recording: `mapper.ts` (LocalGameRecord → `GameIngestWire`), `ingestClient.ts` (posts to play-api `POST /ingest/games`; the browser never holds an analytics token), `outbox.ts`, `guestIdentity.ts`.
 - `src/lib/localGamesDB.ts` — IndexedDB via `idb`; `sync_status`: `pending` | `synced` | `quarantined`.
 - `src/lib/history/`, `src/lib/stats/` — replay reconstruction, local player record.
-- `src/lib/stores/` — singleton rune stores: `themeStore` (7 themes), `localGamesStore`, `chromeStore`.
+- `src/lib/stores/` — singleton rune stores: `themeStore` (the appearance preference — `system`, `light` or `dark` — applied to the page; the model is `src/lib/appearance.ts`, repeated by the inline bootstrap in `src/app.html` and held to it by `src/appearanceBootstrap.test.ts`), `localGamesStore`, `chromeStore`.
 - `src/components/` — shared UI (`Board`, `DicePanel`, `PlayerStrip`, `GameEndModal`, …). NOT `src/lib/components/` — that holds only an empty leftover dir.
 - `src/lib/timings.ts` — presentation pacing constants shared by BOTH surfaces. Single source; never fork per-surface copies.
 

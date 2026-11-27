@@ -36,40 +36,37 @@
 		<meta property="og:image:alt" content="Dice Chess for Fire TV" />
 		<meta name="twitter:card" content="summary_large_image" />
 		<!-- /default-head -->
+		<!-- appearance-bootstrap (#249): sets data-theme and the theme-color meta before first
+		     paint, so nobody sees the wrong theme while the bundle loads. Inline and module-free
+		     on purpose: a module would run after first paint. It therefore REPEATS values owned
+		     by src/lib/appearance.ts: the storage key, the media query, the legacy editor themes
+		     that migrate to dark, and the two meta colours. src/appearanceBootstrap.test.ts runs
+		     this exact source against every one of them, so changing either side alone fails CI.
+		     Read-only: rewriting a legacy stored value is themeStore's job. -->
 		<script>
 			(function () {
+				var stored = null;
 				try {
-					var allowed = [
-						'dark',
-						'light',
-						'dracula',
-						'nord',
-						'solarized-dark',
-						'tokyo-night',
-						'gruvbox',
-					];
-					var storedTheme = localStorage.getItem('dicechess-theme');
-					var systemTheme = window.matchMedia('(prefers-color-scheme: light)').matches
-						? 'light'
-						: 'dark';
-					var theme = storedTheme && allowed.includes(storedTheme) ? storedTheme : systemTheme;
-					document.documentElement.dataset.theme = theme;
-					var metaColors = {
-						dark: '#020617',
-						light: '#f8fafc',
-						dracula: '#282a36',
-						nord: '#2e3440',
-						'solarized-dark': '#002b36',
-						'tokyo-night': '#1a1b26',
-						gruvbox: '#282828',
-					};
-					var metaTag = document.getElementById('theme-color-meta');
-					if (metaTag && metaColors[theme]) {
-						metaTag.setAttribute('content', metaColors[theme]);
-					}
+					stored = localStorage.getItem('dicechess-theme');
 				} catch {
-					// LocalStorage or media query unavailable
+					// Storage can be unavailable (privacy modes, sandboxed frames): follow the system.
 				}
+				var systemLight = false;
+				try {
+					systemLight = window.matchMedia('(prefers-color-scheme: light)').matches;
+				} catch {
+					// Dark is the fallback when the system setting cannot be read.
+				}
+				var legacyDark = ['dracula', 'nord', 'solarized-dark', 'tokyo-night', 'gruvbox'];
+				var theme = 'dark';
+				if (stored === 'light' || stored === 'dark') {
+					theme = stored;
+				} else if (legacyDark.indexOf(stored) === -1 && systemLight) {
+					theme = 'light';
+				}
+				document.documentElement.dataset.theme = theme;
+				var meta = document.getElementById('theme-color-meta');
+				if (meta) meta.setAttribute('content', theme === 'light' ? '#f8fafc' : '#020617');
 			})();
 		</script>
 		<!-- boot-watchdog (#223): self-heal a client wedged by a poisoned service worker or
