@@ -21,73 +21,25 @@
 	import { BOTS, PLAYABLE_BOTS } from '#lib/bots.js';
 	import { RESIGN_CONFIRM_MS } from '#lib/timings.js';
 	import { m } from '#lib/paraglide/messages.js';
-	import { RATING_CATEGORY_LABELS } from '#lib/live/ratingCategory.js';
-	import { timeControlLabel } from '#lib/live/timeControls.js';
+	import {
+		PRACTICE_COLOR_VALUES,
+		PRACTICE_TIME_PRESETS,
+		practiceTimeGroups,
+		practiceTimeLabel,
+		startPracticeGame,
+		storedPracticeTimeIndex,
+		type PracticeColor,
+	} from '#lib/playWithBot/practiceSetup.js';
 
-	type ColorChoice = 'random' | 'white' | 'black';
-	// The setup panel speaks of three colours, and so does the store: the values are the same.
-	const COLOR_VALUES = { random: 'random', white: 'white', black: 'black' } as const;
+	// The setup of a starter bot game is shared with Play (#257), which starts the same game from
+	// the same choices and then hands over to this page.
+	const timeGroups = $derived(practiceTimeGroups());
 
-	/** Bot-game time controls map onto the store's minutes-limit + seconds-bonus model.
-	 * Unlimited first: a casual bot game shouldn't surprise anyone with a flag fall.
-	 * "Unlimited" (not "No clock") to match the term used across the live/lobby surface
-	 * and the server's TimeControl ADT variant.
-	 *
-	 * This list deliberately stays separate from `botTimeControlPresets` in timeControls.ts (#20):
-	 * the two surfaces are structurally different. /practice drives an offline Stockfish bot through
-	 * `timeLimit` (minutes) + `timeBonus` (seconds), while the catalog panel drives a live server
-	 * game with the structured `TimeControl` ADT. Merging them would force one to bend to the other's
-	 * wire format. The two lists also differ in content (this one includes Unlimited and '5 + 3', the
-	 * catalog one includes '1 + 1' and '3 + 3'). Keep them in sync manually if presets are added. */
-	type TimeGroup = 'casual' | 'blitz' | 'rapid';
-	const TIME_PRESETS: { group: TimeGroup; limit: number | null; bonus: number }[] = [
-		{ group: 'casual', limit: null, bonus: 0 },
-		{ group: 'blitz', limit: 3, bonus: 2 },
-		{ group: 'blitz', limit: 5, bonus: 0 },
-		{ group: 'blitz', limit: 5, bonus: 3 },
-		{ group: 'rapid', limit: 10, bonus: 0 },
-		{ group: 'rapid', limit: 10, bonus: 5 },
-		{ group: 'rapid', limit: 15, bonus: 10 },
-	];
-	/** The words for a preset, from the one place every surface takes them: "Unlimited", "5 min",
-	 * "5 + 3". */
-	const presetLabel = (preset: { limit: number | null; bonus: number }) =>
-		timeControlLabel(
-			preset.limit === null
-				? null
-				: preset.bonus > 0
-					? { Fischer: { initialSeconds: preset.limit * 60, incrementSeconds: preset.bonus } }
-					: { SuddenDeath: { initialSeconds: preset.limit * 60 } },
-		);
-	const GROUP_LABELS: Record<TimeGroup, () => string> = {
-		casual: m.game_practice_group_casual,
-		blitz: () => RATING_CATEGORY_LABELS.blitz,
-		rapid: () => RATING_CATEGORY_LABELS.rapid,
-	};
-	// The rows of the setup panel: one per group, each choice keyed by its index in TIME_PRESETS.
-	// Derived, so the labels are read when they are shown, not once at module load.
-	const timeGroups = $derived(
-		(['casual', 'blitz', 'rapid'] as const).map((group) => ({
-			label: GROUP_LABELS[group](),
-			options: TIME_PRESETS.map((preset, index) => ({ preset, index }))
-				.filter(({ preset }) => preset.group === group)
-				.map(({ preset, index }) => ({ value: index, label: presetLabel(preset) })),
-		})),
-	);
-
-	// Reflect the persisted preference so a stored time control is always VISIBLE in the
-	// picker — a clock must never tick that the player didn't see coming.
-	const storedTimeIndex = () => {
-		const i = TIME_PRESETS.findIndex(
-			(p) =>
-				p.limit === preferencesStore.timeLimit && p.bonus === (preferencesStore.timeBonus ?? 0),
-		);
-		return i >= 0 ? i : 0;
-	};
-
-	let selectedAlgo = $state('greedy');
-	let selectedColor = $state<ColorChoice>(preferencesStore.playerColorPreference);
-	let selectedTime = $state(storedTimeIndex());
+	// A game that is already on the board was started elsewhere (Play) with its own bot: show that
+	// bot, and offer the rematch against it, rather than this page's default.
+	let selectedAlgo = $state(store.gameStatus === 'idle' ? 'greedy' : store.botAlgorithm);
+	let selectedColor = $state<PracticeColor>(preferencesStore.playerColorPreference);
+	let selectedTime = $state(storedPracticeTimeIndex());
 	let confirmResign = $state(false);
 
 	const inLobby = $derived(store.gameStatus === 'idle');
@@ -124,7 +76,9 @@
 	const botActive = $derived(!isOver && store.activeColor !== store.playerColor);
 	const youActive = $derived(!isOver && store.activeColor === store.playerColor);
 	const hasClocks = $derived(store.timeLimit !== null);
-	const timeLabel = $derived(presetLabel(TIME_PRESETS[selectedTime] ?? TIME_PRESETS[0]));
+	const timeLabel = $derived(
+		practiceTimeLabel(PRACTICE_TIME_PRESETS[selectedTime] ?? PRACTICE_TIME_PRESETS[0]),
+	);
 	// What this game is, for the top bar of the frame.
 	const frameTitle = $derived(
 		hasClocks
@@ -137,14 +91,7 @@
 	);
 
 	function startGame() {
-		const t = TIME_PRESETS[selectedTime];
-		preferencesStore.setTimeLimit(t.limit);
-		preferencesStore.setTimeBonus(t.bonus);
-		preferencesStore.setPlayerColorPreference(selectedColor);
-		// Rolling is not a decision in dice chess — the play site always auto-rolls,
-		// so the dice panel never needs a Roll button.
-		preferencesStore.setAutoRollDice(true);
-		store.startNewGame(selectedColor, selectedAlgo);
+		startPracticeGame({ algorithm: selectedAlgo, color: selectedColor, timeIndex: selectedTime });
 	}
 
 	// The board is the primary element: hide the app chrome while a game is on screen.
@@ -292,7 +239,7 @@
 			name="practice"
 			{timeGroups}
 			bind:time={selectedTime}
-			colorValues={COLOR_VALUES}
+			colorValues={PRACTICE_COLOR_VALUES}
 			bind:color={selectedColor}
 			rating="unrated"
 			actionLabel={m.game_practice_start()}

@@ -12,6 +12,7 @@
 			"./messages/lobby.{locale}.json",
 			"./messages/games.{locale}.json",
 			"./messages/bots.{locale}.json",
+			"./messages/play.{locale}.json",
 			"./messages/profile.{locale}.json",
 			"./messages/leaderboard.{locale}.json",
 			"./messages/rules.{locale}.json",

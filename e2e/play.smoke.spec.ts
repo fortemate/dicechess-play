@@ -110,6 +110,28 @@ test('the built bundle can play a move', async ({ page }) => {
 	expect(engineFailures, 'engine reported failures in the console').toEqual([]);
 });
 
+// Play (#257) starts a starter bot game from its own page and hands over to /practice. The
+// promise is that this needs no connection, and only the built bundle can keep it: the start
+// crosses a route boundary, so the code of the practice page has to be in the browser already.
+test('Play starts a starter bot game with the network cut', async ({ page, context }) => {
+	await page.goto('/play', { waitUntil: 'networkidle' });
+	await expect(page.getByRole('heading', { name: 'Play', exact: true })).toBeVisible();
+
+	await context.setOffline(true);
+	try {
+		await page.getByRole('radio', { name: /Checkmate-aware/ }).check();
+		await page
+			.getByRole('region', { name: 'Checkmate-aware' })
+			.getByRole('button', { name: 'Start game' })
+			.click();
+		await expect(page).toHaveURL(/\/practice$/);
+		await expect(page.locator('cg-board')).toBeVisible();
+		await expect(page.getByRole('heading', { level: 1 })).toContainText('Checkmate-aware');
+	} finally {
+		await context.setOffline(false);
+	}
+});
+
 // `/me/bots` is session-gated, so this deploy guard covers its safe unauthenticated states without
 // manufacturing a production cookie. This catches broken route chunks and proves neither a guest
 // nor an auth-disabled build fires an owner API call; the authenticated list has a deterministic

@@ -183,3 +183,20 @@ describe('/practice draw offer controls', () => {
 		expect(browsing.store.respondDraw).not.toHaveBeenCalled();
 	});
 });
+
+// Play (#257) starts a starter bot game in the same store and hands over to this page. The page
+// must then show the game that is on the board, not the default of its own setup.
+describe('/practice with a game started on Play', () => {
+	it('names the bot of the game that is on the board', () => {
+		renderPage({ botAlgorithm: 'aggressive-book' });
+		expect(screen.getByRole('heading', { level: 1 }).textContent).toContain(
+			'Aggressive + Book · level 5',
+		);
+	});
+
+	it('offers the rematch against that bot', async () => {
+		const { store } = renderPage({ botAlgorithm: 'random', gameStatus: 'victory' });
+		await fireEvent.click(screen.getByRole('button', { name: 'Rematch' }));
+		expect(store.startNewGame).toHaveBeenCalledWith(expect.anything(), 'random');
+	});
+});
