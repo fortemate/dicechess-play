@@ -53,7 +53,7 @@ Four destinations, the same on every screen size:
 - The brand link goes to Arena.
 - The account menu holds My games, Profile, My bots, the Appearance control (System, Light, Dark) and signing in or out. On a phone it opens as a sheet from the bottom.
 - During a game the site header and the bottom bar are not shown. A slim top bar has "Leave game", the title of the game and the sound switch.
-- The tab row of Arena in the images also shows "Finished", and "Tournaments" and "Matches" marked "soon". None of the three is built by this epic: [#259](https://github.com/fortemate/dicechess-play/issues/259) and [#260](https://github.com/fortemate/dicechess-play/issues/260) build Overview and Live games. See [Not designed yet](#not-designed-yet).
+- The tab row of Arena in the images also shows "Finished", and "Tournaments" and "Matches" marked "soon". [#259](https://github.com/fortemate/dicechess-play/issues/259) and [#260](https://github.com/fortemate/dicechess-play/issues/260) build Overview and Live games only. "Finished" is designed first, in [#266](https://github.com/fortemate/dicechess-play/issues/266); tournaments and matches are later work. See [Not designed yet](#not-designed-yet).
 
 ## Where each current route goes
 
@@ -341,9 +341,10 @@ Each section shows the desktop and the phone layout. Where a section has both th
 - the account page (`/me`);
 - My games (`/games`);
 - the replay pages (`/games/[id]` and `/replay/[id]`), including whether they become one;
-- the rules page restyle.
+- the rules page restyle;
+- the Finished tab of Arena: what it lists, how a row leads to the replay, and which play-api listing it needs.
 
-Three tabs of Arena appear in the images without a design of their own: "Finished", "Tournaments" and "Matches". Tournaments and matches are later work. No issue covers the Finished tab yet.
+Two more tabs of Arena appear in the images without a design of their own: "Tournaments" and "Matches". They are later work, and no issue covers them yet.
 
 ## About the images
 
