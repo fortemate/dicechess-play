@@ -64,20 +64,37 @@
 
 	// Keep the viewed position in sight: scroll only when it has left the visible part.
 	let scrollContainer = $state<HTMLElement | undefined>();
+	function scrollToCurrent(container: HTMLElement) {
+		if (container.clientHeight === 0) return;
+		const active = container.querySelector<HTMLElement>('[data-current="true"]');
+		if (!active) return;
+		const containerRect = container.getBoundingClientRect();
+		const activeRect = active.getBoundingClientRect();
+		if (activeRect.top < containerRect.top || activeRect.bottom > containerRect.bottom) {
+			container.scrollTop +=
+				activeRect.top - containerRect.top - container.clientHeight / 2 + active.clientHeight / 2;
+		}
+	}
 	$effect(() => {
 		void currentMoveIndex;
 		void historyBlocks;
+		if (scrollContainer) scrollToCurrent(scrollContainer);
+	});
+	// The list can be in the page while it is not shown: the game frame keeps it mounted behind
+	// the "Moves" button of a phone. Nothing can be scrolled into view in a box without height,
+	// and showing the box changes no prop, so the effect above does not run again. Watch the box
+	// itself and catch up the moment it gets a height.
+	$effect(() => {
 		const container = scrollContainer;
-		if (!container || container.clientHeight === 0) return;
-		const active = container.querySelector<HTMLElement>('[data-current="true"]');
-		if (active) {
-			const containerRect = container.getBoundingClientRect();
-			const activeRect = active.getBoundingClientRect();
-			if (activeRect.top < containerRect.top || activeRect.bottom > containerRect.bottom) {
-				container.scrollTop +=
-					activeRect.top - containerRect.top - container.clientHeight / 2 + active.clientHeight / 2;
-			}
-		}
+		if (!container || typeof ResizeObserver === 'undefined') return;
+		let shown = container.clientHeight > 0;
+		const observer = new ResizeObserver(() => {
+			const nowShown = container.clientHeight > 0;
+			if (nowShown && !shown) scrollToCurrent(container);
+			shown = nowShown;
+		});
+		observer.observe(container);
+		return () => observer.disconnect();
 	});
 
 	const ENTRY =
