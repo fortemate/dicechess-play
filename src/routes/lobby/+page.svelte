@@ -25,7 +25,14 @@
 	import BotBadge from '../../components/BotBadge.svelte';
 	import MiniBoard from '../../components/MiniBoard.svelte';
 	import RatedBadge from '../../components/RatedBadge.svelte';
+	import GameFrame from '../../components/GameFrame.svelte';
 	import GameSetupPanel from '../../components/GameSetupPanel.svelte';
+	import GameWaitingCard from '../../components/GameWaitingCard.svelte';
+	import MoveList from '../../components/MoveList.svelte';
+	import PlayerStrip from '../../components/PlayerStrip.svelte';
+	import { chromeStore } from '#lib/stores/chromeStore.svelte.js';
+	import { preferencesStore } from '#lib/preferencesStore.svelte.js';
+	import { m } from '#lib/paraglide/messages.js';
 	import type { LiveGame, PublicPlayer, Seek } from '#lib/live/liveTypes.js';
 
 	const LIST_POLL_MS = 3000;
@@ -40,7 +47,14 @@
 	let rated = $state(false);
 	let error = $state<string | null>(null);
 	// When set, we created a seek and are waiting for an opponent (our own table replaces the wall).
-	let waiting = $state<{ id: string; secret: string; label: string; rated: boolean } | null>(null);
+	let waiting = $state<{
+		id: string;
+		secret: string;
+		label: string;
+		rated: boolean;
+		/** What each clock will start at, for the two strips of the waiting board. */
+		clockMs: number | undefined;
+	} | null>(null);
 	let creating = $state(false);
 	let accepting = $state(false);
 	let createOpen = $state(false);
@@ -128,7 +142,20 @@
 		try {
 			const preset = timeControlPresets[selected];
 			const created = await createSeek(getGuestUuid(), preset.value, rated);
-			waiting = { id: created.seekId, secret: created.secret, label: preset.label, rated };
+			const control = preset.value;
+			const initialSeconds =
+				control && 'Fischer' in control
+					? control.Fischer.initialSeconds
+					: control && 'SuddenDeath' in control
+						? control.SuddenDeath.initialSeconds
+						: undefined;
+			waiting = {
+				id: created.seekId,
+				secret: created.secret,
+				label: preset.label,
+				rated,
+				clockMs: initialSeconds === undefined ? undefined : initialSeconds * 1000,
+			};
 		} catch {
 			// Any failure here — unreachable server, a bad response — means the same thing to the
 			// player: the lobby isn't working right now. One honest, non-technical message instead of
@@ -149,6 +176,15 @@
 			/* best-effort; the server TTL reaps it anyway */
 		}
 	}
+
+	// While the visitor waits at their own table, the page is the game frame (#256): the site
+	// header gets out of the way, as it does on a board.
+	$effect(() => {
+		chromeStore.zen = waiting !== null;
+		return () => {
+			chromeStore.zen = false;
+		};
+	});
 
 	async function accept(seek: Seek) {
 		if (accepting || creating) return;
@@ -201,245 +237,286 @@
 	</div>
 {/snippet}
 
-<section class="mx-auto flex max-w-4xl flex-col gap-5">
-	<div class="flex flex-wrap items-center justify-between gap-3">
-		<div class="flex items-baseline gap-4">
-			<h2 class="text-2xl font-bold text-content">Lobby</h2>
+{#if waiting && isLiveEnabled()}
+	<!-- Waiting at one's own table happens on the board (#256), not inside the lobby: the game
+	     frame with an untouched starting position, both clocks standing at what they will start
+	     from, and one way out, which closes the table. No game exists yet, so there is nothing to
+	     resign and no move to list. -->
+	<GameFrame
+		title={m.game_waiting_table_frame_title({ time: waiting.label })}
+		onleave={cancel}
+		sound={{
+			enabled: preferencesStore.soundEnabled,
+			toggle: () => preferencesStore.setSoundEnabled(!preferencesStore.soundEnabled),
+		}}
+	>
+		{#snippet status()}
+			<!-- Echoes what was asked for; the server is the authority and degrades the flag if the
+			     session turns out to be absent, which RatedChoice's own gate already prevents. -->
+			{#if waiting?.rated}<RatedBadge sizeClass="text-xs" />{/if}
+		{/snippet}
+		{#snippet top()}
+			<PlayerStrip
+				name={m.game_waiting_table_opponent()}
+				sub={m.game_waiting_table_opponent_sub()}
+				compact
+				clockMs={waiting?.clockMs}
+			/>
+		{/snippet}
+		{#snippet board()}
+			<div class="relative aspect-square w-full overflow-hidden rounded-xl shadow-lg">
+				<MiniBoard fen={START_FEN} />
+			</div>
+		{/snippet}
+		{#snippet bottom()}
+			<PlayerStrip
+				name={m.common_player_you()}
+				sub={m.game_waiting_table_you_sub()}
+				compact
+				clockMs={waiting?.clockMs}
+			/>
+		{/snippet}
+		{#snippet card()}
+			<GameWaitingCard
+				title={m.game_waiting_table_title()}
+				text={m.game_waiting_table_text()}
+				closeLabel={m.game_waiting_table_close()}
+				onclose={cancel}
+			/>
+		{/snippet}
+		{#snippet moves(close)}
+			<MoveList
+				historyBlocks={[]}
+				currentMoveIndex={0}
+				maxMoveIndex={0}
+				onSetMove={() => {}}
+				keyboardNavEnabled={false}
+				onclose={close}
+			/>
+		{/snippet}
+	</GameFrame>
+{:else}
+	<section class="mx-auto flex max-w-4xl flex-col gap-5">
+		<div class="flex flex-wrap items-center justify-between gap-3">
+			<div class="flex items-baseline gap-4">
+				<h2 class="text-2xl font-bold text-content">Lobby</h2>
+				{#if isLiveEnabled() && !waiting}
+					<span class="font-mono text-xs uppercase tracking-wider text-content-muted tabular-nums">
+						games {totalGames} · tables {seeks.length}
+					</span>
+				{/if}
+			</div>
 			{#if isLiveEnabled() && !waiting}
-				<span class="font-mono text-xs uppercase tracking-wider text-content-muted tabular-nums">
-					games {totalGames} · tables {seeks.length}
-				</span>
+				<!-- Phones stack this as primary-action-first (full-width button, quiet links under it);
+			     from sm up it lays out as the usual single row with the button on the right. -->
+				<div class="flex w-full flex-col gap-2 sm:w-auto sm:flex-row sm:items-center sm:gap-4">
+					<button
+						type="button"
+						onclick={() => (createOpen = !createOpen)}
+						class="w-full rounded-xl border border-border bg-surface px-4 py-2.5 text-center font-bold text-content-muted transition-colors hover:text-content sm:order-last sm:w-auto sm:py-2"
+					>
+						{createOpen ? '× Close' : '+ Open a table'}
+					</button>
+					<div class="flex flex-wrap items-center gap-2 sm:gap-4">
+						<a
+							href={resolve('live')}
+							class="rounded-xl px-2 py-2 text-sm font-bold text-content-muted transition-colors hover:bg-surface hover:text-content sm:px-4 sm:text-base"
+						>
+							Play a friend by link →
+						</a>
+						<a
+							href={resolve('bots')}
+							class="rounded-xl px-2 py-2 text-sm font-bold text-content-muted transition-colors hover:bg-surface hover:text-content sm:px-4 sm:text-base"
+						>
+							Challenge a rated bot →
+						</a>
+						<a
+							href={resolve('leaderboard')}
+							class="rounded-xl px-2 py-2 text-sm font-bold text-content-muted transition-colors hover:bg-surface hover:text-content sm:px-4 sm:text-base"
+						>
+							Leaderboard →
+						</a>
+					</div>
+				</div>
 			{/if}
 		</div>
-		{#if isLiveEnabled() && !waiting}
-			<!-- Phones stack this as primary-action-first (full-width button, quiet links under it);
-			     from sm up it lays out as the usual single row with the button on the right. -->
-			<div class="flex w-full flex-col gap-2 sm:w-auto sm:flex-row sm:items-center sm:gap-4">
-				<button
-					type="button"
-					onclick={() => (createOpen = !createOpen)}
-					class="w-full rounded-xl border border-border bg-surface px-4 py-2.5 text-center font-bold text-content-muted transition-colors hover:text-content sm:order-last sm:w-auto sm:py-2"
-				>
-					{createOpen ? '× Close' : '+ Open a table'}
-				</button>
-				<div class="flex flex-wrap items-center gap-2 sm:gap-4">
-					<a
-						href={resolve('live')}
-						class="rounded-xl px-2 py-2 text-sm font-bold text-content-muted transition-colors hover:bg-surface hover:text-content sm:px-4 sm:text-base"
-					>
-						Play a friend by link →
-					</a>
-					<a
-						href={resolve('bots')}
-						class="rounded-xl px-2 py-2 text-sm font-bold text-content-muted transition-colors hover:bg-surface hover:text-content sm:px-4 sm:text-base"
-					>
-						Challenge a rated bot →
-					</a>
-					<a
-						href={resolve('leaderboard')}
-						class="rounded-xl px-2 py-2 text-sm font-bold text-content-muted transition-colors hover:bg-surface hover:text-content sm:px-4 sm:text-base"
-					>
-						Leaderboard →
-					</a>
-				</div>
-			</div>
-		{/if}
-	</div>
 
-	{#if !isLiveEnabled()}
-		<p class="text-content-muted">
-			Live play is not configured. Set <code>VITE_PLAY_API_URL</code> to the play-api server.
-		</p>
-	{:else if waiting}
-		<div
-			class="flex flex-col items-center gap-4 rounded-2xl border-2 border-dashed border-primary/40 bg-primary/5 px-6 py-10"
-		>
-			<span class="font-mono text-[11px] font-bold uppercase tracking-wider text-primary">
-				Your table is open
-			</span>
-			<p class="flex flex-wrap items-center justify-center gap-1.5 text-content-muted">
-				Waiting for an opponent… <span class="font-bold text-content">{waiting.label}</span>
-				<!-- Echoes what we asked for; the server is the authority and degrades the flag if the
-				     session turns out to be absent, which RatedChoice's own gate already prevents. -->
-				{#if waiting.rated}<RatedBadge />{/if}
+		{#if !isLiveEnabled()}
+			<p class="text-content-muted">
+				Live play is not configured. Set <code>VITE_PLAY_API_URL</code> to the play-api server.
 			</p>
-			<button
-				type="button"
-				onclick={cancel}
-				class="rounded-xl border border-border bg-surface px-6 py-3 font-bold text-content-muted hover:text-content"
-			>
-				Cancel
-			</button>
-		</div>
-	{:else}
-		{#if createOpen}
-			<div class="flex flex-col gap-3 rounded-2xl border border-border bg-surface/50 p-4">
-				<!-- No colour choice: a seek carries none, the seat is drawn when someone sits down. -->
-				<GameSetupPanel
-					name="seek"
-					timeGroups={timeControlChoices()}
-					bind:time={selected}
-					rating="choice"
-					bind:rated
-					actionLabel="Open a table"
-					busyLabel="Opening…"
-					busy={creating}
-					onstart={create}
-				/>
-			</div>
-		{/if}
-
-		{#if error}<p class="text-sm text-danger">{error}</p>{/if}
-
-		{#if unavailable}
-			<div
-				class="rounded-2xl border border-danger/40 bg-danger/10 p-6 text-center text-danger"
-				role="alert"
-			>
-				The lobby is unavailable right now — try again in a minute.
-			</div>
-		{:else if !loaded}
-			<p class="px-2 py-14 text-center text-sm text-content-muted">Looking around the hall…</p>
-		{:else if games.length === 0 && seeks.length === 0}
-			<div
-				class="flex flex-col items-center gap-2 rounded-2xl border-2 border-dashed border-border px-6 py-14 text-center"
-			>
-				<p class="font-bold text-content">The hall is empty right now.</p>
-				<p class="text-sm text-content-muted">Open a table above — it will be waiting here.</p>
-			</div>
 		{:else}
-			<div class="board-wall">
-				{#if tvGame}
-					<a
-						href={resolve('/live/[id]', { id: tvGame.gameId })}
-						class="tv group flex flex-col gap-2 rounded-2xl border border-border bg-surface p-4 transition-all hover:-translate-y-0.5 hover:border-primary"
-					>
-						<div class="flex items-center justify-between">
-							<span
-								class="flex items-center gap-1.5 font-mono text-[11px] font-bold uppercase tracking-wider text-success"
-							>
-								<span class="live-dot"></span>
-								live · move {fullmoveOf(tvGame.dfen)}
-							</span>
-							<span
-								class="text-xs text-content-muted opacity-0 transition-opacity group-hover:opacity-100"
-							>
-								Watch →
-							</span>
-						</div>
-						{@render playerLine(tvGame.players?.black, tvGame.clocks?.black)}
-						<MiniBoard fen={tvGame.dfen} />
-						{@render playerLine(tvGame.players?.white, tvGame.clocks?.white)}
-					</a>
-				{/if}
+			{#if createOpen}
+				<div class="flex flex-col gap-3 rounded-2xl border border-border bg-surface/50 p-4">
+					<!-- No colour choice: a seek carries none, the seat is drawn when someone sits down. -->
+					<GameSetupPanel
+						name="seek"
+						timeGroups={timeControlChoices()}
+						bind:time={selected}
+						rating="choice"
+						bind:rated
+						actionLabel="Open a table"
+						busyLabel="Opening…"
+						busy={creating}
+						onstart={create}
+					/>
+				</div>
+			{/if}
 
-				{#each otherGames as game (game.gameId)}
-					<a
-						href={resolve('/live/[id]', { id: game.gameId })}
-						class="group flex flex-row sm:flex-col gap-3 rounded-2xl border border-border bg-surface p-3 transition-all hover:-translate-y-0.5 hover:border-primary"
-					>
-						<div class="w-20 h-20 shrink-0 sm:w-full sm:h-auto">
-							<MiniBoard fen={game.dfen} />
-						</div>
-						<div class="flex flex-col justify-between flex-1 min-w-0">
-							<div class="flex items-center justify-between gap-2">
+			{#if error}<p class="text-sm text-danger">{error}</p>{/if}
+
+			{#if unavailable}
+				<div
+					class="rounded-2xl border border-danger/40 bg-danger/10 p-6 text-center text-danger"
+					role="alert"
+				>
+					The lobby is unavailable right now — try again in a minute.
+				</div>
+			{:else if !loaded}
+				<p class="px-2 py-14 text-center text-sm text-content-muted">Looking around the hall…</p>
+			{:else if games.length === 0 && seeks.length === 0}
+				<div
+					class="flex flex-col items-center gap-2 rounded-2xl border-2 border-dashed border-border px-6 py-14 text-center"
+				>
+					<p class="font-bold text-content">The hall is empty right now.</p>
+					<p class="text-sm text-content-muted">Open a table above — it will be waiting here.</p>
+				</div>
+			{:else}
+				<div class="board-wall">
+					{#if tvGame}
+						<a
+							href={resolve('/live/[id]', { id: tvGame.gameId })}
+							class="tv group flex flex-col gap-2 rounded-2xl border border-border bg-surface p-4 transition-all hover:-translate-y-0.5 hover:border-primary"
+						>
+							<div class="flex items-center justify-between">
 								<span
-									class="flex items-center gap-1.5 font-mono text-[10px] font-bold uppercase tracking-wider text-success"
+									class="flex items-center gap-1.5 font-mono text-[11px] font-bold uppercase tracking-wider text-success"
 								>
 									<span class="live-dot"></span>
-									live · move {fullmoveOf(game.dfen)}
+									live · move {fullmoveOf(tvGame.dfen)}
 								</span>
 								<span
-									class="text-xs text-content-muted opacity-0 transition-opacity group-hover:opacity-100 hidden sm:inline"
+									class="text-xs text-content-muted opacity-0 transition-opacity group-hover:opacity-100"
 								>
 									Watch →
 								</span>
 							</div>
-							<div class="flex flex-col gap-1.5 my-1.5 min-w-0">
-								<div class="flex items-center justify-between gap-2 min-w-0">
-									<span class="flex items-center gap-1.5 min-w-0 text-xs text-content-muted">
-										<span
-											class="w-2 h-2 rounded-full bg-piece-black border border-border-strong shrink-0"
-											aria-hidden="true"
-										></span>
-										<span class="truncate">{playerName(game.players?.black)}</span>
-										{#if isBot(game.players?.black)}
-											<BotBadge sizeClass="text-[9px]" />
-										{/if}
-									</span>
-								</div>
-								<div class="flex items-center justify-between gap-2 min-w-0">
-									<span class="flex items-center gap-1.5 min-w-0 text-xs text-content-muted">
-										<span
-											class="w-2 h-2 rounded-full bg-piece-white border border-border-strong shrink-0"
-											aria-hidden="true"
-										></span>
-										<span class="truncate">{playerName(game.players?.white)}</span>
-										{#if isBot(game.players?.white)}
-											<BotBadge sizeClass="text-[9px]" />
-										{/if}
-									</span>
-								</div>
-							</div>
-							<div class="sm:hidden mt-auto">
-								<span class="inline-block text-xs font-semibold text-primary"> Watch game → </span>
-							</div>
-						</div>
-					</a>
-				{/each}
+							{@render playerLine(tvGame.players?.black, tvGame.clocks?.black)}
+							<MiniBoard fen={tvGame.dfen} />
+							{@render playerLine(tvGame.players?.white, tvGame.clocks?.white)}
+						</a>
+					{/if}
 
-				{#each seeks as seek (seek.id)}
-					{@const offer = seekOffer(seek)}
-					<button
-						type="button"
-						onclick={() => accept(seek)}
-						disabled={accepting || creating}
-						class="group flex flex-row sm:flex-col gap-3 rounded-2xl border-2 border-dashed p-3 text-left transition-all hover:-translate-y-0.5 disabled:opacity-60
+					{#each otherGames as game (game.gameId)}
+						<a
+							href={resolve('/live/[id]', { id: game.gameId })}
+							class="group flex flex-row sm:flex-col gap-3 rounded-2xl border border-border bg-surface p-3 transition-all hover:-translate-y-0.5 hover:border-primary"
+						>
+							<div class="w-20 h-20 shrink-0 sm:w-full sm:h-auto">
+								<MiniBoard fen={game.dfen} />
+							</div>
+							<div class="flex flex-col justify-between flex-1 min-w-0">
+								<div class="flex items-center justify-between gap-2">
+									<span
+										class="flex items-center gap-1.5 font-mono text-[10px] font-bold uppercase tracking-wider text-success"
+									>
+										<span class="live-dot"></span>
+										live · move {fullmoveOf(game.dfen)}
+									</span>
+									<span
+										class="text-xs text-content-muted opacity-0 transition-opacity group-hover:opacity-100 hidden sm:inline"
+									>
+										Watch →
+									</span>
+								</div>
+								<div class="flex flex-col gap-1.5 my-1.5 min-w-0">
+									<div class="flex items-center justify-between gap-2 min-w-0">
+										<span class="flex items-center gap-1.5 min-w-0 text-xs text-content-muted">
+											<span
+												class="w-2 h-2 rounded-full bg-piece-black border border-border-strong shrink-0"
+												aria-hidden="true"
+											></span>
+											<span class="truncate">{playerName(game.players?.black)}</span>
+											{#if isBot(game.players?.black)}
+												<BotBadge sizeClass="text-[9px]" />
+											{/if}
+										</span>
+									</div>
+									<div class="flex items-center justify-between gap-2 min-w-0">
+										<span class="flex items-center gap-1.5 min-w-0 text-xs text-content-muted">
+											<span
+												class="w-2 h-2 rounded-full bg-piece-white border border-border-strong shrink-0"
+												aria-hidden="true"
+											></span>
+											<span class="truncate">{playerName(game.players?.white)}</span>
+											{#if isBot(game.players?.white)}
+												<BotBadge sizeClass="text-[9px]" />
+											{/if}
+										</span>
+									</div>
+								</div>
+								<div class="sm:hidden mt-auto">
+									<span class="inline-block text-xs font-semibold text-primary">
+										Watch game →
+									</span>
+								</div>
+							</div>
+						</a>
+					{/each}
+
+					{#each seeks as seek (seek.id)}
+						{@const offer = seekOffer(seek)}
+						<button
+							type="button"
+							onclick={() => accept(seek)}
+							disabled={accepting || creating}
+							class="group flex flex-row sm:flex-col gap-3 rounded-2xl border-2 border-dashed p-3 text-left transition-all hover:-translate-y-0.5 disabled:opacity-60
 							{offer.bot
-							? 'border-primary/50 bg-primary/5 hover:border-primary'
-							: 'border-border bg-surface/50 hover:border-primary/60'}"
-					>
-						<span class="block w-20 h-20 shrink-0 sm:w-full sm:h-auto">
-							<MiniBoard fen={START_FEN} faded />
-						</span>
-						<span class="flex flex-col justify-between flex-1 min-w-0">
-							<span class="flex items-center justify-between gap-2">
-								<span
-									class="font-mono text-[10px] font-bold uppercase tracking-wider {offer.bot
-										? 'text-primary'
-										: 'text-content-muted'}"
-								>
-									open table
-								</span>
-								<span class="text-xs text-content-muted shrink-0">
-									{timeControlLabel(seek.timeControl)}
-								</span>
+								? 'border-primary/50 bg-primary/5 hover:border-primary'
+								: 'border-border bg-surface/50 hover:border-primary/60'}"
+						>
+							<span class="block w-20 h-20 shrink-0 sm:w-full sm:h-auto">
+								<MiniBoard fen={START_FEN} faded />
 							</span>
-							<span class="flex items-center gap-1.5 min-w-0 my-1.5">
-								<b class="truncate text-sm text-content">{offer.name}</b>
-								{#if offer.bot}
-									<BotBadge />
-								{/if}
-								<!-- Only an explicit `true` badges: on a server that does not send the field at
+							<span class="flex flex-col justify-between flex-1 min-w-0">
+								<span class="flex items-center justify-between gap-2">
+									<span
+										class="font-mono text-[10px] font-bold uppercase tracking-wider {offer.bot
+											? 'text-primary'
+											: 'text-content-muted'}"
+									>
+										open table
+									</span>
+									<span class="text-xs text-content-muted shrink-0">
+										{timeControlLabel(seek.timeControl)}
+									</span>
+								</span>
+								<span class="flex items-center gap-1.5 min-w-0 my-1.5">
+									<b class="truncate text-sm text-content">{offer.name}</b>
+									{#if offer.bot}
+										<BotBadge />
+									{/if}
+									<!-- Only an explicit `true` badges: on a server that does not send the field at
 								     all, saying nothing is the safe direction (see Seek.rated). -->
-								{#if seek.rated}
-									<RatedBadge />
-								{/if}
-							</span>
-							<span class="block mt-auto sm:mt-2">
-								<span
-									class="inline-block w-full text-center rounded-xl bg-primary px-3 py-2 text-xs font-bold text-primary-content shadow-sm transition-colors group-hover:bg-primary-hover"
-								>
-									Sit down
+									{#if seek.rated}
+										<RatedBadge />
+									{/if}
+								</span>
+								<span class="block mt-auto sm:mt-2">
+									<span
+										class="inline-block w-full text-center rounded-xl bg-primary px-3 py-2 text-xs font-bold text-primary-content shadow-sm transition-colors group-hover:bg-primary-hover"
+									>
+										Sit down
+									</span>
 								</span>
 							</span>
-						</span>
-					</button>
-				{/each}
-			</div>
+						</button>
+					{/each}
+				</div>
+			{/if}
 		{/if}
-	{/if}
-</section>
+	</section>
+{/if}
 
 <style>
 	.board-wall {

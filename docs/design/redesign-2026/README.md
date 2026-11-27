@@ -219,7 +219,7 @@ Each section shows the desktop and the phone layout. Where a section has both th
 
 ### Play: a friend, by link
 
-`/play`, friend tab · [#258](https://github.com/fortemate/dicechess-play/issues/258), waiting state [#256](https://github.com/fortemate/dicechess-play/issues/256)
+`/play`, friend tab · [#258](https://github.com/fortemate/dicechess-play/issues/258), invitation on the board [#256](https://github.com/fortemate/dicechess-play/issues/256), waiting state [#276](https://github.com/fortemate/dicechess-play/issues/276)
 
 ![Play with a friend on desktop, light theme, before the game is created](img/play-friend-desktop-light.webp)
 
@@ -232,6 +232,7 @@ Each section shows the desktop and the phone layout. Where a section has both th
 - The tab explains the flow in three steps and uses the shared setup panel. Neither side needs an account.
 - Games by link are casual. The panel says so, and points to an open table for a rated game against a person.
 - "Create game" opens the board at once in the waiting state: the invitation link, "Copy link", "Share" where the device supports it, a "not joined yet" status and "Cancel this game". The clocks are shown but do not run until the friend sits down.
+- The waiting state as drawn needs play-api to hold a game by link until both players have joined ([play-api#334](https://github.com/fortemate/dicechess-play-api/issues/334)). Until then the game starts by itself a few seconds after it is created, so [#256](https://github.com/fortemate/dicechess-play/issues/256) shows the invitation on a board that is already running, says so, and offers "Hide the link" instead of the status and the cancellation. [#276](https://github.com/fortemate/dicechess-play/issues/276) builds the state as drawn.
 - The images show a placeholder where the seat token of the link would be.
 
 ### Play: anyone, at an open table

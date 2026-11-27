@@ -12,7 +12,8 @@
 	import GameFrame from '../../../components/GameFrame.svelte';
 	import MoveList from '../../../components/MoveList.svelte';
 	import MoveStepper from '../../../components/MoveStepper.svelte';
-	import GameEndModal from '../../../components/GameEndModal.svelte';
+	import GameResultCard from '../../../components/GameResultCard.svelte';
+	import GameWaitingCard from '../../../components/GameWaitingCard.svelte';
 	import BotRematchButton from '../../../components/BotRematchButton.svelte';
 	import RematchControl from '../../../components/RematchControl.svelte';
 	import SpectatorFollowPanel from '../../../components/SpectatorFollowPanel.svelte';
@@ -28,6 +29,7 @@
 	import { SpectatorFollowStore } from '#lib/live/spectatorFollowStore.svelte.js';
 	import { isLiveEnabled } from '#lib/live/liveApi.js';
 	import { buildJoinUrl, buildSpectateUrl, parseSeat } from '#lib/live/seatLink.js';
+	import { forgetFriendInvite, recallFriendInvite } from '#lib/live/friendInvite.js';
 	import { buildReplayUrl, hasReplay } from '#lib/live/replayLink.js';
 	import {
 		SEAT_LABELS,
@@ -142,19 +144,6 @@
 			return live.activeColor === 'w' ? m.game_live_turn_white() : m.game_live_turn_black();
 		return myMove ? m.game_live_turn_yours() : m.game_live_turn_waiting();
 	});
-	// The end-of-game modal shows once per finished game; dismissing reveals the board with
-	// the side-rail card as fallback. Any transition away from 'over' (new game) re-arms it.
-	let endModalDismissed = $state(false);
-	$effect(() => {
-		if (live.gameStatus !== 'over') endModalDismissed = false;
-	});
-	// The modal belongs to a game the viewer watched finish. A result read back from the archive
-	// (#109) is news about the past — a spectator opening an old link, or a player returning to a
-	// rematch that timed out while they were away — so it lands in the panel, not over the board.
-	const showEndModal = $derived(
-		live.gameStatus === 'over' && !endModalDismissed && !live.finishedFromArchive,
-	);
-
 	const endTone = $derived(
 		live.outcome === 'won'
 			? ('win' as const)
@@ -543,6 +532,34 @@
 
 	$effect(() => () => clearTimeout(resignTimeout));
 
+	// The link to send, when this tab created the game by link (#256). The page cannot know
+	// whether the friend has opened it: the server reports no presence. What it can see is the
+	// friend's first move, and from then on the link has done its job. Until then the creator can
+	// hide it. A finished game and a spectator never show it.
+	let inviteHidden = $state(false);
+	const storedInvite = $derived(page.params.id ? recallFriendInvite(page.params.id) : null);
+	const friendHasMoved = $derived(
+		live.historyBlocks.some(
+			// A forced pass is the server's doing, not the friend's: only a move with a piece counts.
+			(turn) =>
+				(topSeat === 'White' ? turn.whiteMoves : turn.blackMoves).some(
+					(move) => move.pieceChar !== null,
+				),
+		),
+	);
+	const inviteLink = $derived(
+		!inviteHidden && !live.spectator && live.gameStatus !== 'over' && !friendHasMoved
+			? storedInvite
+			: null,
+	);
+	function hideInvite() {
+		inviteHidden = true;
+		if (page.params.id) forgetFriendInvite(page.params.id);
+	}
+	$effect(() => {
+		if (friendHasMoved && page.params.id) forgetFriendInvite(page.params.id);
+	});
+
 	// What this game is, for the top bar of the frame.
 	const frameTitle = $derived(
 		m.game_live_title({ white: seatName('White'), black: seatName('Black') }),
@@ -592,18 +609,6 @@
 		onKeydown(event);
 	}}
 />
-
-<GameEndModal
-	open={showEndModal}
-	headline={statusText ?? m.game_live_status_over()}
-	tone={endTone}
-	reason={endReason}
-	settlement={live.settlement}
-	onDismiss={() => (endModalDismissed = true)}
->
-	<RatingDeltaLine outcome={ratingOutcome} />
-	{@render endActions()}
-</GameEndModal>
 
 <GameFrame
 	title={frameTitle}
@@ -687,21 +692,30 @@
 
 	{#snippet card()}
 		{#if live.gameStatus === 'over'}
-			<Card class="flex flex-col items-center gap-3">
-				<p class="m-0 text-lg font-bold text-content">{statusText}</p>
-				{#if endReason}
-					<p class="m-0 text-sm text-content-muted">{endReason}</p>
-				{/if}
-				{#if live.settlement}
-					<p class="m-0 text-sm font-semibold text-content">{live.settlement}</p>
-				{/if}
-				<!-- Silent while the modal is up: this card is mounted underneath it the whole time, and
-				     two live regions announce the same line twice. It takes the duty back on dismissal,
-				     so a delta landing later is still announced. -->
-				<RatingDeltaLine outcome={ratingOutcome} announce={!showEndModal} />
+			<!-- The result takes the place of the turn card, so the board and the move list stay in
+			     view. The rating line shows only what the server reports as applied (see the poll
+			     above); a change that lands later is announced by the line itself. -->
+			<GameResultCard
+				headline={statusText ?? m.game_live_status_over()}
+				tone={endTone}
+				reason={endReason}
+				settlement={live.settlement}
+			>
+				<RatingDeltaLine outcome={ratingOutcome} />
 				{@render endActions()}
-			</Card>
+			</GameResultCard>
 		{:else}
+			{#if inviteLink}
+				<!-- This tab created the game by link: the link to send stays here until the friend
+				     has moved or the creator hides it. The game itself is already running below. -->
+				<GameWaitingCard
+					title={m.game_waiting_friend_title()}
+					text={m.game_waiting_friend_text()}
+					link={inviteLink}
+					closeLabel={m.game_waiting_friend_hide()}
+					onclose={hideInvite}
+				/>
+			{/if}
 			{#if rematchEligible && live.authoritativeOver && rematchStore.phase !== 'idle' && rematchStore.phase !== 'closed'}
 				<Card class="flex flex-col items-center">
 					<RematchControl store={rematchStore} compact={true} />
