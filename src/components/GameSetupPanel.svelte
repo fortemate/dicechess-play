@@ -11,9 +11,15 @@
 	//     practice game does; the panel does not merge the lists.
 	//   - `colorValues`: pass it and the visitor chooses a colour, always in the order Random,
 	//     White, Black. Leave it out for a mode without that choice: an open table, where the
-	//     seat is drawn when someone sits down. The panel then says so.
+	//     seat is drawn when someone sits down. The panel then says so, or says `colorNote`
+	//     where the visitor is the one who sits down.
 	//   - `rating`: `choice` renders `RatedChoice`, which alone decides whether this visitor may
 	//     play rated; `casual` and `unrated` are a line of text for modes that are never rated.
+	//     `ratingNote` replaces that line where the mode has its own reason to give: a starter
+	//     bot, or a table whose owner has already decided.
+	//   - `choicesClass`: classes for the block of choices above the button. Play folds the
+	//     choices away on a phone and keeps the button in view (#257); the choices stay mounted,
+	//     so they keep their values.
 	//
 	// It sends nothing. The values are bound, in the caller's own vocabulary (`colorValues` maps
 	// the three colours to it), so each caller builds exactly the request it built before.
@@ -37,7 +43,11 @@
 		/** The caller's values for the three colours. Omit when the mode has no colour choice. */
 		colorValues?: { random: C; white: C; black: C };
 		color?: C;
+		/** The line shown instead of the standard one when there is no colour choice. */
+		colorNote?: string;
 		rating: 'choice' | 'casual' | 'unrated';
+		/** The line shown instead of the standard one when `rating` is not `choice`. */
+		ratingNote?: string;
 		rated?: boolean;
 		actionLabel: string;
 		/** Shown on the button while `busy`. */
@@ -45,6 +55,8 @@
 		busy?: boolean;
 		onstart: () => void;
 		error?: string | null;
+		/** Classes for the block of choices, e.g. to fold it away on a narrow screen. */
+		choicesClass?: string;
 		class?: string;
 	}
 
@@ -54,13 +66,16 @@
 		time = $bindable(),
 		colorValues,
 		color = $bindable(),
+		colorNote,
 		rating,
+		ratingNote,
 		rated = $bindable(false),
 		actionLabel,
 		busyLabel,
 		busy = false,
 		onstart,
 		error = null,
+		choicesClass = '',
 		class: className = '',
 	}: Props = $props();
 
@@ -76,32 +91,37 @@
 </script>
 
 <div class="flex flex-col gap-5 {className}">
-	<ChoiceGroup
-		legend={m.common_setup_time_control()}
-		name="time-{name}"
-		groups={timeGroups}
-		bind:value={time}
-	/>
-
-	{#if colorValues}
+	<div class="flex flex-col gap-5 {choicesClass}">
 		<ChoiceGroup
-			legend={m.common_setup_color()}
-			name="color-{name}"
-			options={colorOptions}
-			bind:value={color as C}
-			stretch
+			legend={m.common_setup_time_control()}
+			name="time-{name}"
+			groups={timeGroups}
+			bind:value={time}
 		/>
-	{:else}
-		<p class="m-0 text-sm text-content-muted">{m.common_setup_color_drawn()}</p>
-	{/if}
 
-	{#if rating === 'choice'}
-		<RatedChoice bind:rated {name} />
-	{:else}
-		<p class="m-0 text-sm text-content-muted">
-			{rating === 'casual' ? m.common_setup_note_casual() : m.common_setup_note_unrated()}
-		</p>
-	{/if}
+		{#if colorValues}
+			<ChoiceGroup
+				legend={m.common_setup_color()}
+				name="color-{name}"
+				options={colorOptions}
+				bind:value={color as C}
+				stretch
+			/>
+		{:else}
+			<p class="m-0 text-sm text-content-muted">
+				{colorNote ?? m.common_setup_color_drawn()}
+			</p>
+		{/if}
+
+		{#if rating === 'choice'}
+			<RatedChoice bind:rated {name} />
+		{:else}
+			<p class="m-0 text-sm text-content-muted">
+				{ratingNote ??
+					(rating === 'casual' ? m.common_setup_note_casual() : m.common_setup_note_unrated())}
+			</p>
+		{/if}
+	</div>
 
 	{#if error}<p class="m-0 text-sm text-danger" role="alert">{error}</p>{/if}
 

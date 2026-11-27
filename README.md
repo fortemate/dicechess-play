@@ -117,7 +117,9 @@ src/
 │   ├── rules/                 prerendered rules page (#254) — ssr/prerender re-enabled, so crawlers
 │   │                          get real HTML + OG tags (src/hooks.server.ts strips default head)
 │   ├── licenses/              prerendered open-source licenses disclosure page (#14)
-│   ├── play/                  game hub: every way to start a game (#217)
+│   ├── play/                  where a game starts (#257): three tabs, and the bot tab with one
+│   │                          list of bots; `?bot=` preselects one. The other two tabs still
+│   │                          link to live/ and lobby/
 │   ├── practice/              vs-bot game (client-authoritative; engine in a Web Worker)
 │   ├── lobby/                 seek list + live-board wall (polls play-api)
 │   ├── live/ · live/[id]/     friend-link entry · server-authoritative live board (WebSocket)
@@ -146,7 +148,9 @@ src/
 │   │                          PrimitivesPreview shows them all at /ui-preview, in the dev server only
 │   ├── Board.svelte           thin chessground wrapper driven by either game store
 │   ├── GameShell              game navigation, appearance, identity and onboarding
-│   ├── GameHub                the ways-to-start-a-game cards on /play
+│   ├── PlayBots               the bot tab of /play (#257): the one list of bots, its filters and
+│   │                          the setup of the game; starts a starter bot game in the browser,
+│   │                          an arena bot game through the catalog, a table bot game by sitting down
 │   ├── lib/Chessground.svelte
 │   ├── GameFrame · GameActions · PlayerStrip · TurnCard · GameResultCard · GameWaitingCard · MoveList · MoveStepper · BotBadge · PawnPromotionSelector
 │   ├── GameHistoryCard · LiveGameHistoryCard · BotProfileGameCard · WdlBar · WdlCounts
@@ -185,7 +189,11 @@ src/
 │   │                          cookie, so the SPA holds no token; login is a full-page navigation
 │   ├── authStore.svelte.ts    identity: guest by default, account once signed in (status/nickname/
 │   │                          externalId; `user:<uuid>` signed in, `guest:<uuid>` otherwise)
-│   ├── playWithBot/           bot-play core: store, engine worker, dice/history, opening book
+│   ├── playWithBot/           bot-play core: store, engine worker, dice/history, opening book;
+│   │                          practiceSetup — the time controls and the start of a starter bot
+│   │                          game, shared by /play and /practice (#257)
+│   ├── play/                  botList — starter bots, catalog bots and bots at an open table as
+│   │                          one list; which are "Ready now"; filters; the bot of a link (#257)
 │   ├── rules/                 seo.ts — shared origins for the prerendered rules page's absolute
 │   │                          canonical/OG URLs (#254); sitemap.xml/app.html hardcode the same
 │   ├── live/                  live-play client: liveGameStore, liveClient (WS + reconnect),
