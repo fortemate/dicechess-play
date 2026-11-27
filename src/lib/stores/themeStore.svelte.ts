@@ -54,7 +54,8 @@ export class ThemeStore {
 	readonly theme: Theme = $derived(resolveTheme(this.preference, this.systemLight));
 
 	private readonly media: MediaQueryList | undefined;
-	private heldThemeColor: string | null = null;
+	/** The hold in force, if any. An object, so two holds of the same colour stay distinct. */
+	private themeColorHold: { readonly color: string } | null = null;
 
 	constructor() {
 		if (typeof window === 'undefined') return;
@@ -91,13 +92,18 @@ export class ThemeStore {
 	 * Lets a page that paints its own background (the Fire TV storefront at `/`) hold the
 	 * browser-chrome colour while it is shown. Returns the release function. After a release the
 	 * meta follows the theme again, including any change that happened in the meantime.
+	 *
+	 * A later hold replaces an earlier one, and each release only ends its own hold: a page that
+	 * unmounts after its successor has mounted must not take the successor's colour with it, even
+	 * when both asked for the same one.
 	 */
 	holdThemeColor(color: string): () => void {
-		this.heldThemeColor = color;
+		const hold = { color };
+		this.themeColorHold = hold;
 		this.apply();
 		return () => {
-			if (this.heldThemeColor !== color) return;
-			this.heldThemeColor = null;
+			if (this.themeColorHold !== hold) return;
+			this.themeColorHold = null;
 			this.apply();
 		};
 	}
@@ -108,7 +114,7 @@ export class ThemeStore {
 		document.documentElement.dataset.theme = theme;
 		document
 			.getElementById(THEME_COLOR_META_ID)
-			?.setAttribute('content', this.heldThemeColor ?? THEME_COLORS[theme]);
+			?.setAttribute('content', this.themeColorHold?.color ?? THEME_COLORS[theme]);
 	}
 }
 

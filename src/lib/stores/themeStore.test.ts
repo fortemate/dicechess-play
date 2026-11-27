@@ -322,5 +322,31 @@ describe('themeStore', () => {
 			releaseSecond();
 			expect(themeColor()).toBe(THEME_COLORS.dark);
 		});
+
+		it('tells two holds of the same colour apart', () => {
+			// The storefront remounting: the new page holds before the old one lets go.
+			const store = new ThemeStore();
+			const releaseOld = store.holdThemeColor(STOREFRONT);
+			const releaseNew = store.holdThemeColor(STOREFRONT);
+
+			releaseOld();
+			system.switchTo('light');
+			expect(themeColor()).toBe(STOREFRONT);
+
+			releaseNew();
+			expect(themeColor()).toBe(THEME_COLORS.light);
+		});
+
+		it('lets a release be called twice without ending a later hold', () => {
+			const store = new ThemeStore();
+			const release = store.holdThemeColor(STOREFRONT);
+			release();
+			const releaseLater = store.holdThemeColor(STOREFRONT);
+
+			release();
+			expect(themeColor()).toBe(STOREFRONT);
+			releaseLater();
+			expect(themeColor()).toBe(THEME_COLORS.dark);
+		});
 	});
 });
