@@ -82,6 +82,35 @@ export const timeControlGroups: readonly TimeControlGroup[] = (() => {
 	})).filter((g) => g.presets.length > 0);
 })();
 
+/** One row of time controls in a game setup panel (`GameSetupPanel`): an optional heading and
+ * the choices under it. `value` is the index into the list the row was built from, which is what
+ * the pages already keep as their selection. */
+export interface TimeControlChoiceGroup {
+	label?: string;
+	options: { value: number; label: string }[];
+}
+
+/** The lobby and friend presets as setup-panel rows, one per rating category. A function, not a
+ * constant: the labels are translated at call time. */
+export function timeControlChoices(): TimeControlChoiceGroup[] {
+	return timeControlGroups.map((group) => ({
+		label: group.label,
+		options: group.presets.map(({ index, preset }) => ({ value: index, label: preset.label })),
+	}));
+}
+
+/** The catalog-bot presets as one setup-panel row without a heading: six choices need no groups. */
+export function botTimeControlChoices(): TimeControlChoiceGroup[] {
+	return [
+		{
+			options: botTimeControlPresets.map((preset, index) => ({
+				value: index,
+				label: preset.label,
+			})),
+		},
+	];
+}
+
 export interface BotTimeControlPreset {
 	/** Stable machine identity — never shown in UI, never translated. Safe to persist and compare
 	 * across code changes as long as the underlying time control is the same. */

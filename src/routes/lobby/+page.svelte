@@ -17,12 +17,15 @@
 	import { fullmoveOf } from '#lib/live/boardGrid.js';
 	import { formatClock } from '#lib/live/clockFormat.js';
 	import { seekOffer } from '#lib/live/playerLabel.js';
-	import { timeControlLabel, timeControlPresets } from '#lib/live/timeControls.js';
+	import {
+		timeControlChoices,
+		timeControlLabel,
+		timeControlPresets,
+	} from '#lib/live/timeControls.js';
 	import BotBadge from '../../components/BotBadge.svelte';
 	import MiniBoard from '../../components/MiniBoard.svelte';
 	import RatedBadge from '../../components/RatedBadge.svelte';
-	import RatedChoice from '../../components/RatedChoice.svelte';
-	import TimeControlPicker from '../../components/TimeControlPicker.svelte';
+	import GameSetupPanel from '../../components/GameSetupPanel.svelte';
 	import type { LiveGame, PublicPlayer, Seek } from '#lib/live/liveTypes.js';
 
 	const LIST_POLL_MS = 3000;
@@ -271,16 +274,18 @@
 	{:else}
 		{#if createOpen}
 			<div class="flex flex-col gap-3 rounded-2xl border border-border bg-surface/50 p-4">
-				<TimeControlPicker bind:selected />
-				<RatedChoice bind:rated name="seek" />
-				<button
-					type="button"
-					onclick={create}
-					disabled={creating}
-					class="rounded-xl bg-primary px-6 py-3 text-lg font-bold text-primary-content shadow-lg shadow-primary/30 transition-colors hover:bg-primary-hover disabled:opacity-60"
-				>
-					{creating ? 'Opening…' : 'Open a table'}
-				</button>
+				<!-- No colour choice: a seek carries none, the seat is drawn when someone sits down. -->
+				<GameSetupPanel
+					name="seek"
+					timeGroups={timeControlChoices()}
+					bind:time={selected}
+					rating="choice"
+					bind:rated
+					actionLabel="Open a table"
+					busyLabel="Opening…"
+					busy={creating}
+					onstart={create}
+				/>
 			</div>
 		{/if}
 

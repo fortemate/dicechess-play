@@ -140,7 +140,8 @@ src/
 │                              management, keyed per bot so a staged secret cannot outlive it (#48)
 ├── components/                shared UI
 │   ├── ui/                    the interface primitives of the redesign (#252): Button, Chip,
-│   │                          SegmentedControl, Tag, Card, PageHeader, PageContainer (one page
+│   │                          SegmentedControl, ChoiceGroup (radios drawn as chips), Tag, Card,
+│   │                          PageHeader, PageContainer (one page
 │   │                          width). No text of their own; at least 44 px tall; one focus ring.
 │   │                          PrimitivesPreview shows them all at /ui-preview, in the dev server only
 │   ├── Board.svelte           thin chessground wrapper driven by either game store
@@ -149,7 +150,7 @@ src/
 │   ├── lib/Chessground.svelte
 │   ├── PlayerStrip · DicePanel · MoveHistory · GameEndModal · BotBadge · PawnPromotionSelector
 │   ├── GameHistoryCard · LiveGameHistoryCard · BotProfileGameCard · WdlBar · WdlCounts
-│   │                     WdlSummaryCard · MiniBoard · TimeControlPicker · ThemeMenu
+│   │                     WdlSummaryCard · MiniBoard · GameSetupPanel · ThemeMenu
 │   │                     ToastContainer
 │   ├── AdminBotsFilterBar · AdminBotsInventory · AdminBotDetailDrawer — /me/admin/bots
 │   │                          inventory, pure filter bar, and action drawer (#47)
@@ -165,7 +166,7 @@ src/
 │   ├── AuthMenu               header identity slot — Sign in / nickname badge; renders nothing
 │   │                          while loading or when play-api is unreachable (anonymous-first)
 │   ├── GamesFilterBar         /games's source/result pills + opponent search+chip (#151)
-│   ├── BotCatalogCard · BotTimeControlPicker · BotChallengePanel — the /bots page's card
+│   ├── BotCatalogCard · BotChallengePanel — the /bots page's card
 │   │                          (click → wake → config → start)
 │   ├── BotRematchButton       one-click rematch of the bot game that just finished, on the live
 │   │                          board's end-of-game surfaces (same wake → start handshake, #215)

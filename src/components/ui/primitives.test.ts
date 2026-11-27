@@ -261,7 +261,9 @@ describe('PrimitivesPreview', () => {
 		expect(container.querySelector(`[data-theme="${theme}"]`)).toBeTruthy();
 
 		expect(getAllByRole('heading', { level: 1 }).length).toBeGreaterThan(0);
-		expect(getByRole('button', { name: 'Start game' })).toBeTruthy();
+		// One in the buttons card, and one per setup panel that starts a game.
+		expect(getAllByRole('button', { name: 'Start game' }).length).toBeGreaterThan(0);
+		expect(getAllByRole('radio', { name: 'Random' }).length).toBeGreaterThan(0);
 		expect(getByRole('link', { name: 'A link' })).toBeTruthy();
 		expect(getByRole('group', { name: 'Appearance' })).toBeTruthy();
 		expect(container.querySelector('button[aria-pressed="true"]')).toBeTruthy();

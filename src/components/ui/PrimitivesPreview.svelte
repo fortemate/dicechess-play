@@ -3,6 +3,12 @@
 	// Every primitive of `src/components/ui/` in every state, for one theme. The preview route
 	// renders it twice, once per theme, so a change to a primitive or to a token can be judged
 	// in both at a glance. Development only: no visitor sees this text, so it is not translated.
+	import {
+		botTimeControlChoices,
+		timeControlChoices,
+		type TimeControlChoiceGroup,
+	} from '#lib/live/timeControls.js';
+	import GameSetupPanel from '../GameSetupPanel.svelte';
 	import Button from './Button.svelte';
 	import Card from './Card.svelte';
 	import Chip from './Chip.svelte';
@@ -24,6 +30,33 @@
 		['bots', 'Bots only'],
 	];
 	const TIMES = ['1+0', '3+2', '5+3', '10+5'];
+
+	// The game setup panel (#253), configured the way each of its four pages does.
+	const PRACTICE_TIMES: TimeControlChoiceGroup[] = [
+		{ label: 'Casual', options: [{ value: 0, label: 'Unlimited' }] },
+		{
+			label: 'Blitz',
+			options: [
+				{ value: 1, label: '3 + 2' },
+				{ value: 2, label: '5 min' },
+				{ value: 3, label: '5 + 3' },
+			],
+		},
+		{
+			label: 'Rapid',
+			options: [
+				{ value: 4, label: '10 min' },
+				{ value: 5, label: '10 + 5' },
+			],
+		},
+	];
+	const SEATS = { random: 'random', white: 'White', black: 'Black' } as const;
+	let setup = $state({
+		bot: { time: 3, color: 'random' as 'random' | 'White' | 'Black', rated: false },
+		practice: { time: 0, color: 'White' as 'random' | 'White' | 'Black' },
+		friend: { time: 0, color: 'Black' as 'random' | 'White' | 'Black' },
+		table: { time: 2, rated: false },
+	});
 </script>
 
 <section data-theme={theme} aria-label="{theme} theme" class="bg-background py-8 text-content">
@@ -121,6 +154,67 @@
 						<li class="px-4 py-3 text-sm">{row}</li>
 					{/each}
 				</ul>
+			</Card>
+		</div>
+
+		<h2 class="m-0 text-xs font-bold tracking-widest text-content-muted uppercase">
+			Game setup · one panel, four modes
+		</h2>
+		<div class="grid gap-6 md:grid-cols-2 xl:grid-cols-4">
+			<Card as="section" aria-label="Setup: a catalog bot" class="flex flex-col gap-4">
+				<h3 class="m-0 text-base font-bold">A catalog bot</h3>
+				<GameSetupPanel
+					name="preview-bot-{theme}"
+					timeGroups={botTimeControlChoices()}
+					bind:time={setup.bot.time}
+					colorValues={SEATS}
+					bind:color={setup.bot.color}
+					rating="choice"
+					bind:rated={setup.bot.rated}
+					actionLabel="Start game"
+					onstart={() => {}}
+				/>
+			</Card>
+			<Card as="section" aria-label="Setup: a practice game" class="flex flex-col gap-4">
+				<h3 class="m-0 text-base font-bold">A practice game</h3>
+				<GameSetupPanel
+					name="preview-practice-{theme}"
+					timeGroups={PRACTICE_TIMES}
+					bind:time={setup.practice.time}
+					colorValues={SEATS}
+					bind:color={setup.practice.color}
+					rating="unrated"
+					actionLabel="Start game"
+					onstart={() => {}}
+				/>
+			</Card>
+			<Card as="section" aria-label="Setup: a game by link" class="flex flex-col gap-4">
+				<h3 class="m-0 text-base font-bold">A game by link</h3>
+				<GameSetupPanel
+					name="preview-friend-{theme}"
+					timeGroups={timeControlChoices()}
+					bind:time={setup.friend.time}
+					colorValues={SEATS}
+					bind:color={setup.friend.color}
+					rating="casual"
+					actionLabel="Create game"
+					onstart={() => {}}
+					error="Live play is unavailable right now — try again in a minute."
+				/>
+			</Card>
+			<Card as="section" aria-label="Setup: an open table" class="flex flex-col gap-4">
+				<h3 class="m-0 text-base font-bold">An open table</h3>
+				<GameSetupPanel
+					name="preview-table-{theme}"
+					timeGroups={timeControlChoices()}
+					bind:time={setup.table.time}
+					rating="choice"
+					bind:rated={setup.table.rated}
+					actionLabel="Open a table"
+					busyLabel="Opening…"
+					busy
+					onstart={() => {}}
+				/>
 			</Card>
 		</div>
 	</PageContainer>

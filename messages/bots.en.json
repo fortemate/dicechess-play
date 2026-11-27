@@ -11,5 +11,12 @@
 	"bots_toast_capacity_updated": "Bot capacity updated.",
 	"bots_toast_owner_capacity_updated": "Capacity updated.",
 	"bots_toast_token_rotated": "Rotated bot token.",
-	"bots_toast_bot_released": "Bot released."
+	"bots_toast_bot_released": "Bot released.",
+	"bots_challenge_play": "Play →",
+	"bots_challenge_waking": "Waking the bot…",
+	"bots_challenge_retry": "Try again",
+	"bots_challenge_dead": "This bot isn't answering right now.",
+	"bots_challenge_busy": "This bot is playing right now — try again in a few minutes.",
+	"bots_challenge_start": "Start game",
+	"bots_challenge_starting": "Starting…"
 }
