@@ -3,6 +3,7 @@
 	import { afterNavigate, goto } from '$app/navigation';
 	import { resolve } from '$app/paths';
 	import { m } from '#lib/paraglide/messages.js';
+	import { themeStore } from '#lib/stores/themeStore.svelte.js';
 	import ShowcaseMark from '../components/showcase/ShowcaseMark.svelte';
 
 	const storeUrl = 'https://www.amazon.com/dp/B0HL6K9N47/';
@@ -21,14 +22,11 @@
 		}
 	});
 
-	onMount(() => {
-		const themeColor = document.querySelector<HTMLMetaElement>('#theme-color-meta');
-		const previousColor = themeColor?.content;
-		if (themeColor) themeColor.content = '#10251f';
-		return () => {
-			if (themeColor && previousColor) themeColor.content = previousColor;
-		};
-	});
+	// The storefront paints its own background, so it holds the browser-chrome colour while it is
+	// shown. Through the store rather than by writing the meta directly: the store rewrites the
+	// meta whenever the system setting changes, and a colour saved here on mount would be stale by
+	// the time it is put back.
+	onMount(() => themeStore.holdThemeColor('#10251f'));
 </script>
 
 <svelte:head>

@@ -1,3 +1,8 @@
 {
-	"$schema": "https://inlang.com/schema/inlang-message-format"
+	"$schema": "https://inlang.com/schema/inlang-message-format",
+	"nav_theme_label": "Theme",
+	"nav_theme_current": "Theme: {choice}",
+	"nav_theme_system": "System",
+	"nav_theme_light": "Light",
+	"nav_theme_dark": "Dark"
 }

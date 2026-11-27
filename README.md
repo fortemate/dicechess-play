@@ -24,8 +24,8 @@ account for a rating.
 
 SvelteKit 3 · Svelte 5 (runes) · Tailwind 4 · `adapter-static` (SPA, `ssr=false`) · PWA
 (`@vite-pwa/sveltekit`). Game rules come from one place — the `@fortemate/dicechess-engine`
-(Scala.js) artifact, pinned in `package.json`. Theme system (7 themes) is shared with
-`dicechess-analytics-ui`.
+(Scala.js) artifact, pinned in `package.json`. The site has a light and a dark theme and follows the
+system setting unless the visitor picks one (`src/lib/appearance.ts`).
 
 ## Getting started
 
@@ -138,7 +138,7 @@ src/
 │                              management, keyed per bot so a staged secret cannot outlive it (#48)
 ├── components/                shared UI
 │   ├── Board.svelte           thin chessground wrapper driven by either game store
-│   ├── GameShell              game navigation, themes, identity and onboarding
+│   ├── GameShell              game navigation, appearance, identity and onboarding
 │   ├── GameHub                the ways-to-start-a-game cards on /play
 │   ├── lib/Chessground.svelte
 │   ├── PlayerStrip · DicePanel · MoveHistory · GameEndModal · BotBadge · PawnPromotionSelector
@@ -234,7 +234,8 @@ src/
 │   ├── stats/                 playerRecord (local W-D-L) · lobbyRecord (play-api opponents
 │   │                          aggregate + /me's "In the lobby" label/link helpers, head-to-head
 │   │                          lookup by ?vs=)
-│   ├── stores/                singleton rune stores (themeStore 7 themes · localGamesStore ·
+│   ├── stores/                singleton rune stores (themeStore, the light/dark/system appearance
+│   │                          applied to the page · localGamesStore ·
 │   │                          playerGamesStore + myGamesStore (paginated, keyset `before` cursor,
 │   │                          #150; guest record vs the signed-in union — /games picks by auth
 │   │                          status, #229) ·
@@ -246,6 +247,10 @@ src/
 │   ├── utils/                 getPieceImage (piece sprite paths) · logger (DEV-gated console)
 │   ├── localGamesDB.ts        IndexedDB via idb (sync_status: pending → synced | quarantined)
 │   ├── timings.ts             presentation pacing shared by BOTH game surfaces — never fork per surface
+│   ├── appearance.ts          the appearance model (#249): preference system | light | dark, the
+│   │                          migration of stored legacy themes, each theme's browser-chrome
+│   │                          colour. app.html's inline bootstrap repeats it before first paint;
+│   │                          src/appearanceBootstrap.test.ts fails when the two drift apart
 │   ├── staleBundleRecovery.ts one-shot reload when a mid-session deploy breaks a lazy chunk import
 │   ├── sentryFilters.ts       `beforeSend`: drops the chunk failure the reload above is about to fix
 │   ├── sentryReplay.ts        Session Replay, dynamically imported so it stays out of the entry chunk
