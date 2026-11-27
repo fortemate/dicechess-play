@@ -1,25 +1,15 @@
-import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
+import { afterEach, describe, expect, it, vi } from 'vitest';
 import { cleanup, fireEvent, render } from '@testing-library/svelte';
-
-const prefs = vi.hoisted(() => ({
-	preferencesStore: {
-		soundEnabled: true,
-		setSoundEnabled: vi.fn(),
-	},
-}));
-vi.mock('#lib/preferencesStore.svelte.js', () => prefs);
+import { tick } from 'svelte';
 
 import GameFrameHarness from './GameFrameHarness.svelte';
 
 // The frame of a game (#255) is layout: where the board, the rail and the actions go. jsdom does
 // no layout, so these tests pin what can be pinned without one: every part the page hands over
 // is rendered exactly once and in reading order, the top bar offers leave and sound by name, and
-// the move sheet of a phone opens and closes through the hooks the frame hands back.
+// the move sheet of a phone opens and closes through the hooks the frame hands back, taking
+// keyboard focus with it. The frame reads no store, so nothing has to be mocked.
 
-beforeEach(() => {
-	prefs.preferencesStore.soundEnabled = true;
-	prefs.preferencesStore.setSoundEnabled.mockClear();
-});
 afterEach(() => cleanup());
 
 describe('GameFrame', () => {
@@ -54,24 +44,22 @@ describe('GameFrame', () => {
 	});
 
 	describe('sound', () => {
-		it('says whether sound is on and switches it', async () => {
-			const { getByRole } = render(GameFrameHarness, { onleave: vi.fn() });
+		it('says that the sound of the page is on and asks the page to switch it', async () => {
+			const onsound = vi.fn();
+			const { getByRole } = render(GameFrameHarness, { onleave: vi.fn(), onsound });
 			const sound = getByRole('button', { name: 'Sound effects' });
 			expect(sound.getAttribute('aria-pressed')).toBe('true');
 			expect(sound.getAttribute('title')).toBe('Sound on');
 			expect(sound.className).toContain('min-h-11');
 			await fireEvent.click(sound);
-			expect(prefs.preferencesStore.setSoundEnabled).toHaveBeenCalledExactlyOnceWith(false);
+			expect(onsound).toHaveBeenCalledTimes(1);
 		});
 
-		it('offers to switch it back on when it is off', async () => {
-			prefs.preferencesStore.soundEnabled = false;
-			const { getByRole } = render(GameFrameHarness, { onleave: vi.fn() });
+		it('says so when it is off', () => {
+			const { getByRole } = render(GameFrameHarness, { onleave: vi.fn(), soundEnabled: false });
 			const sound = getByRole('button', { name: 'Sound effects' });
 			expect(sound.getAttribute('aria-pressed')).toBe('false');
 			expect(sound.getAttribute('title')).toBe('Sound off');
-			await fireEvent.click(sound);
-			expect(prefs.preferencesStore.setSoundEnabled).toHaveBeenCalledExactlyOnceWith(true);
 		});
 	});
 
@@ -112,6 +100,36 @@ describe('GameFrame', () => {
 			await fireEvent.click(getByTestId('close'));
 			expect(toggle.textContent?.trim()).toBe('closed');
 			expect(panel.className).toContain('max-md:hidden');
+		});
+
+		it('moves keyboard focus into the sheet and back to the button that opened it', async () => {
+			// The list precedes the button in the page: without this a keyboard user would tab
+			// past what they just opened, and closing would leave focus on a hidden button.
+			const { getByTestId } = render(GameFrameHarness, { onleave: vi.fn() });
+			const toggle = getByTestId('toggle');
+			toggle.focus();
+
+			await fireEvent.click(toggle);
+			await tick();
+			expect(document.activeElement).toBe(getByTestId('close'));
+
+			await fireEvent.click(getByTestId('close'));
+			await tick();
+			expect(document.activeElement).toBe(toggle);
+		});
+
+		it('starts the next game on the same page with the sheet closed', async () => {
+			// A rematch, or a spectator following one, reuses the page for another game.
+			const view = render(GameFrameHarness, { onleave: vi.fn(), gameKey: 'game-a' });
+			const toggle = view.getByTestId('toggle');
+			await fireEvent.click(toggle);
+			expect(toggle.textContent?.trim()).toBe('open');
+
+			await view.rerender({ onleave: vi.fn(), gameKey: 'game-a' });
+			expect(toggle.textContent?.trim()).toBe('open');
+
+			await view.rerender({ onleave: vi.fn(), gameKey: 'game-b' });
+			expect(view.getByTestId('toggle').textContent?.trim()).toBe('closed');
 		});
 
 		it('toggles closed from the same button that opened it', async () => {

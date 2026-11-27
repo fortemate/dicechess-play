@@ -8,11 +8,22 @@
 	interface Props {
 		leaveHref?: string;
 		onleave?: () => void;
+		soundEnabled?: boolean;
+		onsound?: () => void;
+		gameKey?: string;
 		withStatus?: boolean;
 		withActions?: boolean;
 	}
 
-	let { leaveHref, onleave, withStatus = false, withActions = true }: Props = $props();
+	let {
+		leaveHref,
+		onleave,
+		soundEnabled = true,
+		onsound = () => {},
+		gameKey,
+		withStatus = false,
+		withActions = true,
+	}: Props = $props();
 </script>
 
 {#snippet status()}<span data-testid="status">Reconnecting…</span>{/snippet}
@@ -31,6 +42,8 @@
 	title="Greedy · level 3"
 	{leaveHref}
 	{onleave}
+	sound={{ enabled: soundEnabled, toggle: onsound }}
+	{gameKey}
 	status={withStatus ? status : undefined}
 	actions={withActions ? actions : undefined}
 >

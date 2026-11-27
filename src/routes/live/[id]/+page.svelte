@@ -36,6 +36,7 @@
 		seatDisplaySub,
 		seatRating,
 	} from '#lib/live/playerLabel.js';
+	import { preferencesStore } from '#lib/preferencesStore.svelte.js';
 	import { preloadSounds } from '#lib/sound.js';
 	import { endReasonLabel } from '#lib/gameOutcome.js';
 	import { toastStore } from '#lib/toastStore.svelte.js';
@@ -542,14 +543,6 @@
 
 	$effect(() => () => clearTimeout(resignTimeout));
 
-	// What the resign button says to assistive technology and in its tooltip.
-	const resignLabel = $derived(
-		live.connection !== 'open'
-			? m.game_resign_label_disconnected()
-			: confirmResign
-				? m.game_resign_label_confirm()
-				: m.game_action_resign(),
-	);
 	// What this game is, for the top bar of the frame.
 	const frameTitle = $derived(
 		m.game_live_title({ white: seatName('White'), black: seatName('Black') }),
@@ -612,7 +605,15 @@
 	{@render endActions()}
 </GameEndModal>
 
-<GameFrame title={frameTitle} leaveHref={resolve('lobby')}>
+<GameFrame
+	title={frameTitle}
+	leaveHref={resolve('lobby')}
+	sound={{
+		enabled: preferencesStore.soundEnabled,
+		toggle: () => preferencesStore.setSoundEnabled(!preferencesStore.soundEnabled),
+	}}
+	gameKey={page.params.id}
+>
 	{#snippet status()}
 		<!-- A dropped connection is otherwise invisible whenever dice are on the table. -->
 		{#if connectionBadge}
@@ -781,11 +782,11 @@
 			resign={live.canResign
 				? {
 						armed: confirmResign,
-						label: resignLabel,
 						armedText: live.doubling
 							? m.game_resign_confirm_stake({ stake: live.doubling.currentStake })
 							: undefined,
 						disabled: live.connection !== 'open',
+						disabledReason: m.game_resign_label_disconnected(),
 						onpress: resign,
 						onblur: disarmResign,
 					}

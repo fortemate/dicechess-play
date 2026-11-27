@@ -324,7 +324,14 @@
 		/>
 	</section>
 {:else}
-	<GameFrame title={frameTitle} onleave={() => store.endSession()}>
+	<GameFrame
+		title={frameTitle}
+		onleave={() => store.endSession()}
+		sound={{
+			enabled: preferencesStore.soundEnabled,
+			toggle: () => preferencesStore.setSoundEnabled(!preferencesStore.soundEnabled),
+		}}
+	>
 		{#snippet top()}
 			<PlayerStrip
 				name={botName}
@@ -434,13 +441,7 @@
 							label: drawLabel,
 							ontoggle: () => store.toggleArmDrawOffer(),
 						}}
-				resign={isOver
-					? undefined
-					: {
-							armed: confirmResign,
-							label: confirmResign ? m.game_resign_label_confirm() : m.game_action_resign(),
-							onpress: resign,
-						}}
+				resign={isOver ? undefined : { armed: confirmResign, onpress: resign }}
 			/>
 		{/snippet}
 	</GameFrame>

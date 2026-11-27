@@ -135,7 +135,6 @@
 	"game_draw_label_forbidden_bot": "The bot offers the next draw",
 	"game_draw_label_available_one": "Draw offer available in 1 turn",
 	"game_draw_label_available_many": "Draw offer available in {turns} turns",
-	"game_resign_label_confirm": "Click again to confirm resignation",
 	"game_practice_title": "Practice game",
 	"game_practice_opponent": "Opponent",
 	"game_practice_bot_label": "{name}, level {level}",

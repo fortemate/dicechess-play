@@ -86,9 +86,7 @@ test('a new production build waits until the active practice game ends', async (
 		await page.evaluate(async () => !!(await navigator.serviceWorker.getRegistration())?.waiting),
 	).toBe(true);
 	await page.getByRole('button', { name: 'Resign', exact: true }).click();
-	await page
-		.getByRole('button', { name: 'Click again to confirm resignation', exact: true })
-		.click();
+	await page.getByRole('button', { name: 'Press again to resign', exact: true }).click();
 	await expect
 		.poll(() => page.evaluate(() => sessionStorage.getItem('pwa-reload-count')).catch(() => null))
 		.toBe('1');

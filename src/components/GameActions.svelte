@@ -7,9 +7,11 @@
 	// "Resign" is waiting for the second. The two-press confirmation and its timing constant
 	// (`RESIGN_CONFIRM_MS`) stay in the pages, where they were.
 	//
-	// Each button shows a short text and carries the page's full sentence as its accessible name
-	// and tooltip. The short text is part of that sentence wherever the button can be pressed, so
-	// what a visitor reads is what a screen reader or a voice command finds.
+	// What a visitor reads on a button is what a screen reader or a voice command finds. The draw
+	// button shows a short text and carries the page's full sentence as its accessible name and
+	// tooltip; the short text is the start of that sentence. The resign button is named by its
+	// own visible text, in both of its states, and only takes a different name when it cannot
+	// be pressed and has to say why.
 	//
 	// Leave a control out to hide it: a spectator gets no draw and no resign button.
 	import { m } from '#lib/paraglide/messages.js';
@@ -30,11 +32,12 @@
 		resign?: {
 			/** The first press was made and the second is awaited. */
 			armed: boolean;
-			/** The accessible name and the tooltip. */
-			label: string;
 			/** Text of the armed button, when the page has more to say than "Press again to resign". */
 			armedText?: string;
 			disabled?: boolean;
+			/** Why the button is disabled; its accessible name and tooltip while it is. It must
+			 * contain the word on the button ("Resign unavailable while disconnected"). */
+			disabledReason?: string;
 			onpress: () => void;
 			/** Lets the page take the first press back when focus leaves the button. */
 			onblur?: () => void;
@@ -86,8 +89,8 @@
 				variant="danger"
 				filled={resign.armed}
 				class={WRAP}
-				aria-label={resign.label}
-				title={resign.label}
+				aria-label={resign.disabled ? resign.disabledReason : undefined}
+				title={resign.disabled ? resign.disabledReason : undefined}
 				disabled={resign.disabled}
 				onclick={resign.onpress}
 				onblur={resign.onblur}

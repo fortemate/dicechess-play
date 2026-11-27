@@ -16,7 +16,6 @@ const draw = (overrides = {}) => ({
 });
 const resign = (overrides = {}) => ({
 	armed: false,
-	label: 'Resign',
 	onpress: vi.fn(),
 	...overrides,
 });
@@ -108,26 +107,37 @@ describe('GameActions', () => {
 	});
 
 	describe('the resign button', () => {
-		it('is outlined at rest and filled once armed, with the words for the second press', () => {
+		it('is outlined at rest and filled once armed', () => {
 			const resting = render(GameActions, { resign: resign() });
 			const button = resting.getByRole('button', { name: 'Resign' });
-			expect(button.textContent?.trim()).toBe('Resign');
 			expect(button.className).not.toContain('text-danger-content');
 			resting.unmount();
 
-			const armed = render(GameActions, {
-				resign: resign({ armed: true, label: 'Click again to confirm resignation' }),
-			});
-			const again = armed.getByRole('button', { name: 'Click again to confirm resignation' });
-			expect(again.textContent?.trim()).toBe('Press again to resign');
-			expect(again.className).toContain('bg-danger text-danger-content');
+			const armed = render(GameActions, { resign: resign({ armed: true }) });
+			expect(armed.getByRole('button').className).toContain('bg-danger text-danger-content');
 		});
 
-		it('shows the words of the page when armed, e.g. what resigning costs', () => {
+		it('is named by the words it shows, at rest and armed', () => {
+			// What a visitor reads is what a voice command or a screen reader finds (WCAG 2.5.3):
+			// no separate name that says something else than the button.
+			const resting = render(GameActions, { resign: resign() });
+			const button = resting.getByRole('button', { name: 'Resign' });
+			expect(button.textContent?.trim()).toBe('Resign');
+			expect(button.hasAttribute('aria-label')).toBe(false);
+			resting.unmount();
+
+			const armed = render(GameActions, { resign: resign({ armed: true }) });
+			const again = armed.getByRole('button', { name: 'Press again to resign' });
+			expect(again.textContent?.trim()).toBe('Press again to resign');
+			expect(again.hasAttribute('aria-label')).toBe(false);
+		});
+
+		it('is named by the words of the page when armed with them, e.g. what resigning costs', () => {
 			const { getByRole } = render(GameActions, {
 				resign: resign({ armed: true, armedText: 'Press again to resign (−2)' }),
 			});
-			expect(getByRole('button').textContent?.trim()).toBe('Press again to resign (−2)');
+			const button = getByRole('button', { name: 'Press again to resign (−2)' });
+			expect(button.textContent?.trim()).toBe('Press again to resign (−2)');
 		});
 
 		it('reports every press and a loss of focus to the page, which owns the confirmation', async () => {
@@ -142,17 +152,29 @@ describe('GameActions', () => {
 			expect(onblur).toHaveBeenCalledTimes(1);
 		});
 
-		it('cannot be pressed while disconnected, and says why', () => {
+		it('cannot be pressed while disconnected, and says why in a name that contains its text', () => {
 			const onpress = vi.fn();
 			const { getByRole } = render(GameActions, {
-				resign: resign({ disabled: true, label: 'Resign unavailable while disconnected', onpress }),
+				resign: resign({
+					disabled: true,
+					disabledReason: 'Resign unavailable while disconnected',
+					onpress,
+				}),
 			});
 			const button = getByRole('button', {
 				name: 'Resign unavailable while disconnected',
 			}) as HTMLButtonElement;
+			expect(button.textContent?.trim()).toBe('Resign');
 			expect(button.disabled).toBe(true);
 			button.click();
 			expect(onpress).not.toHaveBeenCalled();
+		});
+
+		it('keeps the reason to itself while the button can be pressed', () => {
+			const { getByRole } = render(GameActions, {
+				resign: resign({ disabledReason: 'Resign unavailable while disconnected' }),
+			});
+			expect(getByRole('button', { name: 'Resign' }).hasAttribute('title')).toBe(false);
 		});
 	});
 
