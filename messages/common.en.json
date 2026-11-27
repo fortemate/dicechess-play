@@ -56,5 +56,11 @@
 	"common_rating_algorithm_version_unknown": "Algorithm version not reported",
 	"common_rating_seat_rating_aria": "Competitive rating {rating} at game start. Uncertainty and epoch not reported.",
 	"common_rating_game_details": "Game details",
-	"common_rating_game_details_context": "Game details against {opponent}, finished {finishedAt}"
+	"common_rating_game_details_context": "Game details against {opponent}, finished {finishedAt}",
+	"common_setup_time_control": "Time control",
+	"common_setup_color": "Your color",
+	"common_setup_color_random": "Random",
+	"common_setup_color_drawn": "Your color is drawn when someone sits down.",
+	"common_setup_note_casual": "A game by link is casual: it does not change ratings.",
+	"common_setup_note_unrated": "A practice game is not rated."
 }

@@ -1,10 +1,12 @@
 import { describe, expect, it } from 'vitest';
 import { RATING_CATEGORY_LABELS, ratingCategoryOf } from './ratingCategory';
 import {
+	botTimeControlChoices,
 	botTimeControlPresets,
 	defaultBotTimeControlIndex,
 	findDefaultBotTimeControlIndex,
 	parseGameResultsTimeControl,
+	timeControlChoices,
 	timeControlGroups,
 	timeControlLabel,
 	timeControlPresets,
@@ -136,5 +138,33 @@ describe('timeControlGroups', () => {
 				expect(timeControlPresets[e.index]).toBe(e.preset);
 			}
 		}
+	});
+});
+
+describe('setup-panel rows', () => {
+	// The pages keep their selection as an index into the preset list and send
+	// `presets[index].value`. A row that pointed a label at the wrong index would start a game
+	// with a different clock than the one the visitor chose, so each label must lead back to
+	// its own preset.
+	it('lists every lobby preset once, under its rating category, keyed by its own index', () => {
+		const rows = timeControlChoices();
+		expect(rows.map((row) => row.label)).toEqual(timeControlGroups.map((group) => group.label));
+
+		const options = rows.flatMap((row) => row.options);
+		expect(options.map((option) => option.value).sort((a, b) => a - b)).toEqual(
+			timeControlPresets.map((_, index) => index),
+		);
+		for (const option of options) {
+			expect(option.label).toBe(timeControlPresets[option.value].label);
+		}
+	});
+
+	it('lists the catalog-bot presets as one row without a heading, in their own order', () => {
+		const rows = botTimeControlChoices();
+		expect(rows).toHaveLength(1);
+		expect(rows[0].label).toBeUndefined();
+		expect(rows[0].options).toEqual(
+			botTimeControlPresets.map((preset, index) => ({ value: index, label: preset.label })),
+		);
 	});
 });

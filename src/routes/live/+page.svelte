@@ -4,17 +4,14 @@
 	import { createGame, isLiveEnabled } from '#lib/live/liveApi.js';
 	import { buildJoinUrl, resolveSeats } from '#lib/live/seatLink.js';
 	import { getGuestUuid } from '#lib/ingest/guestIdentity.js';
-	import { timeControlPresets } from '#lib/live/timeControls.js';
+	import { timeControlChoices, timeControlPresets } from '#lib/live/timeControls.js';
 	import { SEAT_LABELS } from '#lib/live/playerLabel.js';
-	import TimeControlPicker from '../../components/TimeControlPicker.svelte';
+	import GameSetupPanel from '../../components/GameSetupPanel.svelte';
 	import type { Seat } from '#lib/live/liveTypes.js';
 
 	type ColorChoice = Seat | 'random';
-	const colorOptions: readonly { value: ColorChoice; label: string }[] = [
-		{ value: 'random', label: 'Random' },
-		{ value: 'White', label: SEAT_LABELS.White },
-		{ value: 'Black', label: SEAT_LABELS.Black },
-	];
+	// The setup panel speaks of three colours; `resolveSeats` takes a seat or 'random'.
+	const COLOR_VALUES = { random: 'random', white: 'White', black: 'Black' } as const;
 
 	let creating = $state(false);
 	let error = $state<string | null>(null);
@@ -78,38 +75,20 @@
 		<p class="text-content-muted">
 			Create a game, send the link to your opponent, and open your board.
 		</p>
-		<fieldset class="flex flex-col gap-2">
-			<legend class="text-sm font-bold text-content-muted pb-1">Your color</legend>
-			<div class="flex gap-2">
-				{#each colorOptions as opt (opt.value)}
-					<label
-						class="flex-1 cursor-pointer rounded-lg border px-3 py-2 text-center text-sm font-bold transition-colors focus-within:ring-2 focus-within:ring-primary/50
-							{preferredColor === opt.value
-							? 'border-primary bg-primary text-primary-content'
-							: 'border-border bg-surface text-content-muted hover:text-content'}"
-					>
-						<input
-							type="radio"
-							name="friendColor"
-							value={opt.value}
-							bind:group={preferredColor}
-							class="sr-only"
-						/>
-						{opt.label}
-					</label>
-				{/each}
-			</div>
-		</fieldset>
-		<TimeControlPicker bind:selected />
-		<button
-			type="button"
-			onclick={create}
-			disabled={creating}
-			class="px-6 py-3 rounded-xl bg-primary text-primary-content font-bold text-lg shadow-lg shadow-primary/30 hover:bg-primary-hover transition-colors disabled:opacity-60"
-		>
-			{creating ? 'Creating…' : 'Create game'}
-		</button>
-		{#if error}<p class="text-sm text-danger">{error}</p>{/if}
+		<!-- A game by link is always casual: both seats are registered to the creator. -->
+		<GameSetupPanel
+			name="friend"
+			timeGroups={timeControlChoices()}
+			bind:time={selected}
+			colorValues={COLOR_VALUES}
+			bind:color={preferredColor}
+			rating="casual"
+			actionLabel="Create game"
+			busyLabel="Creating…"
+			busy={creating}
+			onstart={create}
+			{error}
+		/>
 	{:else}
 		<p class="text-sm text-content-muted">
 			Time control: <span class="text-content font-bold">{chosenLabel}</span> · You play

@@ -2,6 +2,7 @@
 	/* eslint-disable local/no-untranslated-text -- i18n debt: not yet migrated (#8) */
 	import { onMount } from 'svelte';
 	import { playWithBotStore as store } from '#lib/playWithBot/index.js';
+	import GameSetupPanel from '../../components/GameSetupPanel.svelte';
 	import Board from '../../components/Board.svelte';
 	import MoveHistory from '../../components/MoveHistory.svelte';
 	import PawnPromotionSelector from '../../components/PawnPromotionSelector.svelte';
@@ -17,7 +18,9 @@
 	import { BOTS, PLAYABLE_BOTS } from '#lib/bots.js';
 	import { RESIGN_CONFIRM_MS } from '#lib/timings.js';
 
-	const COLORS = ['white', 'black', 'random'] as const;
+	type ColorChoice = 'random' | 'white' | 'black';
+	// The setup panel speaks of three colours, and so does the store: the values are the same.
+	const COLOR_VALUES = { random: 'random', white: 'white', black: 'black' } as const;
 
 	/** Bot-game time controls map onto the store's minutes-limit + seconds-bonus model.
 	 * Unlimited first: a casual bot game shouldn't surprise anyone with a flag fall.
@@ -44,9 +47,14 @@
 		{ label: '10 + 5', group: 'Rapid', limit: 10, bonus: 5 },
 		{ label: '15 + 10', group: 'Rapid', limit: 15, bonus: 10 },
 	];
+	// The rows of the setup panel: one per group, each choice keyed by its index in TIME_PRESETS.
 	const TIME_GROUPS = ['Casual', 'Blitz', 'Rapid'].map((g) => ({
 		label: g,
-		presets: TIME_PRESETS.map((p, index) => ({ ...p, index })).filter((p) => p.group === g),
+		options: TIME_PRESETS.map((p, index) => ({
+			value: index,
+			label: p.label,
+			group: p.group,
+		})).filter((p) => p.group === g),
 	}));
 
 	// Move history is on by default only where a third column fits.
@@ -64,12 +72,8 @@
 	};
 
 	let selectedAlgo = $state('greedy');
-	let selectedColor = $state<(typeof COLORS)[number]>(preferencesStore.playerColorPreference);
+	let selectedColor = $state<ColorChoice>(preferencesStore.playerColorPreference);
 	let selectedTime = $state(storedTimeIndex());
-	// Color/time live behind a disclosure so the default path is bot → Start game. It opens
-	// pre-expanded when a stored clock applies, keeping the never-an-unseen-clock rule intact
-	// (the collapsed summary also always shows the current color + time).
-	let settingsOpen = $state(storedTimeIndex() !== 0);
 	let showHistory = $state(wideScreen());
 	let confirmResign = $state(false);
 
@@ -354,94 +358,18 @@
 			{/each}
 		</div>
 
-		<button
-			type="button"
-			onclick={startGame}
-			class="px-6 py-3 rounded-xl bg-primary text-primary-content font-bold text-lg shadow-lg shadow-primary/30 hover:bg-primary-hover transition-colors"
-		>
-			Start game
-		</button>
-
-		<div class="flex flex-col gap-3">
-			<button
-				type="button"
-				onclick={() => (settingsOpen = !settingsOpen)}
-				aria-expanded={settingsOpen}
-				aria-controls={settingsOpen ? 'game-settings' : undefined}
-				class="flex items-center justify-between rounded-lg border border-border bg-surface px-4 py-2.5 text-sm font-bold text-content-muted transition-colors hover:text-content"
-			>
-				<span>Game settings</span>
-				<span class="flex items-center gap-2 text-xs font-semibold">
-					<span class="capitalize tabular-nums">{selectedColor} · {timeLabel}</span>
-					<svg
-						viewBox="0 0 24 24"
-						class="h-4 w-4 transition-transform {settingsOpen ? 'rotate-180' : ''}"
-						fill="none"
-						stroke="currentColor"
-						stroke-width="2"
-						stroke-linecap="round"
-						stroke-linejoin="round"
-						aria-hidden="true"
-					>
-						<path d="M6 9l6 6 6-6" />
-					</svg>
-				</span>
-			</button>
-
-			{#if settingsOpen}
-				<div id="game-settings" class="flex flex-col gap-6 rounded-lg border border-border p-4">
-					<div class="flex flex-col gap-2">
-						<span class="text-sm font-bold text-content-muted">Your color</span>
-						<div class="flex gap-2">
-							{#each COLORS as color (color)}
-								<button
-									type="button"
-									onclick={() => (selectedColor = color)}
-									aria-pressed={selectedColor === color}
-									class="flex-1 px-3 py-2 rounded-lg border capitalize transition-colors {selectedColor ===
-									color
-										? 'border-primary bg-primary/10 text-content'
-										: 'border-border bg-surface text-content-muted hover:text-content'}"
-								>
-									{color}
-								</button>
-							{/each}
-						</div>
-					</div>
-
-					<fieldset class="flex flex-col gap-3">
-						<legend class="text-sm font-bold text-content-muted pb-2">Time control</legend>
-						{#each TIME_GROUPS as g (g.label)}
-							<div class="flex flex-col gap-1.5">
-								<span class="text-[10px] font-bold tracking-widest text-content-muted/80 uppercase">
-									{g.label}
-								</span>
-								<div class="flex flex-wrap gap-2">
-									{#each g.presets as p (p.label)}
-										<label
-											class="cursor-pointer rounded-lg border px-3 py-1.5 text-sm font-bold tabular-nums transition-colors focus-within:ring-2 focus-within:ring-primary/50
-												{selectedTime === p.index
-												? 'border-primary bg-primary text-primary-content'
-												: 'border-border bg-surface text-content-muted hover:text-content'}"
-										>
-											<input
-												type="radio"
-												name="botTimeControl"
-												value={p.index}
-												bind:group={selectedTime}
-												aria-label={p.label}
-												class="sr-only"
-											/>
-											{p.label}
-										</label>
-									{/each}
-								</div>
-							</div>
-						{/each}
-					</fieldset>
-				</div>
-			{/if}
-		</div>
+		<!-- The colour and the clock are always in view: a clock must never tick that the player
+		     did not see coming. A practice game is local and never rated. -->
+		<GameSetupPanel
+			name="practice"
+			timeGroups={TIME_GROUPS}
+			bind:time={selectedTime}
+			colorValues={COLOR_VALUES}
+			bind:color={selectedColor}
+			rating="unrated"
+			actionLabel="Start game"
+			onstart={startGame}
+		/>
 	</section>
 {:else}
 	<section class="w-full">

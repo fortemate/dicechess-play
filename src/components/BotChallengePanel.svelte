@@ -1,15 +1,18 @@
 <script lang="ts">
-	/* eslint-disable local/no-untranslated-text -- i18n debt: not yet migrated (#8) */
 	import { onDestroy } from 'svelte';
 	import { authStore } from '#lib/authStore.svelte.js';
 	import { getGuestUuid } from '#lib/ingest/guestIdentity.js';
 	import { wakeBot } from '#lib/catalog/catalogApi.js';
 	import { describeStartFailure, startBotGame } from '#lib/catalog/botChallenge.js';
 	import { rememberBotGame } from '#lib/catalog/lastBotGame.js';
-	import { botTimeControlPresets, defaultBotTimeControlIndex } from '#lib/live/timeControls.js';
+	import {
+		botTimeControlChoices,
+		botTimeControlPresets,
+		defaultBotTimeControlIndex,
+	} from '#lib/live/timeControls.js';
+	import { m } from '#lib/paraglide/messages.js';
 	import { preferencesStore } from '#lib/preferencesStore.svelte.js';
-	import BotTimeControlPicker from './BotTimeControlPicker.svelte';
-	import RatedChoice from './RatedChoice.svelte';
+	import GameSetupPanel from './GameSetupPanel.svelte';
 	import Spinner from './Spinner.svelte';
 
 	// The wake -> configure -> start flow for challenging a rated bot, shared by the catalog card
@@ -50,17 +53,18 @@
 		destroyed = true;
 	});
 
-	const colorOptions: readonly { value: ColorChoice; label: string }[] = [
-		{ value: 'random', label: 'Random' },
-		{ value: 'White', label: 'White' },
-		{ value: 'Black', label: 'Black' },
-	];
+	// The setup panel speaks of three colours; the request names a seat or leaves it out.
+	const COLOR_VALUES = { random: 'random', white: 'White', black: 'Black' } as const;
 
 	// Every non-config phase shares ONE button that stays in the same place (#219): a card that
 	// swapped the button out for a line of text read as a dead click, and the wake handshake can take
 	// several seconds against a scaled-to-zero bot. Label and styling change, the element does not.
 	const wakeLabel = $derived(
-		phase === 'waking' ? 'Waking the bot…' : phase === 'idle' ? 'Play →' : 'Try again',
+		phase === 'waking'
+			? m.bots_challenge_waking()
+			: phase === 'idle'
+				? m.bots_challenge_play()
+				: m.bots_challenge_retry(),
 	);
 	const wakeButtonTone = $derived(
 		phase === 'idle' || phase === 'waking'
@@ -132,11 +136,9 @@
 {#if phase === 'idle' || phase === 'waking' || phase === 'dead' || phase === 'busy'}
 	<div class="flex flex-col gap-2">
 		{#if phase === 'dead'}
-			<p class="text-sm text-danger" role="alert">This bot isn't answering right now.</p>
+			<p class="text-sm text-danger" role="alert">{m.bots_challenge_dead()}</p>
 		{:else if phase === 'busy'}
-			<p class="text-sm text-content-muted" role="status">
-				This bot is playing right now — try again in a few minutes.
-			</p>
+			<p class="text-sm text-content-muted" role="status">{m.bots_challenge_busy()}</p>
 		{/if}
 		<button
 			type="button"
@@ -151,52 +153,18 @@
 		</button>
 	</div>
 {:else}
-	<div class="flex flex-col gap-3">
-		<BotTimeControlPicker
-			presets={botTimeControlPresets}
-			name="botTimeControl-{team}-{name}"
-			bind:selected={selectedTimeControl}
-		/>
-
-		<fieldset class="flex flex-col gap-1.5">
-			<legend class="text-[10px] font-bold tracking-widest text-content-muted/80 uppercase">
-				Color
-			</legend>
-			<div class="flex flex-wrap gap-2">
-				{#each colorOptions as opt (opt.value)}
-					<label
-						class="cursor-pointer rounded-lg border px-3 py-1.5 text-sm font-bold transition-colors focus-within:ring-2 focus-within:ring-primary/50
-							{preferredColor === opt.value
-							? 'border-primary bg-primary text-primary-content'
-							: 'border-border bg-surface text-content-muted hover:text-content'}"
-					>
-						<input
-							type="radio"
-							name="preferredColor-{team}-{name}"
-							value={opt.value}
-							bind:group={preferredColor}
-							class="sr-only"
-						/>
-						{opt.label}
-					</label>
-				{/each}
-			</div>
-		</fieldset>
-
-		<RatedChoice bind:rated name="{team}-{name}" />
-
-		{#if error}<p class="text-sm text-danger" role="alert">{error}</p>{/if}
-
-		<button
-			type="button"
-			onclick={start}
-			disabled={phase === 'starting'}
-			aria-busy={phase === 'starting'}
-			aria-live="polite"
-			class="inline-flex items-center justify-center gap-2 rounded-xl bg-primary px-4 py-2 text-sm font-bold text-primary-content transition-colors hover:bg-primary-hover disabled:opacity-60"
-		>
-			{#if phase === 'starting'}<Spinner />{/if}
-			{phase === 'starting' ? 'Starting…' : 'Start game'}
-		</button>
-	</div>
+	<GameSetupPanel
+		name="{team}-{name}"
+		timeGroups={botTimeControlChoices()}
+		bind:time={selectedTimeControl}
+		colorValues={COLOR_VALUES}
+		bind:color={preferredColor}
+		rating="choice"
+		bind:rated
+		actionLabel={m.bots_challenge_start()}
+		busyLabel={m.bots_challenge_starting()}
+		busy={phase === 'starting'}
+		onstart={start}
+		{error}
+	/>
 {/if}

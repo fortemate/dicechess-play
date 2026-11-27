@@ -2,6 +2,7 @@
 	/* eslint-disable local/no-untranslated-text -- i18n debt: not yet migrated (#8) */
 	import { authStore } from '#lib/authStore.svelte.js';
 	import { m } from '#lib/paraglide/messages.js';
+	import ChoiceGroup from './ui/ChoiceGroup.svelte';
 
 	// The Rated/Casual choice for a game about to be started, shared by the catalog-bot panel and the
 	// lobby's open-a-table panel (play-api #279). Rated is the player's own call now, for any
@@ -13,7 +14,7 @@
 	// server quietly breaks — hence the sign-in gate, and the $effect that forces the flag back down
 	// if the visitor turns out not to be signed in after all.
 	//
-	// `name` exists for the same reason BotTimeControlPicker's does: native radios group
+	// `name` exists for the reason every radio group needs one (see ChoiceGroup): native radios group
 	// document-wide, and the catalog page mounts one of these per bot card.
 	interface Props {
 		/** The chosen mode. Casual by default, matching the server — rated is always opt-in. */
@@ -44,31 +45,10 @@
 </script>
 
 {#if authStore.status === 'signed-in'}
-	<fieldset class="flex flex-col gap-1.5">
-		<legend class="text-[10px] font-bold uppercase tracking-widest text-content-muted/80">
-			Rating
-		</legend>
-		<div class="flex flex-wrap gap-2">
-			{#each options as opt (opt.value)}
-				<label
-					class="cursor-pointer rounded-lg border px-3 py-1.5 text-sm font-bold transition-colors focus-within:ring-2 focus-within:ring-primary/50
-						{rated === opt.value
-						? 'border-primary bg-primary text-primary-content'
-						: 'border-border bg-surface text-content-muted hover:text-content'}"
-				>
-					<input
-						type="radio"
-						name="rated-{name}"
-						value={opt.value}
-						bind:group={rated}
-						class="sr-only"
-					/>
-					{opt.label}
-				</label>
-			{/each}
-		</div>
-		<p class="text-xs font-normal text-content-muted">{m.common_rating_choice_help()}</p>
-	</fieldset>
+	<div class="flex flex-col gap-2">
+		<ChoiceGroup legend="Rating" name="rated-{name}" {options} bind:value={rated} stretch />
+		<p class="m-0 text-xs font-normal text-content-muted">{m.common_rating_choice_help()}</p>
+	</div>
 {:else if authStore.status === 'signed-out' && authStore.canSignIn}
 	<!-- Say what will happen and how to change it, rather than hiding the feature: a visitor should
 	     learn rated play exists. While authStore is still 'loading' (or auth is unavailable) this
