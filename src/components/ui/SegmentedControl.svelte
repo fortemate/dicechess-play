@@ -48,7 +48,7 @@
 			aria-pressed={option.value === value}
 			{disabled}
 			onclick={() => pick(option.value)}
-			class="focus-ring min-h-11 min-w-11 flex-1 cursor-pointer rounded-[0.5rem] px-3 text-sm font-semibold transition-colors disabled:cursor-not-allowed disabled:opacity-50
+			class="focus-visible:focus-ring min-h-11 min-w-11 flex-1 cursor-pointer rounded-[0.5rem] px-3 text-sm font-semibold transition-colors disabled:cursor-not-allowed disabled:opacity-50
 				{option.value === value
 				? 'bg-primary text-primary-content'
 				: 'bg-transparent text-content hover:bg-surface'}"

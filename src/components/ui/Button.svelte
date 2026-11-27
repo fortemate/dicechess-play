@@ -55,7 +55,7 @@
 
 	const classes = $derived(
 		[
-			'focus-ring inline-flex min-w-11 cursor-pointer items-center justify-center gap-2 rounded-control border font-bold no-underline transition-colors',
+			'focus-visible:focus-ring inline-flex min-w-11 cursor-pointer items-center justify-center gap-2 rounded-control border font-bold no-underline transition-colors',
 			'disabled:cursor-not-allowed disabled:opacity-50',
 			SIZES[size],
 			variant === 'danger' && filled

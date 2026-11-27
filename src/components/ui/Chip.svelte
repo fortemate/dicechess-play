@@ -31,7 +31,7 @@
 	type="button"
 	aria-pressed={pressed}
 	{disabled}
-	class="focus-ring inline-flex min-h-11 min-w-11 cursor-pointer items-center justify-center gap-2 border px-4 text-sm font-semibold tabular-nums transition-colors disabled:cursor-not-allowed disabled:opacity-50
+	class="focus-visible:focus-ring inline-flex min-h-11 min-w-11 cursor-pointer items-center justify-center gap-2 border px-4 text-sm font-semibold tabular-nums transition-colors disabled:cursor-not-allowed disabled:opacity-50
 		{shape === 'pill' ? 'rounded-full' : 'rounded-control'}
 		{pressed
 		? 'border-primary bg-primary text-primary-content'
