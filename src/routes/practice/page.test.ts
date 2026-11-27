@@ -16,7 +16,7 @@ const stub = vi.hoisted(() => async () => ({
 	default: (await import('../live/[id]/ChildStub.test.svelte')).default,
 }));
 vi.mock('../../components/Board.svelte', stub);
-vi.mock('../../components/MoveHistory.svelte', stub);
+vi.mock('../../components/MoveList.svelte', stub);
 vi.mock('../../components/PlayerStrip.svelte', stub);
 vi.mock('../../components/PawnPromotionSelector.svelte', stub);
 vi.mock('../../components/GameEndModal.svelte', stub);

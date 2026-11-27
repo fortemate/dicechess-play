@@ -46,7 +46,7 @@ in `pathPattern` — inlang tooling writes exported messages back to the last en
 
 ### Migrating a component
 
-Import `m` and replace each user-facing string. `src/components/DicePanel.svelte` and
+Import `m` and replace each user-facing string. `src/components/TurnCard.svelte` and
 `src/components/WdlSummaryCard.svelte` are the reference implementations.
 
 ```svelte

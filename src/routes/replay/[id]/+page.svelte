@@ -14,7 +14,8 @@
 	import GameRatingContext from '../../../components/GameRatingContext.svelte';
 	import GameRatingResult from '../../../components/GameRatingResult.svelte';
 	import { formatDate } from '../../../utils/formatters';
-	import MoveHistory from '../../../components/MoveHistory.svelte';
+	import MoveList from '../../../components/MoveList.svelte';
+	import MoveStepper from '../../../components/MoveStepper.svelte';
 	import Chessground from '../../../components/lib/Chessground.svelte';
 	import type { Key } from '@lichess-org/chessground/types';
 	import '@lichess-org/chessground/assets/chessground.base.css';
@@ -298,46 +299,8 @@
 						/>
 					</div>
 
-					<div class="flex items-center justify-center gap-2 w-full">
-						<button
-							type="button"
-							aria-label="First move"
-							onclick={() => setMove(0)}
-							disabled={currentMoveIndex === 0}
-							class="px-3 py-2 rounded-lg bg-surface border border-border text-content font-bold hover:bg-surface-hover disabled:opacity-30 disabled:cursor-not-allowed transition-colors"
-						>
-							⏮
-						</button>
-						<button
-							type="button"
-							aria-label="Previous move"
-							onclick={() => setMove(currentMoveIndex - 1)}
-							disabled={currentMoveIndex === 0}
-							class="px-3 py-2 rounded-lg bg-surface border border-border text-content font-bold hover:bg-surface-hover disabled:opacity-30 disabled:cursor-not-allowed transition-colors"
-						>
-							◀
-						</button>
-						<span class="px-2 text-xs font-mono font-bold text-content-muted tabular-nums">
-							{currentMoveIndex} / {maxMoveIndex}
-						</span>
-						<button
-							type="button"
-							aria-label="Next move"
-							onclick={() => setMove(currentMoveIndex + 1)}
-							disabled={currentMoveIndex === maxMoveIndex}
-							class="px-3 py-2 rounded-lg bg-surface border border-border text-content font-bold hover:bg-surface-hover disabled:opacity-30 disabled:cursor-not-allowed transition-colors"
-						>
-							▶
-						</button>
-						<button
-							type="button"
-							aria-label="Last move"
-							onclick={() => setMove(maxMoveIndex)}
-							disabled={currentMoveIndex === maxMoveIndex}
-							class="px-3 py-2 rounded-lg bg-surface border border-border text-content font-bold hover:bg-surface-hover disabled:opacity-30 disabled:cursor-not-allowed transition-colors"
-						>
-							⏭
-						</button>
+					<div class="flex w-full items-center justify-center gap-2">
+						<MoveStepper {currentMoveIndex} {maxMoveIndex} onSetMove={(i) => setMove(i)} />
 						<button
 							type="button"
 							aria-label="Flip board"
@@ -350,7 +313,7 @@
 				</div>
 
 				<aside class="w-full lg:w-72 shrink-0 h-[420px] lg:h-[540px]">
-					<MoveHistory
+					<MoveList
 						{historyBlocks}
 						{currentMoveIndex}
 						{maxMoveIndex}

@@ -7,9 +7,10 @@
 	import Board from '../../../components/Board.svelte';
 	import PawnPromotionSelector from '../../../components/PawnPromotionSelector.svelte';
 	import PlayerStrip from '../../../components/PlayerStrip.svelte';
-	import DicePanel from '../../../components/DicePanel.svelte';
+	import TurnCard from '../../../components/TurnCard.svelte';
 	import PreRollDrawGate from '../../../components/PreRollDrawGate.svelte';
-	import MoveHistory from '../../../components/MoveHistory.svelte';
+	import MoveList from '../../../components/MoveList.svelte';
+	import MoveStepper from '../../../components/MoveStepper.svelte';
 	import GameEndModal from '../../../components/GameEndModal.svelte';
 	import BotRematchButton from '../../../components/BotRematchButton.svelte';
 	import RematchControl from '../../../components/RematchControl.svelte';
@@ -431,7 +432,7 @@
 
 	// A dropped connection is otherwise invisible whenever dice are on the table (statusText only
 	// surfaces via the dice panel's EMPTY state) — this badge is independent of dice/turn state.
-	// Skipped for the very first connect: DicePanel's "Connecting…" empty-state already covers it,
+	// Skipped for the very first connect: TurnCard's "Connecting…" empty-state already covers it,
 	// and the badge would be redundant before there's anything else on screen.
 	const connectionBadge = $derived.by(() => {
 		if (live.gameStatus === 'over') return null;
@@ -684,18 +685,19 @@
 			: ''}"
 	>
 		{#if showHistory}
-			<!-- On phones the history acts as a tab: it takes the board's slot and the
-			     board/dice hide. From md up it is an extra panel alongside the game. -->
+			<!-- On phones the move list is a sheet over the lower part of the screen, so the
+			     board stays in view. From md up it is an extra panel alongside the game. -->
 			<aside
 				id="move-history-panel"
-				class="order-2 h-[70dvh] md:order-none md:col-span-2 md:row-start-2 md:h-[320px] lg:sticky lg:top-4 lg:col-span-1 lg:col-start-1 lg:row-start-1 lg:h-[calc(100dvh-2rem)]"
+				class="fixed inset-x-0 bottom-0 z-40 h-[40dvh] md:static md:z-auto md:col-span-2 md:row-start-2 md:h-[320px] lg:sticky lg:top-4 lg:col-span-1 lg:col-start-1 lg:row-start-1 lg:h-[calc(100dvh-2rem)]"
 			>
-				<MoveHistory
+				<MoveList
 					historyBlocks={live.historyBlocks}
 					currentMoveIndex={live.currentMoveIndex}
 					maxMoveIndex={live.maxMoveIndex}
 					onSetMove={(i) => setMove(i)}
 					keyboardNavEnabled={live.gameStatus === 'over' || live.spectator}
+					onclose={() => (showHistory = false)}
 				/>
 			</aside>
 		{/if}
@@ -704,9 +706,9 @@
 		     its width; the board is width-capped by the column and height-capped by the
 		     screen minus the strips. -->
 		<div
-			class="order-2 min-w-0 justify-center md:order-none md:col-start-1 md:row-start-1 {showHistory
-				? 'hidden md:flex lg:col-start-2'
-				: 'flex'}"
+			class="order-2 min-w-0 justify-center md:order-none md:col-start-1 md:row-start-1 flex {showHistory
+				? 'lg:col-start-2'
+				: ''}"
 		>
 			<!-- Cap the board by the height left after the surrounding chrome (two player strips, the
 			     move-nav row, and — stacked below on phones — the turn line + dice panel), not just
@@ -755,48 +757,11 @@
 					</button>
 				{/if}
 
-				<!-- History navigation buttons under the board -->
-				<div class="flex items-center justify-center gap-2 w-full">
-					<button
-						type="button"
-						aria-label="First move"
-						onclick={() => setMove(0)}
-						disabled={live.currentMoveIndex === 0}
-						class="flex h-8 w-8 items-center justify-center rounded-lg bg-surface border border-border text-content hover:bg-surface-hover disabled:opacity-30 disabled:cursor-not-allowed transition-colors"
-					>
-						{@render iconBtn('first')}
-					</button>
-					<button
-						type="button"
-						aria-label="Previous move"
-						onclick={() => setMove(live.currentMoveIndex - 1)}
-						disabled={live.currentMoveIndex === 0}
-						class="flex h-8 w-8 items-center justify-center rounded-lg bg-surface border border-border text-content hover:bg-surface-hover disabled:opacity-30 disabled:cursor-not-allowed transition-colors"
-					>
-						{@render iconBtn('prev')}
-					</button>
-					<span class="px-2 text-xs font-mono font-bold text-content-muted tabular-nums">
-						{live.currentMoveIndex} / {live.maxMoveIndex}
-					</span>
-					<button
-						type="button"
-						aria-label="Next move"
-						onclick={() => setMove(live.currentMoveIndex + 1)}
-						disabled={live.currentMoveIndex === live.maxMoveIndex}
-						class="flex h-8 w-8 items-center justify-center rounded-lg bg-surface border border-border text-content hover:bg-surface-hover disabled:opacity-30 disabled:cursor-not-allowed transition-colors"
-					>
-						{@render iconBtn('next')}
-					</button>
-					<button
-						type="button"
-						aria-label="Last move"
-						onclick={() => setMove(live.maxMoveIndex)}
-						disabled={live.currentMoveIndex === live.maxMoveIndex}
-						class="flex h-8 w-8 items-center justify-center rounded-lg bg-surface border border-border text-content hover:bg-surface-hover disabled:opacity-30 disabled:cursor-not-allowed transition-colors"
-					>
-						{@render iconBtn('last')}
-					</button>
-				</div>
+				<MoveStepper
+					currentMoveIndex={live.currentMoveIndex}
+					maxMoveIndex={live.maxMoveIndex}
+					onSetMove={(i) => setMove(i)}
+				/>
 
 				<PlayerStrip
 					name={seatName(bottomSeat)}
@@ -988,7 +953,8 @@
 							onDecline={() => live.respondDraw(false)}
 						/>
 					{:else}
-						<DicePanel
+						<TurnCard
+							mine={myMove && !live.isViewingHistory}
 							dice={live.currentDice}
 							animating={live.isAnimatingRoll}
 							emptyText={live.currentDice.length === 0 ? statusText : undefined}

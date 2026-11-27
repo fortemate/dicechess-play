@@ -4,11 +4,12 @@
 	import { playWithBotStore as store } from '#lib/playWithBot/index.js';
 	import GameSetupPanel from '../../components/GameSetupPanel.svelte';
 	import Board from '../../components/Board.svelte';
-	import MoveHistory from '../../components/MoveHistory.svelte';
+	import MoveList from '../../components/MoveList.svelte';
+	import MoveStepper from '../../components/MoveStepper.svelte';
 	import PawnPromotionSelector from '../../components/PawnPromotionSelector.svelte';
 	import PlayerStrip from '../../components/PlayerStrip.svelte';
 	import GameEndModal from '../../components/GameEndModal.svelte';
-	import DicePanel from '../../components/DicePanel.svelte';
+	import TurnCard from '../../components/TurnCard.svelte';
 	import PreRollDrawGate from '../../components/PreRollDrawGate.svelte';
 	import { chromeStore } from '#lib/stores/chromeStore.svelte.js';
 	import { preferencesStore } from '#lib/preferencesStore.svelte.js';
@@ -379,17 +380,18 @@
 				: ''}"
 		>
 			{#if showHistory}
-				<!-- On phones the history acts as a tab: it takes the board's slot and the
-				     board/dice hide. From md up it is an extra panel alongside the game. -->
+				<!-- On phones the move list is a sheet over the lower part of the screen, so the
+				     board stays in view. From md up it is an extra panel alongside the game. -->
 				<aside
-					class="order-2 h-[70dvh] md:order-none md:col-span-2 md:row-start-2 md:h-[320px] lg:sticky lg:top-4 lg:col-span-1 lg:col-start-1 lg:row-start-1 lg:h-[calc(100dvh-2rem)]"
+					class="fixed inset-x-0 bottom-0 z-40 h-[40dvh] md:static md:z-auto md:col-span-2 md:row-start-2 md:h-[320px] lg:sticky lg:top-4 lg:col-span-1 lg:col-start-1 lg:row-start-1 lg:h-[calc(100dvh-2rem)]"
 				>
-					<MoveHistory
+					<MoveList
 						historyBlocks={store.historyBlocks}
 						currentMoveIndex={store.currentMoveIndex}
 						maxMoveIndex={store.maxMoveIndex}
 						onSetMove={(i) => store.setMoveIndex(i)}
 						keyboardNavEnabled={isOver}
+						onclose={() => (showHistory = false)}
 					/>
 				</aside>
 			{/if}
@@ -398,9 +400,9 @@
 			     its width; the board is width-capped by the column and height-capped by the
 			     screen minus the strips. -->
 			<div
-				class="order-2 min-w-0 justify-center md:order-none md:col-start-1 md:row-start-1 {showHistory
-					? 'hidden md:flex lg:col-start-2'
-					: 'flex'}"
+				class="order-2 min-w-0 justify-center md:order-none md:col-start-1 md:row-start-1 flex {showHistory
+					? 'lg:col-start-2'
+					: ''}"
 			>
 				<!-- Cap the board by the height left after the surrounding chrome (two player strips, the
 				     move-nav row, and — stacked below on phones — the turn line + dice panel), not just
@@ -438,48 +440,11 @@
 						{/if}
 					</div>
 
-					<!-- History navigation buttons under the board -->
-					<div class="flex items-center justify-center gap-2 w-full">
-						<button
-							type="button"
-							aria-label="First move"
-							onclick={() => store.setMoveIndex(0)}
-							disabled={store.currentMoveIndex === 0}
-							class="flex h-8 w-8 items-center justify-center rounded-lg bg-surface border border-border text-content hover:bg-surface-hover disabled:opacity-30 disabled:cursor-not-allowed transition-colors"
-						>
-							{@render iconBtn('first')}
-						</button>
-						<button
-							type="button"
-							aria-label="Previous move"
-							onclick={() => store.setMoveIndex(store.currentMoveIndex - 1)}
-							disabled={store.currentMoveIndex === 0}
-							class="flex h-8 w-8 items-center justify-center rounded-lg bg-surface border border-border text-content hover:bg-surface-hover disabled:opacity-30 disabled:cursor-not-allowed transition-colors"
-						>
-							{@render iconBtn('prev')}
-						</button>
-						<span class="px-2 text-xs font-mono font-bold text-content-muted tabular-nums">
-							{store.currentMoveIndex} / {store.maxMoveIndex}
-						</span>
-						<button
-							type="button"
-							aria-label="Next move"
-							onclick={() => store.setMoveIndex(store.currentMoveIndex + 1)}
-							disabled={store.currentMoveIndex === store.maxMoveIndex}
-							class="flex h-8 w-8 items-center justify-center rounded-lg bg-surface border border-border text-content hover:bg-surface-hover disabled:opacity-30 disabled:cursor-not-allowed transition-colors"
-						>
-							{@render iconBtn('next')}
-						</button>
-						<button
-							type="button"
-							aria-label="Last move"
-							onclick={() => store.setMoveIndex(store.maxMoveIndex)}
-							disabled={store.currentMoveIndex === store.maxMoveIndex}
-							class="flex h-8 w-8 items-center justify-center rounded-lg bg-surface border border-border text-content hover:bg-surface-hover disabled:opacity-30 disabled:cursor-not-allowed transition-colors"
-						>
-							{@render iconBtn('last')}
-						</button>
-					</div>
+					<MoveStepper
+						currentMoveIndex={store.currentMoveIndex}
+						maxMoveIndex={store.maxMoveIndex}
+						onSetMove={(i) => store.setMoveIndex(i)}
+					/>
 
 					<PlayerStrip
 						name="You"
@@ -578,9 +543,7 @@
 
 				{#if isOver}
 					<div
-						class="order-4 flex-col items-center gap-3 rounded-2xl border border-border bg-surface p-4 md:order-none md:flex-1 md:justify-center {showHistory
-							? 'hidden md:flex'
-							: 'flex'}"
+						class="order-4 flex-col items-center gap-3 rounded-2xl border border-border bg-surface p-4 md:order-none md:flex-1 md:justify-center flex"
 					>
 						<p class="text-lg font-bold text-content">
 							{#if store.gameStatus === 'victory'}You won! 🎉
@@ -606,11 +569,7 @@
 						</button>
 					</div>
 				{:else}
-					<div
-						class="order-4 md:order-none md:min-h-0 md:flex-1 md:flex-col {showHistory
-							? 'hidden md:flex'
-							: 'md:flex'}"
-					>
+					<div class="order-4 md:order-none md:flex md:min-h-0 md:flex-1 md:flex-col">
 						<!-- The gate takes the dice panel's slot rather than opening a modal: the board and
 						     its history nav stay live while the clock runs, which is what makes declining
 						     cheap enough to be the honest default. -->
@@ -622,7 +581,13 @@
 								onDecline={() => store.respondDraw(false)}
 							/>
 						{:else}
-							<DicePanel
+							<TurnCard
+								title={store.isViewingHistory
+									? undefined
+									: youActive
+										? 'Your turn'
+										: `${bot?.label ?? 'Bot'} is thinking`}
+								mine={youActive && !store.isViewingHistory}
 								dice={store.currentDice}
 								animating={store.isAnimatingRoll}
 								canRoll={store.canUserRoll && !preferencesStore.autoRollDice}

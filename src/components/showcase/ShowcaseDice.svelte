@@ -22,7 +22,7 @@
 	});
 
 	// A roll tumbles the dice once, staggered, on top of the already-revealed values — the
-	// same presentation as DicePanel on /live and /practice (shared keyframes in app.css).
+	// same presentation as TurnCard on /live and /practice (shared keyframes in app.css).
 	const rolling = $derived(
 		(state.kind === 'live-player' || state.kind === 'live-spectator') && state.rolling === true,
 	);

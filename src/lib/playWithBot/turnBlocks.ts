@@ -64,7 +64,7 @@ function recordMove(
 
 /**
  * Groups the flat index→state history map into per-turn visual blocks (white and
- * black columns) for MoveHistory.svelte.
+ * black columns) for MoveList.svelte.
  *
  * Pure and shared between live play ({@link BotMoveHistoryState} via
  * PlayWithBotHistory) and game replay so both render histories identically.
