@@ -19,6 +19,7 @@
 	import PlayFriend from '../../components/PlayFriend.svelte';
 	import PlayTables from '../../components/PlayTables.svelte';
 	import PageHeader from '../../components/ui/PageHeader.svelte';
+	import TabNav from '../../components/ui/TabNav.svelte';
 
 	type Tab = 'bot' | 'friend' | 'table';
 	const tab = $derived.by<Tab>(() => {
@@ -27,21 +28,28 @@
 	});
 	const preselect = $derived(page.url.searchParams.get('bot'));
 
-	const tabs = $derived([
-		{ id: 'bot', query: '', label: m.play_tab_bot(), short: m.play_tab_bot() },
-		{
-			id: 'friend',
-			query: '?tab=friend',
-			label: m.play_tab_friend(),
-			short: m.play_tab_friend_short(),
-		},
-		{
-			id: 'table',
-			query: '?tab=table',
-			label: m.play_tab_table(),
-			short: m.play_tab_table_short(),
-		},
-	] as const);
+	const tabs = $derived(
+		[
+			{ id: 'bot', query: '', label: m.play_tab_bot(), short: undefined },
+			{
+				id: 'friend',
+				query: '?tab=friend',
+				label: m.play_tab_friend(),
+				short: m.play_tab_friend_short(),
+			},
+			{
+				id: 'table',
+				query: '?tab=table',
+				label: m.play_tab_table(),
+				short: m.play_tab_table_short(),
+			},
+		].map((item) => ({
+			href: `${resolve('/play')}${item.query}`,
+			label: item.label,
+			short: item.short,
+			current: item.id === tab,
+		})),
+	);
 
 	const lead = $derived(
 		tab === 'friend' ? m.play_lead_friend() : tab === 'table' ? m.play_lead_table() : m.play_lead(),
@@ -75,28 +83,7 @@
 	<div class="flex flex-col gap-5">
 		<PageHeader title={m.play_title()} {lead} />
 
-		<!-- A track of three on a phone, a row of underlined tabs from the `sm` breakpoint. -->
-		<nav
-			aria-label={m.play_tabs_label()}
-			class="flex gap-1 rounded-xl bg-surface-hover p-1 sm:gap-6 sm:rounded-none sm:border-b sm:border-border sm:bg-transparent sm:p-0"
-		>
-			{#each tabs as item (item.id)}
-				<!-- The path is resolved; the rule does not see through the query added to it. -->
-				<!-- eslint-disable svelte/no-navigation-without-resolve -->
-				<a
-					href={`${resolve('/play')}${item.query}`}
-					aria-current={item.id === tab ? 'page' : undefined}
-					class="flex min-h-11 flex-1 items-center justify-center rounded-[0.5rem] px-2 text-center text-sm font-semibold transition-colors focus-visible:focus-ring sm:-mb-px sm:flex-none sm:rounded-none sm:border-b-2 sm:px-1 sm:text-base
-						{item.id === tab
-						? 'bg-surface text-content sm:border-primary sm:bg-transparent'
-						: 'text-content-muted hover:text-content sm:border-transparent'}"
-				>
-					<span class="sm:hidden">{item.short}</span>
-					<span class="max-sm:hidden">{item.label}</span>
-				</a>
-				<!-- eslint-enable svelte/no-navigation-without-resolve -->
-			{/each}
-		</nav>
+		<TabNav label={m.play_tabs_label()} items={tabs} />
 
 		{#if tab === 'friend'}
 			<PlayFriend />

@@ -120,6 +120,8 @@ src/
 │   ├── play/                  where a game starts (#257, #258): three tabs — a bot (one list of
 │   │                          bots; `?bot=` preselects one), a friend by link (`?tab=friend`),
 │   │                          an open table (`?tab=table`, with the wait on the board)
+│   ├── arena/                 the Arena overview (#259): one featured live game, six more, bots
+│   │                          waiting for an opponent and the top of the rating board
 │   ├── practice/              vs-bot game (client-authoritative; engine in a Web Worker)
 │   ├── lobby/                 seek list + live-board wall (polls play-api)
 │   ├── live/ · live/[id]/     friend-link entry · server-authoritative live board (WebSocket)
@@ -143,11 +145,13 @@ src/
 ├── components/                shared UI
 │   ├── ui/                    the interface primitives of the redesign (#252): Button, Chip,
 │   │                          SegmentedControl, ChoiceGroup (radios drawn as chips), Tag, Card,
-│   │                          PageHeader, PageContainer (one page
+│   │                          PageHeader, TabNav (the sections of a page as links), PageContainer (one page
 │   │                          width). No text of their own; at least 44 px tall; one focus ring.
 │   │                          PrimitivesPreview shows them all at /ui-preview, in the dev server only
 │   ├── Board.svelte           thin chessground wrapper driven by either game store
 │   ├── GameShell              game navigation, appearance, identity and onboarding
+│   ├── ArenaFeatured · ArenaGames · ArenaSeats · ArenaStandings — the four blocks of /arena
+│   │                          (#259); each draws what the page hands it
 │   ├── PlayFriend · PlayTables · OpenTableWaiting — the friend tab and the open-table tab of
 │   │                          /play (#258), and the wait at one's own table on the game frame,
 │   │                          shared with the lobby
@@ -195,6 +199,8 @@ src/
 │   ├── playWithBot/           bot-play core: store, engine worker, dice/history, opening book;
 │   │                          practiceSetup — the time controls and the start of a starter bot
 │   │                          game, shared by /play and /practice (#257)
+│   ├── arena/                 featured — which live game Arena features and when it gives way (a
+│   │                          pure rule); arenaFeed — the polling that keeps the overview current (#259)
 │   ├── play/                  botList — starter bots, catalog bots and bots at an open table as
 │   │                          one list; which are "Ready now"; filters; the bot of a link (#257)
 │   ├── rules/                 seo.ts — shared origins for the prerendered rules page's absolute

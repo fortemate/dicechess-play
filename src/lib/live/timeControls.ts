@@ -182,3 +182,12 @@ export function parseGameResultsTimeControl(raw: string): string {
 	if (perMove) return m.common_time_control_per_move({ seconds: perMove[1] });
 	return m.common_time_control_unlimited();
 }
+
+/** A time control with the speed it counts as: "Blitz 5 + 3". A control that belongs to no rating
+ * category (unlimited, a clock per move) is the plain label. Used wherever a game or a table is
+ * listed among others, where the speed is what a visitor scans for. */
+export function timeControlTerms(tc: TimeControl | null | undefined): string {
+	const category = ratingCategoryOf(tc);
+	const clock = timeControlLabel(tc);
+	return category ? `${RATING_CATEGORY_LABELS[category]} ${clock}` : clock;
+}
