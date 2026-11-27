@@ -287,7 +287,7 @@
 {#if bot}
 	<!-- Backdrop -->
 	<div
-		class="fixed inset-0 z-40 bg-black/50 backdrop-blur-sm transition-opacity"
+		class="fixed inset-0 z-40 bg-scrim/50 backdrop-blur-sm transition-opacity"
 		onclick={onClose}
 		role="presentation"
 	></div>
@@ -311,7 +311,7 @@
 					<b class="text-content">{wholeNumber.format(bot.rating)}</b> ±{wholeNumber.format(bot.rd)}
 					{#if bot.provisional}
 						<span
-							class="ml-1.5 rounded-full border border-amber-500/30 bg-amber-500/15 px-2 py-0.5 text-[10px] font-bold text-amber-500"
+							class="ml-1.5 rounded-full border border-badge-accent/30 bg-badge-accent/15 px-2 py-0.5 text-[10px] font-bold text-badge-accent"
 						>
 							Provisional
 						</span>
@@ -358,7 +358,7 @@
 				<span
 					class={`rounded-full border px-2.5 py-1 ${
 						bot.webhook
-							? 'border-emerald-500/30 bg-emerald-500/15 text-emerald-500'
+							? 'border-success/30 bg-success/15 text-success'
 							: 'border-border text-content-muted'
 					}`}
 				>
@@ -385,7 +385,7 @@
 					<span
 						class={`rounded-lg border px-2.5 py-1 text-xs font-mono font-bold ${
 							bot.activeGames >= bot.maxConcurrentGames
-								? 'border-amber-500/30 bg-amber-500/15 text-amber-500'
+								? 'border-badge-accent/30 bg-badge-accent/15 text-badge-accent'
 								: 'border-border bg-surface text-content'
 						}`}
 					>
@@ -536,7 +536,7 @@
 						type="button"
 						onclick={openRotation}
 						disabled={pending !== null}
-						class="rounded-lg border border-danger/30 bg-danger/10 px-3 py-1.5 text-xs font-bold text-danger transition-colors hover:bg-danger/20 disabled:cursor-not-allowed disabled:opacity-40"
+						class="rounded-lg border border-danger/30 bg-danger/10 px-3 py-1.5 text-xs font-bold text-danger transition-colors hover:bg-danger/15 disabled:cursor-not-allowed disabled:opacity-40"
 					>
 						Rotate token
 					</button>
@@ -572,7 +572,7 @@
 								<button
 									type="submit"
 									disabled={!confirmsBotName || pending !== null}
-									class="rounded-lg bg-danger px-3.5 py-1.5 text-xs font-bold text-white transition-opacity hover:opacity-90 disabled:cursor-not-allowed disabled:opacity-40"
+									class="rounded-lg bg-danger px-3.5 py-1.5 text-xs font-bold text-danger-content transition-opacity hover:opacity-90 disabled:cursor-not-allowed disabled:opacity-40"
 								>
 									{pending === 'rotate' ? 'Rotating…' : 'Confirm rotation'}
 								</button>

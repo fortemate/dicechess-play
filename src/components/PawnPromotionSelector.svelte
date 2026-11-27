@@ -31,7 +31,7 @@
 </script>
 
 <div
-	class="absolute inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm rounded-sm md:rounded-xl"
+	class="absolute inset-0 z-50 flex items-center justify-center bg-scrim/60 backdrop-blur-sm rounded-sm md:rounded-xl"
 >
 	<div
 		class="bg-surface border border-border-strong rounded-xl shadow-2xl p-6 flex flex-col items-center gap-6 max-w-sm w-[90%] md:w-auto"

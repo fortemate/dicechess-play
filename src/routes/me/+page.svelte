@@ -329,7 +329,7 @@
 							<button
 								type="button"
 								onclick={reset}
-								class="px-4 py-2 rounded-lg bg-danger/15 text-danger border border-danger/30 font-bold text-sm hover:bg-danger/25 transition-colors"
+								class="px-4 py-2 rounded-lg bg-danger/10 text-danger border border-danger/30 font-bold text-sm hover:bg-danger/15 transition-colors"
 							>
 								Yes, start fresh
 							</button>

@@ -9,6 +9,8 @@ import { svelteTesting } from '@testing-library/svelte/vite';
 import { withPwa } from '@vite-pwa/sveltekit';
 import { defineConfig } from 'vitest/config';
 
+import { THEME_COLORS } from './src/lib/appearance.ts';
+
 // Both halves of "Sentry is on". A token without a DSN would upload source maps for a bundle
 // that contains no SDK and mint a release nothing can ever report against. Both are read from
 // the PROCESS environment, which is where deploy.yaml puts them; Vite loads a local .env into
@@ -91,8 +93,10 @@ export default defineConfig({
 					name: 'Dice Chess — Play',
 					short_name: 'Dice Chess',
 					description: 'Play Dice Chess against our bots',
-					theme_color: '#020617',
-					background_color: '#020617',
+					// One static value each, so the installed app opens in the theme a page without
+					// `data-theme` gets; the bootstrap in app.html then follows the visitor's choice.
+					theme_color: THEME_COLORS.dark,
+					background_color: THEME_COLORS.dark,
 					display: 'standalone',
 					// No orientation lock: the board is playable in portrait or landscape
 					// (e.g. tablets), so pinning to portrait-primary only hurt those users.
