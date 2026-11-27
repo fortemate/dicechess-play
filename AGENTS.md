@@ -23,7 +23,7 @@ dicechess-play is the public Dice Chess play site: a fully client-side SvelteKit
 - `src/lib/localGamesDB.ts` — IndexedDB via `idb`; `sync_status`: `pending` | `synced` | `quarantined`.
 - `src/lib/history/`, `src/lib/stats/` — replay reconstruction, local player record.
 - `src/lib/stores/` — singleton rune stores: `themeStore` (the appearance preference — `system`, `light` or `dark` — applied to the page; the model is `src/lib/appearance.ts`, repeated by the inline bootstrap in `src/app.html` and held to it by `src/appearanceBootstrap.test.ts`), `localGamesStore`, `chromeStore`.
-- `src/components/` — shared UI (`Board`, `TurnCard`, `MoveList`, `PlayerStrip`, `GameEndModal`, …). `src/components/ui/` holds the interface primitives of the redesign (button, chip, segmented control, tag, card, page header, page container): build new pages from them instead of writing class strings; `/ui-preview` shows them in the dev server. NOT `src/lib/components/` — that holds only an empty leftover dir.
+- `src/components/` — shared UI (`Board`, `TurnCard`, `MoveList`, `PlayerStrip`, `GameEndModal`, …). `GameFrame` is the one layout of a game in progress, shared by `/practice` and `/live/[id]`: it takes snippets and plain values and reads no store, so game logic stays in the pages and the stores. `src/components/ui/` holds the interface primitives of the redesign (button, chip, segmented control, tag, card, page header, page container): build new pages from them instead of writing class strings; `/ui-preview` shows them in the dev server. NOT `src/lib/components/` — that holds only an empty leftover dir.
 - `src/lib/timings.ts` — presentation pacing constants shared by BOTH surfaces. Single source; never fork per-surface copies.
 
 ## Commands

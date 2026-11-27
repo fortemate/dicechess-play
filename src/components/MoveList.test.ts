@@ -1,4 +1,4 @@
-import { afterEach, describe, expect, it, vi } from 'vitest';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { cleanup, fireEvent, render, within } from '@testing-library/svelte';
 
 import type { TurnBlock } from '#lib/types.js';
@@ -177,6 +177,71 @@ describe('MoveList', () => {
 
 		const on = render(MoveList, props({ keyboardNavEnabled: true }));
 		expect(on.getByText('Use ← / → to step through the moves.')).toBeTruthy();
+	});
+
+	describe('keeping the viewed position in sight', () => {
+		// jsdom does no layout, so the test supplies the three measurements the list reads: the
+		// height of its scroll box and where the box and the current entry are.
+		type Resize = () => void;
+		let notify: Resize | undefined;
+		const observed: Element[] = [];
+
+		beforeEach(() => {
+			notify = undefined;
+			observed.length = 0;
+			vi.stubGlobal(
+				'ResizeObserver',
+				class {
+					constructor(callback: Resize) {
+						notify = callback;
+					}
+					observe(element: Element) {
+						observed.push(element);
+					}
+					disconnect() {}
+				},
+			);
+		});
+		afterEach(() => vi.unstubAllGlobals());
+
+		function layout(container: HTMLElement, height: number) {
+			Object.defineProperty(container, 'clientHeight', { configurable: true, value: height });
+			container.getBoundingClientRect = () => ({ top: 0, bottom: height }) as DOMRect;
+			const current = container.querySelector<HTMLElement>('[data-current="true"]')!;
+			Object.defineProperty(current, 'clientHeight', { configurable: true, value: 44 });
+			// The current entry sits far below the visible part of the box.
+			current.getBoundingClientRect = () => ({ top: 900, bottom: 944 }) as DOMRect;
+		}
+
+		it('catches up when a list that was hidden is shown', () => {
+			// The game frame keeps the list mounted behind the "Moves" button of a phone: a box
+			// without height. Showing it changes no prop, only its size.
+			const { container } = render(MoveList, props({ currentMoveIndex: 5 }));
+			const box = container.querySelector<HTMLElement>('.move-list-scroll')!;
+			expect(observed).toContain(box);
+			expect(box.scrollTop).toBe(0);
+
+			layout(box, 0);
+			notify?.();
+			expect(box.scrollTop).toBe(0);
+
+			layout(box, 300);
+			notify?.();
+			// 900 (entry) - 0 (box) - 150 (half the box) + 22 (half the entry)
+			expect(box.scrollTop).toBe(772);
+		});
+
+		it('does not jump on a resize of a list that was already shown', () => {
+			const { container } = render(MoveList, props({ currentMoveIndex: 5 }));
+			const box = container.querySelector<HTMLElement>('.move-list-scroll')!;
+			layout(box, 300);
+			notify?.();
+			box.scrollTop = 40;
+
+			layout(box, 280);
+			notify?.();
+			expect(box.scrollTop).toBe(40);
+		});
 	});
 
 	it('says so when the game has no move yet', () => {

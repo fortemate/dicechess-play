@@ -56,10 +56,11 @@
 
 <section
 	aria-label={m.game_turn_region()}
-	class="flex flex-col justify-center gap-3.5 rounded-card border border-border bg-surface p-4 md:flex-1"
+	class="flex flex-col gap-3.5 rounded-card border border-border bg-surface p-4"
 >
 	{#if title || hint}
-		<div class="flex flex-col gap-1">
+		<!-- Announced when it changes: whose turn it is must reach a visitor who cannot see it. -->
+		<div class="flex flex-col gap-1" aria-live="polite">
 			{#if title}
 				<h2 class="m-0 text-xl leading-tight font-bold text-content">{title}</h2>
 			{/if}

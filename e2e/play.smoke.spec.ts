@@ -87,6 +87,14 @@ test('the built bundle can play a move', async ({ page }) => {
 	await page.getByRole('button', { name: 'Start game' }).click();
 	await expect(page.locator('cg-board')).toBeVisible();
 
+	// The game frame (#255): the game takes the screen over from the site header, and its actions
+	// are buttons a visitor can read. Checked here because only the built bundle shows both
+	// layouts of one markup; whether each control works is the component suites' business.
+	await expect(page.getByRole('heading', { level: 1 })).toContainText('level');
+	await expect(page.getByRole('button', { name: 'Leave game' })).toBeVisible();
+	await expect(page.getByRole('button', { name: 'Resign' })).toBeVisible();
+	await expect(page.getByRole('region', { name: 'Moves' })).toBeVisible();
+
 	const before = await piecesOnBoard(page);
 	try {
 		await expect

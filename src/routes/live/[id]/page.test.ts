@@ -348,13 +348,13 @@ describe('live board — finished-game replay actions', () => {
 		const { getByRole } = render(LivePage);
 		const drawBtn = getByRole('button', { name: /offer a draw/i }) as HTMLButtonElement;
 		expect(drawBtn.disabled).toBe(false);
-		expect(drawBtn.textContent?.trim()).toBe('');
+		expect(drawBtn.textContent?.trim()).toBe('Offer a draw');
 
 		await fireEvent.click(drawBtn);
 		expect(toggleArmDrawOffer).toHaveBeenCalledOnce();
 	});
 
-	it('shows the armed state with Armed label', () => {
+	it('shows the armed state in words', () => {
 		state.current = storeState({
 			gameStatus: 'playing',
 			canResign: true,
@@ -365,7 +365,7 @@ describe('live board — finished-game replay actions', () => {
 		const drawBtn = getByRole('button', { name: /draw offer armed/i });
 
 		expect((drawBtn as HTMLButtonElement).disabled).toBe(false);
-		expect(drawBtn.textContent?.trim()).toBe('Armed');
+		expect(drawBtn.textContent?.trim()).toBe('Draw offer armed');
 	});
 
 	it("says whose turn it is to offer when the right is not this seat's", () => {
@@ -379,7 +379,7 @@ describe('live board — finished-game replay actions', () => {
 		const drawBtn = getByRole('button', { name: /opponent must offer the next draw/i });
 
 		expect((drawBtn as HTMLButtonElement).disabled).toBe(true);
-		expect(drawBtn.textContent?.trim()).toBe('');
+		expect(drawBtn.textContent?.trim()).toBe('Offer a draw');
 	});
 
 	it('counts down the turns instead, where a deployment lets the right return', () => {
@@ -394,7 +394,7 @@ describe('live board — finished-game replay actions', () => {
 
 		const drawBtn = getByRole('button', { name: /draw offer available in 3 turns/i });
 		expect(drawBtn).toBeTruthy();
-		expect(drawBtn.textContent?.trim()).toBe('');
+		expect(drawBtn.textContent?.trim()).toBe('Offer a draw');
 	});
 
 	it('shows the offer as sent, and disables the control, while it is out', () => {
@@ -408,7 +408,7 @@ describe('live board — finished-game replay actions', () => {
 		const drawBtn = getByRole('button', { name: /waiting for your opponent/i });
 
 		expect((drawBtn as HTMLButtonElement).disabled).toBe(true);
-		expect(drawBtn.textContent?.trim()).toBe('Sent');
+		expect(drawBtn.textContent?.trim()).toBe('Draw offered');
 	});
 
 	it('declines by tapping the board, and only while this seat is the one being asked', async () => {
