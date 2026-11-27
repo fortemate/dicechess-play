@@ -41,27 +41,27 @@ cg-container cg-board {
 	background-size: 25% 25%;
 }
 
-cg-container cg-board square.last-move {
+cg-container cg-board .last-move {
 	background-color: var(--board-last-move);
 }
 
-cg-container cg-board square.selected,
-cg-container cg-board square.current-premove {
+cg-container cg-board .selected,
+cg-container cg-board .current-premove {
 	background-color: var(--board-selected);
 }
 
 /* Where the selected piece can go: a dot on an empty square, a ring around a piece that can be
    captured, a fill under the pointer. Drawn in the coordinate ink, so it follows the board. */
-cg-container cg-board square.move-dest,
-cg-container cg-board square.premove-dest {
+cg-container cg-board .move-dest,
+cg-container cg-board .premove-dest {
 	background: radial-gradient(
 		color-mix(in srgb, var(--board-coord) 38%, transparent) 22%,
 		transparent 0
 	);
 }
 
-cg-container cg-board square.oc.move-dest,
-cg-container cg-board square.oc.premove-dest {
+cg-container cg-board .oc.move-dest,
+cg-container cg-board .oc.premove-dest {
 	background: radial-gradient(
 		transparent 0%,
 		transparent 78%,
@@ -69,16 +69,23 @@ cg-container cg-board square.oc.premove-dest {
 	);
 }
 
-cg-container cg-board square.move-dest:hover,
-cg-container cg-board square.move-dest.hover,
-cg-container cg-board square.premove-dest:hover,
-cg-container cg-board square.premove-dest.hover {
+cg-container cg-board .move-dest:hover,
+cg-container cg-board .move-dest.hover,
+cg-container cg-board .premove-dest:hover,
+cg-container cg-board .premove-dest.hover {
 	background: color-mix(in srgb, var(--board-coord) 26%, transparent);
 }
 
 /* Coordinates: the rank in the top left corner of the first file's squares, the file in the
-   bottom right corner of the first rank's, in one ink that reads on both square colours. */
-.cg-wrap cg-container coords {
+   bottom right corner of the first rank's, in one ink that reads on both square colours.
+
+   Chessground draws them, and the squares above, as elements of its own (`coords`, `coord`,
+   `square`). The rules select those by class and position instead of by element name, which a
+   CSS linter reads as a misspelt HTML tag: `.ranks` and `.files` are the two `coords` lists
+   that follow the board, and their children are the `coord` labels. `:nth-child(n)` matches
+   every label; it is there to outrank the label rules of `chessground.base.css`. */
+.cg-wrap cg-container .ranks,
+.cg-wrap cg-container .files {
 	opacity: 1;
 	color: var(--board-coord);
 	font-family: inherit;
@@ -87,39 +94,40 @@ cg-container cg-board square.premove-dest.hover {
 	line-height: 1;
 }
 
-.cg-wrap cg-container coords.ranks {
+.cg-wrap cg-container cg-board ~ .ranks {
 	top: 0;
 	left: 0;
 	width: 12.5%;
 }
 
-.cg-wrap cg-container coords.ranks coord {
+.cg-wrap cg-container cg-board ~ .ranks > :nth-child(n) {
 	transform: none;
 	padding: 3px 0 0 5px;
 	text-align: left;
 }
 
-.cg-wrap cg-container coords.files {
+.cg-wrap cg-container cg-board ~ .files {
 	bottom: 0;
 	left: 0;
 	height: auto;
 }
 
-.cg-wrap cg-container coords.files coord {
+.cg-wrap cg-container cg-board ~ .files > :nth-child(n) {
 	padding: 0 5px 3px 0;
 	text-align: right;
 }
 
 @media (max-width: 480px) {
-	.cg-wrap cg-container coords {
+	.cg-wrap cg-container .ranks,
+	.cg-wrap cg-container .files {
 		font-size: 10px;
 	}
 
-	.cg-wrap cg-container coords.ranks coord {
+	.cg-wrap cg-container cg-board ~ .ranks > :nth-child(n) {
 		padding: 2px 0 0 3px;
 	}
 
-	.cg-wrap cg-container coords.files coord {
+	.cg-wrap cg-container cg-board ~ .files > :nth-child(n) {
 		padding: 0 3px 2px 0;
 	}
 }
