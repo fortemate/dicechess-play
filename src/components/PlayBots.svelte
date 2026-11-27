@@ -92,7 +92,13 @@
 	let seeks = $state<Seek[]>([]);
 	let seeksRead = $state(false);
 
-	const online = $derived<OnlineBot[]>(onlineBots(catalog, seeks));
+	// No online bot is listed before the catalog has answered. What a bot IS depends on it: a bot
+	// that holds a seek is a table bot without the catalog and an arena bot with it, under another
+	// key. Listing it early would let a choice be made (by a link or by a click) that the catalog
+	// then takes away.
+	const online = $derived<OnlineBot[]>(
+		catalogState === 'loading' ? [] : onlineBots(catalog, seeks),
+	);
 	const entries = $derived<BotEntry[]>([...starters, ...online]);
 
 	let filter = $state<BotFilter>('all');
@@ -185,6 +191,9 @@
 	// silently turn into a game against another bot, so say who left.
 	let chosenOnlineLabel: string | null = null;
 	$effect(() => {
+		// Not while a game is starting: the table the visitor has just sat down at leaves the list
+		// too, and that is no news.
+		if (busy) return;
 		const found = entries.find((entry) => entry.key === selectedKey);
 		if (found) {
 			chosenOnlineLabel = found.kind === 'starter' ? null : found.label;
@@ -196,6 +205,9 @@
 	});
 
 	function choose(key: string) {
+		// The opponent is fixed once a start is under way: the request already names the bot, so
+		// another choice now would show one bot and start a game against another.
+		if (busy) return;
 		selectedKey = key;
 		notice = null;
 		error = null;
@@ -255,7 +267,9 @@
 
 	// --- Starting -----------------------------------------------------------------------------
 
-	type Phase = 'idle' | 'waking' | 'starting';
+	// 'leaving': the game exists and the browser is on its way to the board. The setup stays
+	// locked until the page is gone, so nothing can be started twice.
+	type Phase = 'idle' | 'waking' | 'starting' | 'leaving';
 	let phase = $state<Phase>('idle');
 	let error = $state<string | null>(null);
 	const busy = $derived(phase !== 'idle');
@@ -269,6 +283,13 @@
 	}
 
 	async function startArena(bot: ArenaBot) {
+		// The choices as they are at the click. The wake can take seconds, and the game must be
+		// the one that was asked for then.
+		const preset = botTimeControlPresets[arenaTime] ?? botTimeControlPresets[0];
+		const timeControl = preset.value;
+		const preferredColor = arenaColor;
+		const rated = arenaRated;
+		let left = false;
 		phase = 'waking';
 		try {
 			let woken: WakeResponse;
@@ -290,12 +311,9 @@
 			phase = 'starting';
 			// Remember the setup for the next bot (#212). `rated` only for a signed-in account: the
 			// gate may have just forced it to false for a guest, and that is not a choice to store.
-			if (authStore.status === 'signed-in') preferencesStore.setBotChallengeRated(arenaRated);
-			preferencesStore.setBotChallengeTimeControl(botTimeControlPresets[arenaTime].id);
-			preferencesStore.setBotChallengeColor(arenaColor);
-			const timeControl = botTimeControlPresets[arenaTime].value;
-			const preferredColor = arenaColor;
-			const rated = arenaRated;
+			if (authStore.status === 'signed-in') preferencesStore.setBotChallengeRated(rated);
+			preferencesStore.setBotChallengeTimeControl(preset.id);
+			preferencesStore.setBotChallengeColor(preferredColor);
 			const { match, url } = await startBotGame(
 				{
 					guestId: getGuestUuid(),
@@ -319,22 +337,27 @@
 				rated,
 			});
 			// Full navigation: the board page connects fresh from the seat token in the address.
+			left = true;
+			phase = 'leaving';
 			window.location.href = url;
 		} catch (e) {
 			if (!destroyed) error = describeStartFailure(e);
 		} finally {
-			if (!destroyed) phase = 'idle';
+			if (!destroyed && !left) phase = 'idle';
 		}
 	}
 
 	async function startAtTable(bot: TableBot) {
 		const table = bot.tables[tableChoice] ?? bot.tables[0];
 		if (!table) return;
+		let left = false;
 		phase = 'starting';
 		try {
 			const match = await acceptSeek(table.seekId, getGuestUuid());
 			if (destroyed) return;
 			// Never assume a colour: the server draws the seats when the table is taken.
+			left = true;
+			phase = 'leaving';
 			window.location.href = buildJoinUrl(location.origin, match.gameId, match.token, match.seat);
 		} catch (e) {
 			if (destroyed) return;
@@ -352,8 +375,14 @@
 				/* the next poll will catch up */
 			}
 		} finally {
-			if (!destroyed) phase = 'idle';
+			if (!destroyed && !left) phase = 'idle';
 		}
+	}
+
+	// A browser may bring this page back from its cache when the visitor returns from the board.
+	// The start it was locked for is long over.
+	function onPageShow(event: PageTransitionEvent) {
+		if (event.persisted) phase = 'idle';
 	}
 
 	function start() {
@@ -432,12 +461,14 @@
 	const radioClass =
 		'size-4 shrink-0 cursor-pointer appearance-none rounded-full border-2 border-border-strong bg-transparent transition-colors checked:border-primary checked:bg-primary checked:shadow-[inset_0_0_0_3px_var(--color-surface)] focus-visible:outline-none';
 	const rowClass = (chosen: boolean) =>
-		`flex min-h-14 cursor-pointer items-center gap-3 rounded-control border px-4 py-2 transition-colors has-focus-visible:focus-ring ${
+		`flex min-h-14 cursor-pointer items-center gap-3 rounded-control border px-4 py-2 transition-colors has-focus-visible:focus-ring has-disabled:cursor-not-allowed has-disabled:opacity-60 ${
 			chosen
 				? 'border-primary bg-primary/10'
 				: 'border-border-strong bg-transparent hover:bg-surface-hover'
 		}`;
 </script>
+
+<svelte:window onpageshow={onPageShow} />
 
 <div
 	class="flex flex-col gap-4 lg:grid lg:grid-cols-[minmax(0,1fr)_21.25rem] lg:items-start lg:gap-6"
@@ -458,7 +489,7 @@
 		</div>
 
 		{#if starterGroupShown}
-			<fieldset class="m-0 flex min-w-0 flex-col gap-2 border-0 p-0">
+			<fieldset class="m-0 flex min-w-0 flex-col gap-2 border-0 p-0" disabled={busy}>
 				<legend
 					class="mb-2 flex w-full flex-wrap items-baseline justify-between gap-x-4 gap-y-1 p-0"
 				>
@@ -489,7 +520,7 @@
 		{/if}
 
 		{#if arenaGroupShown}
-			<fieldset class="m-0 flex min-w-0 flex-col gap-2 border-0 p-0">
+			<fieldset class="m-0 flex min-w-0 flex-col gap-2 border-0 p-0" disabled={busy}>
 				<legend
 					class="mb-2 flex w-full flex-wrap items-baseline justify-between gap-x-4 gap-y-1 p-0"
 				>
@@ -605,7 +636,13 @@
 
 		{#if notice}<p class="m-0 text-sm text-content" role="status">{notice}</p>{/if}
 
-		<div id="play-setup-choices" class="flex flex-col gap-3">
+		<!-- A fieldset, so the choices lock with the list while a game is starting: the request is
+		     made from what they said at the click. -->
+		<fieldset
+			id="play-setup-choices"
+			disabled={busy}
+			class="m-0 flex min-w-0 flex-col gap-3 border-0 p-0"
+		>
 			{#if selected.kind === 'starter'}
 				<GameSetupPanel
 					name="play-starter"
@@ -653,6 +690,6 @@
 				/>
 			{/if}
 			<p class="m-0 text-center text-xs text-content-muted {choicesClass}">{startNote}</p>
-		</div>
+		</fieldset>
 	</Card>
 </div>

@@ -502,6 +502,24 @@ describe('PlayBots', () => {
 			expect(await view.findByRole('region', { name: 'house oracle' })).toBeTruthy();
 		});
 
+		// A bot of the catalog that also holds a seek is a table bot until the catalog answers, under
+		// another key. The link must end up on it whichever answer comes first.
+		it('keeps the bot of a link when the seeks answer before the catalog', async () => {
+			let deliver!: (value: { bots: CatalogBot[] }) => void;
+			api.fetchCatalog.mockReturnValue(new Promise((resolve) => (deliver = resolve)));
+			api.listSeeks.mockResolvedValue([botSeek('s1', 'grove willow')]);
+			const view = mount({ preselect: 'grove/willow' });
+			await waitFor(() => expect(api.listSeeks).toHaveBeenCalled());
+			// Nothing online is listed, so nothing can be chosen under an identity that will change.
+			expect(botRows(view.container)).not.toContain('grove willow');
+
+			deliver({ bots: CATALOG });
+			expect(await view.findByRole('region', { name: 'grove willow' })).toBeTruthy();
+			expect(row(within(view.container), /grove willow/).value).toBe('grove/willow');
+			expect(view.queryByText(/no longer waiting/)).toBeNull();
+			expect(view.queryByText(/not in the list/)).toBeNull();
+		});
+
 		it('says so when the bot is not in the list, and keeps the default', async () => {
 			const view = mount({ preselect: 'grove/nobody' });
 			expect(
@@ -516,6 +534,73 @@ describe('PlayBots', () => {
 			await fireEvent.click(view.getByRole('radio', { name: /Random Level 1/ }));
 			await view.rerender({ preselect: 'grove/larch' });
 			expect(view.getByRole('region', { name: 'Random' })).toBeTruthy();
+		});
+	});
+
+	describe('while a game is starting', () => {
+		it('keeps the opponent and the choices as they were at the click', async () => {
+			let answer!: (value: { alive: boolean }) => void;
+			api.wakeBot.mockReturnValue(new Promise((resolve) => (answer = resolve)));
+			api.playBot.mockResolvedValue({ gameId: 'g1', token: 't1', seat: 'White' });
+			vi.stubGlobal('location', { href: 'about:blank', origin: 'https://play.example' });
+			const view = mount();
+			await fireEvent.click(await view.findByRole('radio', { name: /grove willow/ }));
+			const setup = within(view.getByRole('region', { name: 'grove willow' }));
+			await fireEvent.click(setup.getByRole('button', { name: 'Start game' }));
+
+			// The wake is on its way: neither another bot nor another clock can be chosen now.
+			const larch = view.getByRole('radio', { name: /grove larch/ }) as HTMLInputElement;
+			// Locked through their fieldset, so `:disabled` is the question to ask, not the attribute.
+			expect(larch.matches(':disabled')).toBe(true);
+			expect(setup.getByRole('radio', { name: '1 + 1' }).matches(':disabled')).toBe(true);
+			await fireEvent.click(larch);
+			await fireEvent.change(larch);
+			expect(view.getByRole('region', { name: 'grove willow' })).toBeTruthy();
+
+			answer({ alive: true });
+			await waitFor(() => expect(api.playBot).toHaveBeenCalledOnce());
+			expect(api.playBot.mock.calls[0][0]).toMatchObject({
+				team: 'grove',
+				name: 'willow',
+				timeControl: { Fischer: { initialSeconds: 300, incrementSeconds: 5 } },
+			});
+		});
+
+		it('stays locked once the game exists, until the page is left', async () => {
+			api.wakeBot.mockResolvedValue({ alive: true });
+			api.playBot.mockResolvedValue({ gameId: 'g1', token: 't1', seat: 'White' });
+			vi.stubGlobal('location', { href: 'about:blank', origin: 'https://play.example' });
+			const view = mount();
+			await fireEvent.click(await view.findByRole('radio', { name: /grove willow/ }));
+			const setup = within(view.getByRole('region', { name: 'grove willow' }));
+			await fireEvent.click(setup.getByRole('button', { name: 'Start game' }));
+			await waitFor(() => expect(api.rememberBotGame).toHaveBeenCalledOnce());
+			const button = setup.getByRole('button', { name: /Starting/ }) as HTMLButtonElement;
+			expect(button.disabled).toBe(true);
+			button.click();
+			expect(api.wakeBot).toHaveBeenCalledOnce();
+
+			// Back from the board, out of the browser's page cache: the setup works again.
+			const shown = new Event('pageshow') as PageTransitionEvent;
+			Object.defineProperty(shown, 'persisted', { value: true });
+			window.dispatchEvent(shown);
+			expect(await setup.findByRole('button', { name: 'Start game' })).toBeTruthy();
+		});
+
+		it('does not report the table the visitor has just sat down at as gone', async () => {
+			vi.useFakeTimers({ shouldAdvanceTime: true });
+			api.listSeeks.mockResolvedValue([botSeek('s1', 'house oracle')]);
+			api.acceptSeek.mockResolvedValue({ gameId: 'g9', token: 't9', seat: 'Black' });
+			vi.stubGlobal('location', { href: 'about:blank', origin: 'https://play.example' });
+			const view = mount();
+			await fireEvent.click(await view.findByRole('radio', { name: /house oracle/ }));
+			const setup = within(view.getByRole('region', { name: 'house oracle' }));
+			await fireEvent.click(setup.getByRole('button', { name: 'Start game' }));
+			await waitFor(() => expect(api.acceptSeek).toHaveBeenCalledOnce());
+
+			api.listSeeks.mockResolvedValue([]);
+			await vi.advanceTimersByTimeAsync(5000);
+			expect(view.queryByText(/no longer waiting/)).toBeNull();
 		});
 	});
 
