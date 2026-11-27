@@ -153,6 +153,8 @@ Kept apart from the interface tokens, so a choice of board style can be added la
 - Page titles are set in a serif face (Georgia, then the system serif). Everything else uses the system sans-serif face. Clocks use the system monospace face so their width does not change as they run.
 - A heading that contains a name of a bot or a player uses the sans-serif face. Old-style digits of the serif face make names with numbers hard to read.
 - Cards have a 1 px edge and an 18 px radius; buttons and other controls have a 10 px radius. Only the main card of a page (the featured game, the setup panel) has a shadow.
+- These rules are built into the primitives in `src/components/ui/`: button (primary, secondary, danger), chip, segmented control, tag, card, page header and the page container. A redesigned page is assembled from them. In the dev server, `/ui-preview` shows every primitive in every state in both themes.
+- Keyboard focus is a 2 px ring in the accent colour, 2 px away from the control.
 
 ## Screens
 

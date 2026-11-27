@@ -1,7 +1,11 @@
 @import 'tailwindcss';
 @import './board.css';
 
-@theme {
+@theme inline {
+	/* `inline` makes a utility read the variable named here directly (`bg-primary` becomes
+	   `background-color: var(--accent)`), so a `data-theme` set on any element re-themes what
+	   is inside it. Without it the names below would be resolved once, on the root element,
+	   and a nested theme, as on the primitives preview, would have no effect. */
 	/* Every colour utility below reads a variable that the two theme blocks further down set
 	   (the "Table green" palette, #250). `src/designTokens.test.ts` holds the pairs components
 	   combine to WCAG AA in both themes, so a value changed here either passes or fails CI. */
@@ -33,6 +37,14 @@
 
 	/* The veil behind a dialog; used with an opacity, e.g. `bg-scrim/50`. */
 	--color-scrim: var(--scrim);
+
+	/* Shape and measure shared by the interface primitives in `src/components/ui/` (#252):
+	   one content width for every page, one radius for controls and one for cards, and the
+	   serif face of a page title. */
+	--container-page: 75rem;
+	--radius-control: 0.625rem;
+	--radius-card: 1.125rem;
+	--font-display: Georgia, 'Times New Roman', serif;
 
 	/* Fixed Domain Tokens */
 	--color-piece-white: #ffffff;
@@ -154,6 +166,14 @@
 	--text-highlight: #65451c;
 
 	--scrim: #0a160d;
+}
+
+/* The focus style of every interactive primitive: a ring in the accent colour, set off from
+   the control so that it also shows around a filled button. Written `focus-visible:focus-ring`,
+   so it appears for keyboard focus only. */
+@utility focus-ring {
+	outline: 2px solid var(--accent);
+	outline-offset: 2px;
 }
 
 body {
