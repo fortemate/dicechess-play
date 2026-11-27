@@ -168,7 +168,7 @@ Route work by required capability instead of defaulting to the strongest model:
 
 ## Documentation
 
-- Decisions, roadmap, and ADRs live in the separate `dicechess-docs` wiki under "Play Site" — NOT in this repo (there is no `docs/` dir). In-repo docs: `README.md`, `CONTRIBUTING.md`, `CLA.md`, `SECURITY.md`; the real contract documentation lives in file-head comments.
+- Decisions, roadmap, and ADRs live in the separate `dicechess-docs` wiki under "Play Site" — NOT in this repo. In-repo docs: `README.md`, `CONTRIBUTING.md`, `CLA.md`, `SECURITY.md`, and `docs/` — `docs/design/` holds design specifications and references (`docs/design/redesign-2026/` is the reference for the redesign epic #247: tokens, the route map and an image of every screen), `docs/acceptance/` holds acceptance matrices and their evidence. The real contract documentation lives in file-head comments.
 - Update-trigger map:
   - Add a route or `src/lib` module → update README's Layout section — it is maintained by hand and drifts silently.
   - Change `GameIngestWire` or `liveTypes.ts` → update the file-head contract comment AND coordinate the counterpart repo in the same change set.
