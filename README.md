@@ -117,9 +117,9 @@ src/
 │   ├── rules/                 prerendered rules page (#254) — ssr/prerender re-enabled, so crawlers
 │   │                          get real HTML + OG tags (src/hooks.server.ts strips default head)
 │   ├── licenses/              prerendered open-source licenses disclosure page (#14)
-│   ├── play/                  where a game starts (#257): three tabs, and the bot tab with one
-│   │                          list of bots; `?bot=` preselects one. The other two tabs still
-│   │                          link to live/ and lobby/
+│   ├── play/                  where a game starts (#257, #258): three tabs — a bot (one list of
+│   │                          bots; `?bot=` preselects one), a friend by link (`?tab=friend`),
+│   │                          an open table (`?tab=table`, with the wait on the board)
 │   ├── practice/              vs-bot game (client-authoritative; engine in a Web Worker)
 │   ├── lobby/                 seek list + live-board wall (polls play-api)
 │   ├── live/ · live/[id]/     friend-link entry · server-authoritative live board (WebSocket)
@@ -148,6 +148,9 @@ src/
 │   │                          PrimitivesPreview shows them all at /ui-preview, in the dev server only
 │   ├── Board.svelte           thin chessground wrapper driven by either game store
 │   ├── GameShell              game navigation, appearance, identity and onboarding
+│   ├── PlayFriend · PlayTables · OpenTableWaiting — the friend tab and the open-table tab of
+│   │                          /play (#258), and the wait at one's own table on the game frame,
+│   │                          shared with the lobby
 │   ├── PlayBots               the bot tab of /play (#257): the one list of bots, its filters and
 │   │                          the setup of the game; starts a starter bot game in the browser,
 │   │                          an arena bot game through the catalog, a table bot game by sitting down
@@ -197,6 +200,8 @@ src/
 │   ├── rules/                 seo.ts — shared origins for the prerendered rules page's absolute
 │   │                          canonical/OG URLs (#254); sitemap.xml/app.html hardcode the same
 │   ├── live/                  live-play client: liveGameStore, liveClient (WS + reconnect),
+│   │                          friendGame (create a game by link) and openTable (post a seek),
+│   │                          each shared by a tab of /play and its older page (#258),
 │   │                          liveApi/lobbyApi/historyApi/ratingApi/rematchApi (REST),
 │   │                          rematchStore (countdown, polling, and consent lifecycle),
 │   │                          continuationApi (public, credential-free rematch readback) +
