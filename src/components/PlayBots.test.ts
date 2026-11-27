@@ -588,6 +588,29 @@ describe('PlayBots', () => {
 			expect(view.getByRole('region', { name: 'Greedy' })).toBeTruthy();
 		});
 
+		it('gives way to a choice the visitor makes while the catalog is still loading', async () => {
+			let deliver!: (value: { bots: CatalogBot[] }) => void;
+			api.fetchCatalog.mockReturnValue(new Promise((resolve) => (deliver = resolve)));
+			const view = mount({ preselect: 'grove/larch' });
+			await fireEvent.click(view.getByRole('radio', { name: /Random Level 1/ }));
+			expect(view.getByRole('region', { name: 'Random' })).toBeTruthy();
+
+			deliver({ bots: CATALOG });
+			await view.findByRole('radio', { name: /grove larch/ });
+			expect(view.getByRole('region', { name: 'Random' })).toBeTruthy();
+			expect(row(within(view.container), /grove larch/).checked).toBe(false);
+		});
+
+		it('says nothing about a missing bot once the visitor has chosen another', async () => {
+			let deliver!: (value: { bots: CatalogBot[] }) => void;
+			api.fetchCatalog.mockReturnValue(new Promise((resolve) => (deliver = resolve)));
+			const view = mount({ preselect: 'grove/nobody' });
+			await fireEvent.click(view.getByRole('radio', { name: /Random Level 1/ }));
+			deliver({ bots: CATALOG });
+			await view.findByRole('radio', { name: /grove larch/ });
+			expect(view.queryByText(/not in the list/)).toBeNull();
+		});
+
 		it('does not take the choice back after the visitor has chosen', async () => {
 			const view = mount({ preselect: 'grove/larch' });
 			await view.findByRole('region', { name: 'grove larch' });

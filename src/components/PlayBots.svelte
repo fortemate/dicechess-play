@@ -216,6 +216,9 @@
 		// The opponent is fixed once a start is under way: the request already names the bot, so
 		// another choice now would show one bot and start a game against another.
 		if (busy) return;
+		// The visitor's own choice outranks the bot of a link that is still waiting for its
+		// source to answer: a late answer must not take the choice back.
+		pendingPreselect = null;
 		select(entries.find((entry) => entry.key === key));
 		notice = null;
 		error = null;
