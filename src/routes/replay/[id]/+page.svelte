@@ -18,7 +18,6 @@
 	import Chessground from '../../../components/lib/Chessground.svelte';
 	import type { Key } from '@lichess-org/chessground/types';
 	import '@lichess-org/chessground/assets/chessground.base.css';
-	import '@lichess-org/chessground/assets/chessground.brown.css';
 	import '@lichess-org/chessground/assets/chessground.cburnett.css';
 
 	// Public replay for a server-recorded (lobby/live) game — play-api #178, fed by

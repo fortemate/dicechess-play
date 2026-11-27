@@ -1,5 +1,7 @@
 <script lang="ts">
-	// The dice card on the game screen. Used dice dim — that alone communicates progress,
+	// The dice card on the game screen. A die face is a light board square with a dark-square
+	// edge, so a white and a black piece both read on it; a die that can still be played
+	// carries the highlight edge instead. Used dice dim — that alone communicates progress,
 	// so there is deliberately no "N dice left" text. Shared by vs-bot (with a Roll
 	// button) and live (dice arrive from the server; `emptyText` shows waiting states).
 	import { m } from '#lib/paraglide/messages.js';
@@ -26,8 +28,8 @@
 		<div class="flex items-center justify-center gap-3" aria-label={m.game_dice_region()}>
 			{#each dice as d, i (i)}
 				<div
-					class="flex h-14 w-14 items-center justify-center rounded-xl border border-border bg-dice-surface transition-all duration-300 xl:h-16 xl:w-16
-						{d.used ? 'scale-95 opacity-30 grayscale' : 'shadow-md ring-2 ring-primary/40'}
+					class="flex h-14 w-14 items-center justify-center rounded-xl border-2 bg-dice-surface transition-all duration-300 xl:h-16 xl:w-16
+						{d.used ? 'scale-95 border-board-dark opacity-40' : 'border-badge-accent shadow-md'}
 						{animating ? 'animate-dice-tumble motion-reduce:animate-none' : ''}"
 					style:animation-delay={animating ? `${i * DICE_STAGGER_MS}ms` : undefined}
 				>
@@ -45,7 +47,9 @@
 	{:else}
 		<div class="flex items-center justify-center gap-3" aria-label={m.game_dice_region()}>
 			{#each [0, 1, 2] as i (i)}
-				<div class="h-14 w-14 rounded-xl border border-border opacity-30 xl:h-16 xl:w-16"></div>
+				<div
+					class="h-14 w-14 rounded-xl border-2 border-border-strong opacity-30 xl:h-16 xl:w-16"
+				></div>
 			{/each}
 		</div>
 		{#if emptyText}

@@ -14,7 +14,7 @@
 	{#each cells as piece, i (i)}
 		<span
 			class="flex aspect-square items-center justify-center
-				{(Math.floor(i / 8) + i) % 2 === 0 ? 'bg-[#f0d9b5]' : 'bg-[#b58863]'}"
+				{(Math.floor(i / 8) + i) % 2 === 0 ? 'bg-board-light' : 'bg-board-dark'}"
 		>
 			{#if piece}
 				<img class="h-full w-full" src={getPieceImage(piece)} alt="" draggable="false" />

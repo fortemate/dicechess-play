@@ -4,7 +4,6 @@
 	// serves both vs-bot (playWithBotStore) and live human-vs-human (liveGameStore).
 	import Chessground from './lib/Chessground.svelte';
 	import '@lichess-org/chessground/assets/chessground.base.css';
-	import '@lichess-org/chessground/assets/chessground.brown.css';
 	import '@lichess-org/chessground/assets/chessground.cburnett.css';
 	import type { Key } from '@lichess-org/chessground/types';
 	import type { BoardStore } from '#lib/boardStore.js';

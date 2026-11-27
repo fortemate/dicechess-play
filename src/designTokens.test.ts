@@ -4,19 +4,22 @@ import { describe, expect, it } from 'vitest';
 
 import { THEMES, type Theme } from './lib/appearance';
 
-// The colour tokens of the site are plain values in `src/app.css`: one block per theme, mapped
-// to Tailwind names in `@theme` (#250). Nothing else stops a value from being changed to one
+// The colour tokens of the site are plain values in two stylesheets, one block per theme each:
+// the interface tokens in `src/app.css` (#250) and the board colours in `src/board.css` (#251).
+// `@theme` in `app.css` maps both to Tailwind names. Nothing else stops a value from being changed to one
 // that reads badly, or a component from reaching past the tokens for a Tailwind palette colour
 // that ignores the theme. These tests are that guard. They read the shipped stylesheet and the
 // component sources, so they describe the site as it is and not a copy of its values:
 //
-//   1. the stylesheet has exactly the themes the appearance model lists, and both set the same
-//      variables;
+//   1. each stylesheet has exactly the themes the appearance model lists, and both themes set
+//      the same variables;
 //   2. the pairs components combine meet WCAG 2 AA in both themes: 4.5:1 for text, 3:1 for the
 //      edge of a control;
 //   3. text of a status colour on a tint of the same colour (`bg-danger/10 text-danger`) meets
 //      4.5:1 at every tint strength a component uses;
-//   4. no component uses a Tailwind palette utility (`bg-slate-900`, `text-white`).
+//   4. no component uses a Tailwind palette utility (`bg-slate-900`, `text-white`) or writes
+//      a colour into a class (`bg-[#f0d9b5]`);
+//   5. the coordinate ink of the board meets 4.5:1 on every colour a square can take.
 //
 // Not covered, on purpose: text dimmed with an opacity (`text-content-muted/60`) and a tint
 // placed straight on the page instead of on a card. Both are choices of one component, not
@@ -26,15 +29,22 @@ const TEXT_MINIMUM = 4.5;
 const EDGE_MINIMUM = 3;
 
 const appCss = readFileSync('src/app.css', 'utf-8');
+const STYLESHEETS = { 'app.css': appCss, 'board.css': readFileSync('src/board.css', 'utf-8') };
 
-/** The variables one theme block sets, by name. Same lookup as appearanceBootstrap.test.ts. */
-function variablesOf(theme: Theme): Map<string, string> {
-	const block = appCss.split(`[data-theme='${theme}'] {`)[1]?.split('}')[0] ?? '';
+/** The variables one theme block of a stylesheet sets, by name. */
+function blockOf(css: string, theme: Theme): Map<string, string> {
+	// Same lookup as appearanceBootstrap.test.ts.
+	const block = css.split(`[data-theme='${theme}'] {`)[1]?.split('}')[0] ?? '';
 	const variables = new Map<string, string>();
 	for (const [, name, value] of block.matchAll(/(--[a-z-]+):\s*([^;]+);/g)) {
 		variables.set(name, value.trim().toLowerCase());
 	}
 	return variables;
+}
+
+/** Every variable a theme sets, across the stylesheets. */
+function variablesOf(theme: Theme): Map<string, string> {
+	return new Map(Object.values(STYLESHEETS).flatMap((css) => [...blockOf(css, theme)]));
 }
 
 const TOKENS = Object.fromEntries(THEMES.map((theme) => [theme, variablesOf(theme)])) as Record<
@@ -73,22 +83,23 @@ function token(theme: Theme, name: string): Rgb {
 	return rgb(value);
 }
 
-describe('theme blocks (app.css)', () => {
-	it('has a block for each theme of the appearance model and for no other', () => {
-		const selectors = [...appCss.matchAll(/\[data-theme='([^']+)'\]/g)].map(([, theme]) => theme);
-		expect(selectors.sort()).toEqual([...THEMES].sort());
-	});
+describe('theme blocks', () => {
+	describe.each(Object.entries(STYLESHEETS))('%s', (_name, css) => {
+		it('has a block for each theme of the appearance model and for no other', () => {
+			const selectors = [...css.matchAll(/\[data-theme='([^']+)'\]/g)].map(([, theme]) => theme);
+			expect(selectors.sort()).toEqual([...THEMES].sort());
+		});
 
-	it('sets the same variables in both themes, each to a six-digit hex colour', () => {
-		const [first, ...rest] = THEMES.map((theme) => [...TOKENS[theme].keys()].sort());
-		expect(first.length).toBeGreaterThan(0);
-		for (const names of rest) expect(names).toEqual(first);
+		it('sets the same variables in both themes, each to a six-digit hex colour', () => {
+			const blocks = THEMES.map((theme) => blockOf(css, theme));
+			const [first, ...rest] = blocks.map((block) => [...block.keys()].sort());
+			expect(first.length).toBeGreaterThan(0);
+			for (const names of rest) expect(names).toEqual(first);
 
-		for (const theme of THEMES) {
-			for (const [name, value] of TOKENS[theme]) {
-				expect(value, `${name} in the ${theme} theme`).toMatch(/^#[0-9a-f]{6}$/);
+			for (const block of blocks) {
+				for (const [name, value] of block) expect(value, name).toMatch(/^#[0-9a-f]{6}$/);
 			}
-		}
+		});
 	});
 
 	it('sets every variable that a Tailwind colour name reads', () => {
@@ -144,6 +155,25 @@ describe.each(THEMES)('contrast in the %s theme', (theme) => {
 		expect(contrast(token(theme, edge), token(theme, background))).toBeGreaterThanOrEqual(
 			EDGE_MINIMUM,
 		);
+	});
+});
+
+// What a square of the board can look like under a coordinate.
+const SQUARES = ['--board-light', '--board-dark', '--board-last-move', '--board-selected'];
+
+describe.each(THEMES)('the board in the %s theme', (theme) => {
+	it.each(SQUARES)('shows its coordinates readably on %s', (square) => {
+		expect(contrast(token(theme, '--board-coord'), token(theme, square))).toBeGreaterThanOrEqual(
+			TEXT_MINIMUM,
+		);
+	});
+
+	it('tells a light square from a dark one', () => {
+		// Not a WCAG threshold: the two squares only have to stay apart, and a pair that
+		// drifts together would still pass every coordinate check above.
+		expect(
+			contrast(token(theme, '--board-light'), token(theme, '--board-dark')),
+		).toBeGreaterThanOrEqual(1.8);
 	});
 });
 
@@ -221,6 +251,17 @@ describe('palette utilities', () => {
 		const found = SOURCES.flatMap(({ path, lines }) =>
 			lines.flatMap((line, i) =>
 				[...line.matchAll(PALETTE_UTILITY)].map(([utility]) => `${path}:${i + 1} ${utility}`),
+			),
+		);
+		expect(found).toEqual([]);
+	});
+
+	it('are not replaced by a colour written into a class (`bg-[#f0d9b5]`)', () => {
+		const found = SOURCES.flatMap(({ path, lines }) =>
+			lines.flatMap((line, i) =>
+				[...line.matchAll(/[\w-]+-\[#[0-9a-fA-F]{3,8}\]/g)].map(
+					([utility]) => `${path}:${i + 1} ${utility}`,
+				),
 			),
 		);
 		expect(found).toEqual([]);
