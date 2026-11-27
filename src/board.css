@@ -1,0 +1,125 @@
+/* The board: its colours and the look of chessground's squares, marks and coordinates (#251).
+   Replaces `chessground.brown.css`; `chessground.base.css` (layout) and the piece set are still
+   imported by the components that draw a board.
+
+   The colours are variables of their own, apart from the interface tokens in `app.css`, so a
+   choice of board style can be added later as one more set of these values without touching
+   the contrast of any text. `app.css` gives them Tailwind names (`bg-board-light`, ...), which
+   is how the mini board and the dice share them. `src/designTokens.test.ts` holds the
+   coordinate ink to 4.5:1 on every square colour below, in both themes. */
+
+:root,
+[data-theme='dark'] {
+	--board-light: #c1cfb4;
+	--board-dark: #66856b;
+	--board-last-move: #cfca78;
+	--board-selected: #e6bd5c;
+	--board-coord: #0a160d;
+}
+
+[data-theme='light'] {
+	--board-light: #d9e0cb;
+	--board-dark: #7f9a7d;
+	--board-last-move: #dcd98a;
+	--board-selected: #f0c869;
+	--board-coord: #0a160d;
+}
+
+/* The rules below name `cg-container`, which only a real chessground board has: the promotion
+   picker borrows `cg-board` for its piece sprites and must not get a checkerboard. The extra
+   element also lets them win over `chessground.base.css` whatever order the two load in. */
+
+/* Squares: one tile is two by two squares, a quarter of the board, light at the top left. */
+cg-container cg-board {
+	background-color: var(--board-light);
+	background-image: conic-gradient(
+		var(--board-dark) 25%,
+		transparent 0 50%,
+		var(--board-dark) 0 75%,
+		transparent 0
+	);
+	background-size: 25% 25%;
+}
+
+cg-container cg-board square.last-move {
+	background-color: var(--board-last-move);
+}
+
+cg-container cg-board square.selected,
+cg-container cg-board square.current-premove {
+	background-color: var(--board-selected);
+}
+
+/* Where the selected piece can go: a dot on an empty square, a ring around a piece that can be
+   captured, a fill under the pointer. Drawn in the coordinate ink, so it follows the board. */
+cg-container cg-board square.move-dest,
+cg-container cg-board square.premove-dest {
+	background: radial-gradient(
+		color-mix(in srgb, var(--board-coord) 38%, transparent) 22%,
+		transparent 0
+	);
+}
+
+cg-container cg-board square.oc.move-dest,
+cg-container cg-board square.oc.premove-dest {
+	background: radial-gradient(
+		transparent 0%,
+		transparent 78%,
+		color-mix(in srgb, var(--board-coord) 38%, transparent) 78%
+	);
+}
+
+cg-container cg-board square.move-dest:hover,
+cg-container cg-board square.move-dest.hover,
+cg-container cg-board square.premove-dest:hover,
+cg-container cg-board square.premove-dest.hover {
+	background: color-mix(in srgb, var(--board-coord) 26%, transparent);
+}
+
+/* Coordinates: the rank in the top left corner of the first file's squares, the file in the
+   bottom right corner of the first rank's, in one ink that reads on both square colours. */
+.cg-wrap cg-container coords {
+	opacity: 1;
+	color: var(--board-coord);
+	font-family: inherit;
+	font-size: 12px;
+	font-weight: 700;
+	line-height: 1;
+}
+
+.cg-wrap cg-container coords.ranks {
+	top: 0;
+	left: 0;
+	width: 12.5%;
+}
+
+.cg-wrap cg-container coords.ranks coord {
+	transform: none;
+	padding: 3px 0 0 5px;
+	text-align: left;
+}
+
+.cg-wrap cg-container coords.files {
+	bottom: 0;
+	left: 0;
+	height: auto;
+}
+
+.cg-wrap cg-container coords.files coord {
+	padding: 0 5px 3px 0;
+	text-align: right;
+}
+
+@media (max-width: 480px) {
+	.cg-wrap cg-container coords {
+		font-size: 10px;
+	}
+
+	.cg-wrap cg-container coords.ranks coord {
+		padding: 2px 0 0 3px;
+	}
+
+	.cg-wrap cg-container coords.files coord {
+		padding: 0 3px 2px 0;
+	}
+}

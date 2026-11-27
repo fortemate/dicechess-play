@@ -1,4 +1,5 @@
 @import 'tailwindcss';
+@import './board.css';
 
 @theme {
 	/* Every colour utility below reads a variable that the two theme blocks further down set
@@ -39,7 +40,14 @@
 	--color-piece-black: #1e293b;
 	--color-piece-black-border: #475569;
 
-	--color-dice-surface: var(--bg-dice);
+	/* The board, from `board.css`: its two squares, its two marks and the coordinate ink.
+	   A die face is a light square, so a white and a black piece both read on it. */
+	--color-board-light: var(--board-light);
+	--color-board-dark: var(--board-dark);
+	--color-board-last-move: var(--board-last-move);
+	--color-board-selected: var(--board-selected);
+	--color-board-coord: var(--board-coord);
+	--color-dice-surface: var(--board-light);
 
 	/* Dice roll. One die "tumbles": a hop with two turns, a squash on impact, a small
 	   rebound, then it settles. Runs once per roll on top of the already-revealed value
@@ -119,10 +127,6 @@
 	--text-highlight: #f5ddb6;
 
 	--scrim: #0a160d;
-
-	/* A die face is a light board square, so a white and a black piece both read on it.
-	   The board and the finished die are #251's. */
-	--bg-dice: #c1cfb4;
 }
 
 [data-theme='light'] {
@@ -150,8 +154,6 @@
 	--text-highlight: #65451c;
 
 	--scrim: #0a160d;
-
-	--bg-dice: #d9e0cb;
 }
 
 body {

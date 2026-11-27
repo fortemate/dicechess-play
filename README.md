@@ -26,7 +26,8 @@ SvelteKit 3 · Svelte 5 (runes) · Tailwind 4 · `adapter-static` (SPA, `ssr=fal
 (`@vite-pwa/sveltekit`). Game rules come from one place — the `@fortemate/dicechess-engine`
 (Scala.js) artifact, pinned in `package.json`. The site has a light and a dark theme and follows the
 system setting unless the visitor picks one (`src/lib/appearance.ts`). Their colours are the tokens
-in `src/app.css`; `src/designTokens.test.ts` holds the pairs in use to WCAG AA contrast.
+in `src/app.css` and the board colours in `src/board.css`, which replaces chessground's board theme;
+`src/designTokens.test.ts` holds the pairs in use to WCAG AA contrast.
 
 ## Getting started
 

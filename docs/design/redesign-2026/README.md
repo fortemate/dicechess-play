@@ -130,16 +130,17 @@ Rules:
 
 ### Board and dice
 
-Kept apart from the interface tokens, so a choice of board style can be added later without touching text contrast. Set by [#251](https://github.com/fortemate/dicechess-play/issues/251).
+Kept apart from the interface tokens, so a choice of board style can be added later without touching text contrast. They live in `src/board.css`, which also styles the squares, the marks and the coordinates of the board.
 
-| Purpose             | Light     | Dark      |
-| ------------------- | --------- | --------- |
-| Light square        | `#d9e0cb` | `#c1cfb4` |
-| Dark square         | `#7f9a7d` | `#66856b` |
-| Last-move highlight | `#dcd98a` | `#cfca78` |
-| Selected square     | `#f0c869` | `#e6bd5c` |
-| Coordinates         | `#0a160d` | `#0a160d` |
+| Variable            | Tailwind name     | Light     | Dark      | Used for                                                 |
+| ------------------- | ----------------- | --------- | --------- | -------------------------------------------------------- |
+| `--board-light`     | `board-light`     | `#d9e0cb` | `#c1cfb4` | Light squares and the face of a die.                     |
+| `--board-dark`      | `board-dark`      | `#7f9a7d` | `#66856b` | Dark squares and the edge of a die.                      |
+| `--board-last-move` | `board-last-move` | `#dcd98a` | `#cfca78` | The two squares of the last move.                        |
+| `--board-selected`  | `board-selected`  | `#f0c869` | `#e6bd5c` | The square of the selected piece.                        |
+| `--board-coord`     | `board-coord`     | `#0a160d` | `#0a160d` | Coordinates, and the marks on squares a piece can go to. |
 
+- Coordinates sit inside the squares: the rank in the top left corner of the first file, the file in the bottom right corner of the first rank. The ink meets 4.5:1 on all four square colours; `src/designTokens.test.ts` checks it.
 - A die face is a light square with a dark-square edge, so a white and a black piece are both readable on it.
 - A used die is dimmed. The die that can be played now carries the highlight edge.
 - The small boards on Arena use the same variables.
