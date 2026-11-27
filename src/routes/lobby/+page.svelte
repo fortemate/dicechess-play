@@ -4,39 +4,21 @@
 	import { resolve } from '$app/paths';
 	import { getGuestUuid } from '#lib/ingest/guestIdentity.js';
 	import { isLiveEnabled } from '#lib/live/liveApi.js';
-	import {
-		listSeeks,
-		listGames,
-		createSeek,
-		seekStatus,
-		acceptSeek,
-		cancelSeek,
-		SeekAcceptError,
-	} from '#lib/live/lobbyApi.js';
+	import { listSeeks, listGames, acceptSeek, SeekAcceptError } from '#lib/live/lobbyApi.js';
 	import { buildJoinUrl } from '#lib/live/seatLink.js';
+	import { openTable, type OpenTable } from '#lib/live/openTable.js';
 	import { fullmoveOf } from '#lib/live/boardGrid.js';
 	import { formatClock } from '#lib/live/clockFormat.js';
 	import { seekOffer } from '#lib/live/playerLabel.js';
-	import {
-		timeControlChoices,
-		timeControlLabel,
-		timeControlPresets,
-	} from '#lib/live/timeControls.js';
+	import { timeControlChoices, timeControlLabel } from '#lib/live/timeControls.js';
 	import BotBadge from '../../components/BotBadge.svelte';
 	import MiniBoard from '../../components/MiniBoard.svelte';
 	import RatedBadge from '../../components/RatedBadge.svelte';
-	import GameFrame from '../../components/GameFrame.svelte';
+	import OpenTableWaiting from '../../components/OpenTableWaiting.svelte';
 	import GameSetupPanel from '../../components/GameSetupPanel.svelte';
-	import GameWaitingCard from '../../components/GameWaitingCard.svelte';
-	import MoveList from '../../components/MoveList.svelte';
-	import PlayerStrip from '../../components/PlayerStrip.svelte';
-	import { chromeStore } from '#lib/stores/chromeStore.svelte.js';
-	import { preferencesStore } from '#lib/preferencesStore.svelte.js';
-	import { m } from '#lib/paraglide/messages.js';
 	import type { LiveGame, PublicPlayer, Seek } from '#lib/live/liveTypes.js';
 
 	const LIST_POLL_MS = 3000;
-	const STATUS_POLL_MS = 1500;
 	const START_FEN = 'rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1';
 
 	let seeks = $state<Seek[]>([]);
@@ -47,14 +29,7 @@
 	let rated = $state(false);
 	let error = $state<string | null>(null);
 	// When set, we created a seek and are waiting for an opponent (our own table replaces the wall).
-	let waiting = $state<{
-		id: string;
-		secret: string;
-		label: string;
-		rated: boolean;
-		/** What each clock will start at, for the two strips of the waiting board. */
-		clockMs: number | undefined;
-	} | null>(null);
+	let waiting = $state<OpenTable | null>(null);
 	let creating = $state(false);
 	let accepting = $state(false);
 	let createOpen = $state(false);
@@ -112,50 +87,12 @@
 		};
 	});
 
-	// Waiting: poll our seek until it's accepted, then go to the board as whichever seat the
-	// server's accept-time coin flip actually gave us (never assume White — see play-api #95).
-	$effect(() => {
-		const w = waiting;
-		if (!w) return;
-		let alive = true;
-		const tick = async () => {
-			try {
-				const s = await seekStatus(w.id, w.secret);
-				if (alive && s.matched && s.gameId && s.token && s.seat)
-					goToBoard(s.gameId, s.token, s.seat);
-			} catch {
-				/* transient — keep waiting */
-			}
-		};
-		tick(); // check immediately so a match that already happened redirects without a poll-interval delay
-		const timer = setInterval(tick, STATUS_POLL_MS);
-		return () => {
-			alive = false;
-			clearInterval(timer);
-		};
-	});
-
 	async function create() {
 		if (creating || accepting) return;
 		creating = true;
 		error = null;
 		try {
-			const preset = timeControlPresets[selected];
-			const created = await createSeek(getGuestUuid(), preset.value, rated);
-			const control = preset.value;
-			const initialSeconds =
-				control && 'Fischer' in control
-					? control.Fischer.initialSeconds
-					: control && 'SuddenDeath' in control
-						? control.SuddenDeath.initialSeconds
-						: undefined;
-			waiting = {
-				id: created.seekId,
-				secret: created.secret,
-				label: preset.label,
-				rated,
-				clockMs: initialSeconds === undefined ? undefined : initialSeconds * 1000,
-			};
+			waiting = await openTable(selected, rated);
 		} catch {
 			// Any failure here — unreachable server, a bad response — means the same thing to the
 			// player: the lobby isn't working right now. One honest, non-technical message instead of
@@ -165,26 +102,6 @@
 			creating = false;
 		}
 	}
-
-	async function cancel() {
-		const w = waiting;
-		if (!w) return;
-		waiting = null; // stop polling immediately
-		try {
-			await cancelSeek(w.id, w.secret);
-		} catch {
-			/* best-effort; the server TTL reaps it anyway */
-		}
-	}
-
-	// While the visitor waits at their own table, the page is the game frame (#256): the site
-	// header gets out of the way, as it does on a board.
-	$effect(() => {
-		chromeStore.zen = waiting !== null;
-		return () => {
-			chromeStore.zen = false;
-		};
-	});
 
 	async function accept(seek: Seek) {
 		if (accepting || creating) return;
@@ -238,63 +155,8 @@
 {/snippet}
 
 {#if waiting && isLiveEnabled()}
-	<!-- Waiting at one's own table happens on the board (#256), not inside the lobby: the game
-	     frame with an untouched starting position, both clocks standing at what they will start
-	     from, and one way out, which closes the table. No game exists yet, so there is nothing to
-	     resign and no move to list. -->
-	<GameFrame
-		title={m.game_waiting_table_frame_title({ time: waiting.label })}
-		onleave={cancel}
-		sound={{
-			enabled: preferencesStore.soundEnabled,
-			toggle: () => preferencesStore.setSoundEnabled(!preferencesStore.soundEnabled),
-		}}
-	>
-		{#snippet status()}
-			<!-- Echoes what was asked for; the server is the authority and degrades the flag if the
-			     session turns out to be absent, which RatedChoice's own gate already prevents. -->
-			{#if waiting?.rated}<RatedBadge sizeClass="text-xs" />{/if}
-		{/snippet}
-		{#snippet top()}
-			<PlayerStrip
-				name={m.game_waiting_table_opponent()}
-				sub={m.game_waiting_table_opponent_sub()}
-				compact
-				clockMs={waiting?.clockMs}
-			/>
-		{/snippet}
-		{#snippet board()}
-			<div class="relative aspect-square w-full overflow-hidden rounded-xl shadow-lg">
-				<MiniBoard fen={START_FEN} />
-			</div>
-		{/snippet}
-		{#snippet bottom()}
-			<PlayerStrip
-				name={m.common_player_you()}
-				sub={m.game_waiting_table_you_sub()}
-				compact
-				clockMs={waiting?.clockMs}
-			/>
-		{/snippet}
-		{#snippet card()}
-			<GameWaitingCard
-				title={m.game_waiting_table_title()}
-				text={m.game_waiting_table_text()}
-				closeLabel={m.game_waiting_table_close()}
-				onclose={cancel}
-			/>
-		{/snippet}
-		{#snippet moves(close)}
-			<MoveList
-				historyBlocks={[]}
-				currentMoveIndex={0}
-				maxMoveIndex={0}
-				onSetMove={() => {}}
-				keyboardNavEnabled={false}
-				onclose={close}
-			/>
-		{/snippet}
-	</GameFrame>
+	<!-- Waiting at one's own table happens on the board (#256), not inside the lobby. -->
+	<OpenTableWaiting table={waiting} onclose={() => (waiting = null)} />
 {:else}
 	<section class="mx-auto flex max-w-4xl flex-col gap-5">
 		<div class="flex flex-wrap items-center justify-between gap-3">
