@@ -101,13 +101,22 @@ export class ArenaFeed {
 		try {
 			// Both answers are waited for, also when one of them fails: the guard above is released
 			// only once nothing of this read is still on its way.
-			const [gamesRead, seeksRead] = await Promise.allSettled([listGames(), listSeeks()]);
+			// The games are dated by their own answer: the seeks can take longer, and the clocks in
+			// the list are as of when the games were read.
+			let gamesReadAt = 0;
+			const [gamesRead, seeksRead] = await Promise.allSettled([
+				listGames().then((answer) => {
+					gamesReadAt = now();
+					return answer;
+				}),
+				listSeeks(),
+			]);
 			if (this.#stopped) return;
 			if (gamesRead.status === 'rejected') throw gamesRead.reason;
 			if (seeksRead.status === 'rejected') throw seeksRead.reason;
 			const games = gamesRead.value;
 			const seeks = seeksRead.value;
-			this.#listReadAt = now();
+			this.#listReadAt = gamesReadAt;
 			this.games = games.games;
 			this.total = games.total;
 			this.seeks = seeks;

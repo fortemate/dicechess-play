@@ -202,6 +202,22 @@ describe('ArenaFeed', () => {
 		expect(feed.featured!.readAt % LIST_POLL_MS).toBe(0);
 	});
 
+	it('dates the games by their own answer when the seeks take longer', async () => {
+		vi.setSystemTime(100_000);
+		listed([weak]);
+		states.weak = 'fail';
+		let seeksAnswer!: (value: never[]) => void;
+		api.listSeeks.mockReturnValue(new Promise((resolve) => (seeksAnswer = resolve)));
+		await begin();
+		// The games have answered; the seeks answer three seconds later.
+		await vi.advanceTimersByTimeAsync(3000);
+		expect(feed.loaded).toBe(false);
+		seeksAnswer([]);
+		await vi.advanceTimersByTimeAsync(0);
+		expect(feed.featured?.game.gameId).toBe('weak');
+		expect(feed.featured?.readAt).toBe(100_000);
+	});
+
 	it('takes every read of the featured game as a new starting point for its clocks', async () => {
 		// play-api reports clocks as of the moment it answers, so a read with nothing else changed
 		// still carries newer clocks.
