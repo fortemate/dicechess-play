@@ -49,7 +49,8 @@
 		top: Snippet;
 		/** The board with its overlays. */
 		board: Snippet;
-		/** Under the board: the step controls, a "return to live" banner. */
+		/** Under the board: the step controls of a finished or watched game, a "return to live"
+		 * banner. A player in a game has neither (#279), and the row then takes no space. */
 		underBoard?: Snippet;
 		/** The player strip below the board. */
 		bottom: Snippet;
@@ -186,7 +187,9 @@
 		     its height: the board is the game, and the card below it can be scrolled to. Where
 		     height is the tighter limit, the board is as tall as the screen leaves after the top
 		     bar, the two player strips and the step controls: from md up, and on a phone held
-		     sideways. The 200px floor keeps the board from collapsing there. -->
+		     sideways. The step controls are counted even while a player's game hides them (#279),
+		     so the board does not change size when the game ends and they appear. The 200px floor
+		     keeps the board from collapsing there. -->
 		<div class="flex min-w-0 justify-center">
 			<div
 				class="flex w-full max-w-[560px] flex-col gap-2.5 max-md:landscape:max-w-[min(560px,max(200px,calc(100dvh-15rem)))] md:max-w-[max(200px,calc(100dvh-18.5rem))]"

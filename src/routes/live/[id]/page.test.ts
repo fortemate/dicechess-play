@@ -897,3 +897,35 @@ describe('live board — the invitation of a game by link (#256)', () => {
 		expect(invite.forget).toHaveBeenCalledWith('game-1');
 	});
 });
+
+// The step controls under the board are for looking back at leisure (#279): a finished game, or
+// a game one only watches. A seated player in a game does not see them.
+describe('live board — step controls', () => {
+	const playing = { gameStatus: 'playing', authoritativeOver: null, outcome: null, winner: null };
+
+	it('are absent for a player while the game is in progress', () => {
+		state.current = storeState(playing);
+		const { queryByRole } = render(LivePage);
+		expect(queryByRole('button', { name: 'First move' })).toBeNull();
+	});
+
+	it('are there for a player once the game is over', () => {
+		state.current = storeState();
+		const { getByRole } = render(LivePage);
+		expect(getByRole('button', { name: 'First move' })).toBeTruthy();
+	});
+
+	it('are there for a spectator throughout', () => {
+		state.current = storeState({ ...playing, spectator: true });
+		const { getByRole } = render(LivePage);
+		expect(getByRole('button', { name: 'First move' })).toBeTruthy();
+	});
+
+	it('leave a player the way back after a move from the list was opened', async () => {
+		state.current = storeState({ ...playing, isManuallyBrowsing: true, maxMoveIndex: 5 });
+		const { getByRole, queryByRole } = render(LivePage);
+		expect(queryByRole('button', { name: 'First move' })).toBeNull();
+		await fireEvent.click(getByRole('button', { name: /Return to live/ }));
+		expect(state.current.setMoveIndex).toHaveBeenCalledWith(5);
+	});
+});

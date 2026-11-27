@@ -146,6 +146,7 @@
 	"game_practice_guest_sub": "guest · {color}",
 	"game_practice_frame_title": "{name} · level {level}",
 	"game_practice_frame_title_timed": "{name} · level {level} · {time}",
+	"game_practice_return_to_game": "Viewing history — Return to the game",
 	"game_live_title": "{white} vs {black}",
 	"game_live_page_title": "Dice Chess — Play",
 	"game_live_page_title_your_move": "● Your move · Dice Chess",
