@@ -670,11 +670,16 @@
 				{m.game_live_return_to_live()}
 			</Button>
 		{/if}
-		<MoveStepper
-			currentMoveIndex={live.currentMoveIndex}
-			maxMoveIndex={live.maxMoveIndex}
-			onSetMove={(i) => setMove(i)}
-		/>
+		<!-- The step controls are for looking back at leisure (#279): a finished game, or a game
+		     one is only watching. A player in a game has the move list for that, and the button
+		     above as the way back. The same rule as for the arrow keys of the move list. -->
+		{#if live.gameStatus === 'over' || live.spectator}
+			<MoveStepper
+				currentMoveIndex={live.currentMoveIndex}
+				maxMoveIndex={live.maxMoveIndex}
+				onSetMove={(i) => setMove(i)}
+			/>
+		{/if}
 	{/snippet}
 
 	{#snippet bottom()}

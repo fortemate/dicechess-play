@@ -200,3 +200,25 @@ describe('/practice with a game started on Play', () => {
 		expect(store.startNewGame).toHaveBeenCalledWith(expect.anything(), 'random');
 	});
 });
+
+// The step controls under the board are for reviewing a finished game (#279). A player on move
+// does not see them; the move list stays the way to look back, with a way home.
+describe('/practice step controls', () => {
+	it('are absent while the game is in progress', () => {
+		renderPage();
+		expect(screen.queryByRole('button', { name: 'First move' })).toBeNull();
+		expect(screen.queryByRole('button', { name: /Return to the game/ })).toBeNull();
+	});
+
+	it('are there once the game is over', () => {
+		renderPage({ gameStatus: 'defeat' });
+		expect(screen.getByRole('button', { name: 'First move' })).toBeTruthy();
+	});
+
+	it('give way to a way back when a move from the list is on the board', async () => {
+		const { store } = renderPage({ isViewingHistory: true, currentMoveIndex: 2, maxMoveIndex: 7 });
+		expect(screen.queryByRole('button', { name: 'First move' })).toBeNull();
+		await fireEvent.click(screen.getByRole('button', { name: /Return to the game/ }));
+		expect(store.setMoveIndex).toHaveBeenCalledWith(7);
+	});
+});

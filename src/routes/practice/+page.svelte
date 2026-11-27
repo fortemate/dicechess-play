@@ -288,11 +288,20 @@
 		{/snippet}
 
 		{#snippet underBoard()}
-			<MoveStepper
-				currentMoveIndex={store.currentMoveIndex}
-				maxMoveIndex={store.maxMoveIndex}
-				onSetMove={(i) => store.setMoveIndex(i)}
-			/>
+			<!-- The step controls are for reviewing a finished game (#279). A player on move has no
+			     use for them, and they would take the row right under the board. A move clicked in
+			     the list still shows its position; this is then the way back. -->
+			{#if isOver}
+				<MoveStepper
+					currentMoveIndex={store.currentMoveIndex}
+					maxMoveIndex={store.maxMoveIndex}
+					onSetMove={(i) => store.setMoveIndex(i)}
+				/>
+			{:else if store.isViewingHistory}
+				<Button variant="secondary" block onclick={() => store.setMoveIndex(store.maxMoveIndex)}>
+					{m.game_practice_return_to_game()}
+				</Button>
+			{/if}
 		{/snippet}
 
 		{#snippet bottom()}
@@ -320,8 +329,8 @@
 					</Button>
 				</GameResultCard>
 			{:else if store.isPreRollGateActive}
-				<!-- The gate takes the turn card's slot rather than opening a modal: the board and its
-				     step controls stay live while the clock runs, which is what makes declining cheap
+				<!-- The gate takes the turn card's slot rather than opening a modal: the board and the
+				     move list stay live while the clock runs, which is what makes declining cheap
 				     enough to be the honest default. -->
 				<PreRollDrawGate
 					isResponder={store.isPreRollResponder}

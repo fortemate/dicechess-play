@@ -6,15 +6,15 @@ import { test, expect, type Page, type Locator } from '@playwright/test';
 // passed, because none of them touch the bundle.
 //
 // So this runs a real turn against the built dist: pick a piece, play a legal move, assert the
-// game's history counter advanced. It is deliberately blind to which colour, opponent or dice the
+// game's move list grew. It is deliberately blind to which colour, opponent or dice the
 // game hands out — it hunts for a movable piece instead of assuming one.
 
 /** Console errors that mean the engine itself refused to work — the #185 signature. */
 const ENGINE_FAILURE = /Engine rejected|Failed to register opening-book/;
 
-/** The `<current> / <max>` history counter under the board, keyed off its nav row. */
-function moveCounter(page: Page): Locator {
-	return page.locator('div:has(> button[aria-label="First move"]) > span');
+/** Every entry of the move list: a roll or a move. The list grows when the engine takes a move. */
+function moveEntries(page: Page): Locator {
+	return page.getByRole('region', { name: 'Moves' }).locator('[data-current]');
 }
 
 /** A piece's identity on the board: `"white knight"` at chessground's `translate(...)` offset. */
@@ -40,7 +40,7 @@ async function piecesOnBoard(page: Page): Promise<string[]> {
  * store then auto-passes) — so a sweep that finds nothing is normal and just retries.
  */
 async function tryPlayOneMove(page: Page): Promise<boolean> {
-	const counterBefore = await moveCounter(page).innerText();
+	const entriesBefore = await moveEntries(page).count();
 
 	for (const piece of await page.locator('cg-board piece').all()) {
 		// Short per-click bound: against a remote target this sweep is up to 32 round trips, and one
@@ -59,13 +59,13 @@ async function tryPlayOneMove(page: Page): Promise<boolean> {
 		)
 			continue;
 
-		// The move counter is the honest signal that the engine took it. Watching the piece is not:
+		// The length of the move list is the honest signal that the engine took it. Watching the piece is not:
 		// on a rejected move the store leaves the FEN untouched, so nothing re-renders and
 		// chessground keeps the piece on the square it was dropped on — a build that cannot move at
 		// all still looks like a successful move until something else forces a render.
 		const applied = await expect
-			.poll(async () => moveCounter(page).innerText(), { timeout: 3_000 })
-			.not.toEqual(counterBefore)
+			.poll(async () => moveEntries(page).count(), { timeout: 3_000 })
+			.toBeGreaterThan(entriesBefore)
 			.then(
 				() => true,
 				() => false,
