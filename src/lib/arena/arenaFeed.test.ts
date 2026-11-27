@@ -129,6 +129,54 @@ describe('ArenaFeed', () => {
 		expect(feed.featured?.game.players?.white.name).toBe('weak-white');
 	});
 
+	it('asks for the featured game once at a time, however slow the answer', async () => {
+		listed([weak]);
+		await begin();
+		// The server takes far longer than the interval between reads.
+		let answer!: (value: object) => void;
+		vi.mocked(fetch).mockReturnValue(new Promise((resolve) => (answer = resolve)) as never);
+		const before = vi.mocked(fetch).mock.calls.length;
+		await vi.advanceTimersByTimeAsync(FEATURED_POLL_MS * 4);
+		expect(vi.mocked(fetch).mock.calls).toHaveLength(before + 1);
+
+		answer({ status: 200, ok: true, json: async () => active({ version: 7 }) });
+		await vi.advanceTimersByTimeAsync(0);
+		expect(feed.featured?.game.version).toBe(7);
+		// The slow answer has arrived: the next tick asks again.
+		await vi.advanceTimersByTimeAsync(FEATURED_POLL_MS);
+		expect(vi.mocked(fetch).mock.calls).toHaveLength(before + 2);
+	});
+
+	it('drops an answer that is older than the picture on screen', async () => {
+		listed([weak]);
+		states.weak = active({ version: 9, dfen: `${START} QQ` });
+		await begin();
+		await vi.advanceTimersByTimeAsync(FEATURED_POLL_MS);
+		expect(feed.featured?.game.version).toBe(9);
+
+		// A cache or a late hop serves an older state of the same game.
+		states.weak = active({ version: 4, dfen: `${START} PP`, activeSeat: 'White' });
+		await vi.advanceTimersByTimeAsync(FEATURED_POLL_MS);
+		expect(feed.featured?.game).toMatchObject({ version: 9, dfen: `${START} QQ` });
+
+		states.weak = active({ version: 10, dfen: `${START} RR` });
+		await vi.advanceTimersByTimeAsync(FEATURED_POLL_MS);
+		expect(feed.featured?.game).toMatchObject({ version: 10, dfen: `${START} RR` });
+	});
+
+	it('asks for the list once at a time as well', async () => {
+		let answer!: (value: { games: LiveGame[]; total: number }) => void;
+		states.weak = active();
+		api.listGames.mockReturnValue(new Promise((resolve) => (answer = resolve)));
+		await begin();
+		await vi.advanceTimersByTimeAsync(LIST_POLL_MS * 3);
+		expect(api.listGames).toHaveBeenCalledOnce();
+		answer({ games: [weak], total: 1 });
+		await vi.advanceTimersByTimeAsync(LIST_POLL_MS);
+		expect(feed.featured?.game.gameId).toBe('weak');
+		expect(api.listGames).toHaveBeenCalledTimes(2);
+	});
+
 	it('shows the final position when the game ends, then hands over to the next game', async () => {
 		listed([weak, strong]);
 		states.strong = active();

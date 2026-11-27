@@ -64,6 +64,10 @@ export class ArenaFeed {
 	#state: FeaturedState | null = null;
 	#failures = 0;
 	#stopped = false;
+	// One read of each kind at a time. A slow answer must not be overtaken by the next request
+	// and then land on top of newer news.
+	#listing = false;
+	#following = false;
 
 	#now: () => number = Date.now;
 
@@ -88,7 +92,8 @@ export class ArenaFeed {
 	}
 
 	async #readList(now: () => number) {
-		if (document.hidden) return;
+		if (document.hidden || this.#listing) return;
+		this.#listing = true;
 		try {
 			const [games, seeks] = await Promise.all([listGames(), listSeeks()]);
 			if (this.#stopped) return;
@@ -104,22 +109,27 @@ export class ArenaFeed {
 			if (this.#stopped) return;
 			this.#failures += 1;
 			if (this.#failures >= POLL_FAILURES_BEFORE_UNAVAILABLE) this.unavailable = true;
+		} finally {
+			this.#listing = false;
 		}
 	}
 
 	async #followFeatured(now: () => number) {
-		if (document.hidden) return;
+		if (document.hidden || this.#following) return;
 		const state = this.#state;
 		if (state === null) return;
 		if (state.phase === 'final') {
 			this.#advance('over', now());
 			return;
 		}
+		this.#following = true;
 		let read: PublicGameState | null;
 		try {
 			read = await readGame(state.gameId);
 		} catch {
 			return; // a missed read: the game stays as it was
+		} finally {
+			this.#following = false;
 		}
 		// Only act on the answer if the same game is still the featured one.
 		if (this.#stopped || this.#state !== state) return;
@@ -129,6 +139,9 @@ export class ArenaFeed {
 		}
 		const view = this.featured;
 		if (view?.game.gameId !== state.gameId) return;
+		// The server counts every change of a game. An answer older than the picture on screen
+		// is dropped, whichever way it came to be late.
+		if (read.version < view.game.version) return;
 		const ended = 'Ended' in read.status ? read.status.Ended.over : null;
 		this.featured = {
 			phase: view.phase,
