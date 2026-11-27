@@ -164,6 +164,59 @@ describe('ArenaFeed', () => {
 		expect(feed.featured?.game).toMatchObject({ version: 10, dfen: `${START} RR` });
 	});
 
+	it('waits for both list requests before asking again, also when one of them fails', async () => {
+		let answer!: (value: { games: LiveGame[]; total: number }) => void;
+		api.listGames.mockReturnValue(new Promise((resolve) => (answer = resolve)));
+		api.listSeeks.mockRejectedValue(new Error('seeks failed'));
+		await begin();
+		// The seeks have failed at once; the games are still on their way.
+		await vi.advanceTimersByTimeAsync(LIST_POLL_MS * 3);
+		expect(api.listGames).toHaveBeenCalledOnce();
+		expect(feed.unavailable).toBe(false);
+
+		answer({ games: [weak], total: 1 });
+		await vi.advanceTimersByTimeAsync(0);
+		// The read failed as a whole: nothing of it is shown.
+		expect(feed.loaded).toBe(false);
+		await vi.advanceTimersByTimeAsync(LIST_POLL_MS);
+		expect(api.listGames).toHaveBeenCalledTimes(2);
+	});
+
+	it('dates the clocks of a game taken from the list by when the list was read', async () => {
+		vi.setSystemTime(100_000);
+		listed([weak, strong]);
+		states.strong = active();
+		await begin();
+		expect(feed.featured?.readAt).toBe(100_000);
+
+		// The featured game ends; the next one is taken from a list read earlier.
+		states.strong = ended();
+		states.weak = 'fail';
+		await vi.advanceTimersByTimeAsync(FEATURED_POLL_MS);
+		const listReadAt = 100_000 + LIST_POLL_MS;
+		await vi.advanceTimersByTimeAsync(LIST_POLL_MS - FEATURED_POLL_MS + FINAL_POSITION_MS);
+		expect(feed.featured?.game.gameId).toBe('weak');
+		expect(feed.featured!.readAt).toBeGreaterThanOrEqual(listReadAt);
+		// Not the moment of the handover: the list was read before it.
+		expect(feed.featured!.readAt).toBeLessThan(Date.now());
+		expect(feed.featured!.readAt % LIST_POLL_MS).toBe(0);
+	});
+
+	it('takes every read of the featured game as a new starting point for its clocks', async () => {
+		// play-api reports clocks as of the moment it answers, so a read with nothing else changed
+		// still carries newer clocks.
+		vi.setSystemTime(100_000);
+		listed([weak]);
+		states.weak = active({ version: 5, clocks: { white: 290_000, black: 300_000 } });
+		await begin();
+		await vi.advanceTimersByTimeAsync(FEATURED_POLL_MS);
+		const first = feed.featured!.readAt;
+		states.weak = active({ version: 5, clocks: { white: 288_000, black: 300_000 } });
+		await vi.advanceTimersByTimeAsync(FEATURED_POLL_MS);
+		expect(feed.featured!.game.clocks?.white).toBe(288_000);
+		expect(feed.featured!.readAt).toBe(first + FEATURED_POLL_MS);
+	});
+
 	it('asks for the list once at a time as well', async () => {
 		let answer!: (value: { games: LiveGame[]; total: number }) => void;
 		states.weak = active();

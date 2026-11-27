@@ -57,8 +57,12 @@
 		}
 		if (destroyed) return;
 		taking = null;
-		error = result === 'refused' ? m.arena_seats_refused() : m.arena_seats_taken();
-		if (result === 'taken') onstale?.();
+		if (result === 'refused') error = m.arena_seats_refused();
+		else if (result === 'failed') error = m.arena_seats_failed();
+		else {
+			error = m.arena_seats_taken();
+			onstale?.();
+		}
 	}
 
 	// A browser may bring this page back from its cache when the visitor returns from the board.

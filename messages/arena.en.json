@@ -48,6 +48,7 @@
 	"arena_seats_more": "All bots and open tables",
 	"arena_seats_refused": "That table plays for rating. Sign in to sit down.",
 	"arena_seats_taken": "That seat was just taken. Pick another.",
+	"arena_seats_failed": "The seat could not be taken right now. Try again.",
 	"arena_standings_title": "Standings · {speed}",
 	"arena_standings_rating": "Rating",
 	"arena_standings_loading": "Loading the standings…",

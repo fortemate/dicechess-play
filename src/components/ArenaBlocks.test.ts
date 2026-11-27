@@ -288,6 +288,29 @@ describe('ArenaSeats', () => {
 		).toBe(false);
 	});
 
+	it('asks to try again when the request did not get through, without calling the seat taken', async () => {
+		const onstale = vi.fn();
+		for (const failure of [new TypeError('Failed to fetch'), new SeekAcceptError(503)]) {
+			api.acceptSeek.mockRejectedValue(failure);
+			const view = render(ArenaSeats, { seeks: [seek('1')], onstale });
+			await fireEvent.click(view.getByRole('button', { name: /Take a seat against/ }));
+			expect((await view.findByRole('alert')).textContent).toBe(
+				'The seat could not be taken right now. Try again.',
+			);
+			cleanup();
+		}
+		expect(onstale).not.toHaveBeenCalled();
+	});
+
+	it('calls a seat taken when the server says the table is gone', async () => {
+		api.acceptSeek.mockRejectedValue(new SeekAcceptError(404));
+		const view = render(ArenaSeats, { seeks: [seek('1')] });
+		await fireEvent.click(view.getByRole('button', { name: /Take a seat against/ }));
+		expect((await view.findByRole('alert')).textContent).toBe(
+			'That seat was just taken. Pick another.',
+		);
+	});
+
 	it('offers a guest "Sign in to sit" at a rated table, and tells a refused visitor why', async () => {
 		const rated = [seek('1', { rated: true })];
 		const guest = render(ArenaSeats, { seeks: rated });

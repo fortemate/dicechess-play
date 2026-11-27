@@ -33,7 +33,9 @@ export interface FeaturedView {
 	game: LiveGame;
 	/** How it ended, once it has. */
 	over: Over | null;
-	/** When `game` was read, in milliseconds: the running clock is counted down from here. */
+	/** When `game` was read, in milliseconds: the running clock is counted down from here. The
+	 * server reports clocks as of the moment it answers, with the turn in progress already taken
+	 * off, so every read is a new starting point, also when nothing else in the game has changed. */
 	readAt: number;
 }
 
@@ -68,6 +70,8 @@ export class ArenaFeed {
 	// and then land on top of newer news.
 	#listing = false;
 	#following = false;
+	/** When the list on hand was read: its clocks are as of then, not as of when a game is chosen. */
+	#listReadAt = 0;
 
 	#now: () => number = Date.now;
 
@@ -95,8 +99,15 @@ export class ArenaFeed {
 		if (document.hidden || this.#listing) return;
 		this.#listing = true;
 		try {
-			const [games, seeks] = await Promise.all([listGames(), listSeeks()]);
+			// Both answers are waited for, also when one of them fails: the guard above is released
+			// only once nothing of this read is still on its way.
+			const [gamesRead, seeksRead] = await Promise.allSettled([listGames(), listSeeks()]);
 			if (this.#stopped) return;
+			if (gamesRead.status === 'rejected') throw gamesRead.reason;
+			if (seeksRead.status === 'rejected') throw seeksRead.reason;
+			const games = gamesRead.value;
+			const seeks = seeksRead.value;
+			this.#listReadAt = now();
 			this.games = games.games;
 			this.total = games.total;
 			this.seeks = seeks;
@@ -175,7 +186,9 @@ export class ArenaFeed {
 			return;
 		}
 		const game = this.games.find((candidate) => candidate.gameId === next.gameId);
-		this.featured = game ? { phase: 'live', game, over: null, readAt: now } : null;
+		// The clocks of a game taken from the list are as old as the list. Saying so lets the card
+		// count them down from the right moment until the game's own state is read.
+		this.featured = game ? { phase: 'live', game, over: null, readAt: this.#listReadAt } : null;
 		if (!game) this.#state = null;
 	}
 }
