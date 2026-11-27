@@ -19,7 +19,6 @@ vi.mock('../../components/Board.svelte', stub);
 vi.mock('../../components/MoveList.svelte', stub);
 vi.mock('../../components/PlayerStrip.svelte', stub);
 vi.mock('../../components/PawnPromotionSelector.svelte', stub);
-vi.mock('../../components/GameEndModal.svelte', stub);
 
 vi.mock('#lib/sound.js', () => ({ preloadSounds: vi.fn(), playCue: vi.fn() }));
 vi.mock('#lib/ingest/outbox.js', () => ({ flushOutbox: vi.fn() }));

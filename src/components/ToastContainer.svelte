@@ -4,7 +4,7 @@
 	import { fly, fade } from 'svelte/transition';
 
 	// No dedicated "info" token exists, so it stays neutral (surface/border/content) —
-	// same convention GameHistoryCard/GameEndModal use for their non-win/loss tone.
+	// same convention GameHistoryCard/GameResultCard use for their non-win/loss tone.
 	const toneClass: Record<ToastType, string> = {
 		success: 'border-success/30 bg-success/10 text-success',
 		error: 'border-danger/30 bg-danger/10 text-danger',

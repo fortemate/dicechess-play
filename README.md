@@ -148,7 +148,7 @@ src/
 │   ├── GameShell              game navigation, appearance, identity and onboarding
 │   ├── GameHub                the ways-to-start-a-game cards on /play
 │   ├── lib/Chessground.svelte
-│   ├── GameFrame · GameActions · PlayerStrip · TurnCard · MoveList · MoveStepper · GameEndModal · BotBadge · PawnPromotionSelector
+│   ├── GameFrame · GameActions · PlayerStrip · TurnCard · GameResultCard · GameWaitingCard · MoveList · MoveStepper · BotBadge · PawnPromotionSelector
 │   ├── GameHistoryCard · LiveGameHistoryCard · BotProfileGameCard · WdlBar · WdlCounts
 │   │                     WdlSummaryCard · MiniBoard · GameSetupPanel · ThemeMenu
 │   │                     ToastContainer
@@ -205,7 +205,9 @@ src/
 │   │                          ratingCategory (hand-mirror of play-api's RatingCategory rule:
 │   │                          bullet/blitz/rapid from estimated duration, #258),
 │   │                          replayLink — when a finished game has an archived replay and the
-│   │                          shareable (token-free) URL for it (#216)
+│   │                          shareable (token-free) URL for it (#216),
+│   │                          friendInvite — the link to send for a game by link, carried from the
+│   │                          setup page to the board in session storage, never in the address (#256)
 │   ├── leaderboard/           leaderboardApi — rating-ladder + bot-profile read client (play-api
 │   │                          wire mirror; bot/player profiles + published snapshot reads, #124/#152)
 │   ├── ratings/               ratingPresentation — documented Glicko interval/order conversions and

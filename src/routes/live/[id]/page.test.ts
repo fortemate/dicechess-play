@@ -75,6 +75,14 @@ vi.mock('#lib/live/rematchApi.js', () => ({
 const toastStore = vi.hoisted(() => ({ error: vi.fn(), success: vi.fn(), info: vi.fn() }));
 vi.mock('#lib/toastStore.svelte.js', () => ({ toastStore }));
 
+// The invitation link of a game by link lives in session storage (#256); the page only asks for
+// the one that belongs to its game.
+const invite = vi.hoisted(() => ({ link: null as string | null, forget: vi.fn() }));
+vi.mock('#lib/live/friendInvite.js', () => ({
+	recallFriendInvite: () => invite.link,
+	forgetFriendInvite: invite.forget,
+}));
+
 const state = vi.hoisted(() => ({
 	current: {} as Record<string, unknown>,
 }));
@@ -198,7 +206,7 @@ describe('live board — separate training results (#124)', () => {
 describe('live board — a result read back from the archive (#109)', () => {
 	afterEach(cleanup);
 
-	it('names the outcome in the panel without throwing a modal over the board', () => {
+	it('names the outcome in the rail without a dialog over the board', () => {
 		state.current = storeState({
 			gameStatus: 'over',
 			termination: 'Timeout',
@@ -211,7 +219,7 @@ describe('live board — a result read back from the archive (#109)', () => {
 		const { getAllByText, queryByRole } = render(LivePage);
 
 		expect(getAllByText('You lost.').length).toBeGreaterThan(0);
-		// The viewer did not watch this end — a dialog would be a jump scare, the panel is enough.
+		// The viewer did not watch this end. The result is in the rail, as for every finished game.
 		expect(queryByRole('dialog')).toBeNull();
 	});
 
@@ -232,7 +240,9 @@ describe('live board — a result read back from the archive (#109)', () => {
 		expect(queryAllByText(/Awaiting opponent/)).toHaveLength(0);
 	});
 
-	it('still opens the modal for a game that ended in front of the viewer', () => {
+	it('shows the result in the rail, not over the board, for a game that ended in front of the viewer', () => {
+		// The result used to open as a dialog here. Since #256 it takes the place of the turn card,
+		// so the board and the move list stay in view.
 		state.current = storeState({
 			gameStatus: 'over',
 			termination: 'Resign',
@@ -241,9 +251,14 @@ describe('live board — a result read back from the archive (#109)', () => {
 			finishedFromArchive: false,
 		});
 
-		const { queryByRole } = render(LivePage);
+		const { getByRole, queryByRole } = render(LivePage);
 
-		expect(queryByRole('dialog')).not.toBeNull();
+		expect(queryByRole('dialog')).toBeNull();
+		const result = getByRole('region', { name: 'Result' });
+		expect(result.textContent).toContain('You won! 🎉');
+		expect(result.textContent).toContain('Resigned');
+		// The turn card is gone: the result has taken its place, it is not stacked on top of it.
+		expect(queryByRole('region', { name: 'Turn' })).toBeNull();
 	});
 });
 
@@ -781,5 +796,104 @@ describe('live board — spectator rematch following', () => {
 		await waitFor(() =>
 			expect(state.current.connect).toHaveBeenCalledWith('game-1', 'tok-abc', 'black', false),
 		);
+	});
+});
+
+describe('live board — the invitation of a game by link (#256)', () => {
+	const LINK = 'https://play.test/live/game-1?seat=friend-token&as=black';
+	const move = (index: number, pieceChar: string | null) => ({
+		index,
+		text: pieceChar ? 'b8-c6' : 'PASS',
+		pieceIcon: '',
+		pieceChar,
+	});
+	const turn = (blackMoves: ReturnType<typeof move>[]) => ({
+		turnNumber: 1,
+		whiteDice: { index: 1, diceChars: ['P', 'N', 'B'] },
+		whiteMoves: [move(2, 'P')],
+		blackDice: { index: 3, diceChars: ['n', 'q', 'k'] },
+		blackMoves,
+		events: [],
+	});
+	// The creator plays White here, so the friend is Black.
+	const running = (overrides: Record<string, unknown> = {}) =>
+		storeState({
+			gameStatus: 'playing',
+			outcome: null,
+			winner: null,
+			termination: null,
+			...overrides,
+		});
+
+	beforeEach(() => {
+		invite.link = LINK;
+		invite.forget.mockClear();
+	});
+	afterEach(() => {
+		cleanup();
+		invite.link = null;
+	});
+
+	it('shows the link to send on the board of the tab that created the game', () => {
+		state.current = running();
+		const { getByRole } = render(LivePage);
+		const card = getByRole('region', { name: 'Waiting' });
+		expect(card.textContent).toContain('Invite your friend');
+		expect((getByRole('textbox', { name: 'Invitation link' }) as HTMLInputElement).value).toBe(
+			LINK,
+		);
+		expect(getByRole('button', { name: 'Copy link' })).toBeTruthy();
+	});
+
+	it('says that the game is running, because the clock does not wait for the friend', () => {
+		state.current = running();
+		const { getByRole } = render(LivePage);
+		expect(getByRole('region', { name: 'Waiting' }).textContent).toContain(
+			'the clock of the side to move is running',
+		);
+	});
+
+	it('shows nothing on a board this tab did not create', () => {
+		invite.link = null;
+		state.current = running();
+		const { queryByRole } = render(LivePage);
+		expect(queryByRole('region', { name: 'Waiting' })).toBeNull();
+	});
+
+	it.each([
+		['a spectator', { spectator: true }],
+		['a finished game', { gameStatus: 'over', outcome: 'won', termination: 'Resign' }],
+	])('shows nothing to %s', (_who, overrides) => {
+		state.current = running(overrides);
+		const { queryByRole } = render(LivePage);
+		expect(queryByRole('region', { name: 'Waiting' })).toBeNull();
+	});
+
+	it('lets go of the link once the friend has moved', () => {
+		state.current = running({ historyBlocks: [turn([move(4, 'n')])] });
+		const { queryByRole } = render(LivePage);
+		expect(queryByRole('region', { name: 'Waiting' })).toBeNull();
+		expect(invite.forget).toHaveBeenCalledWith('game-1');
+	});
+
+	it('keeps the link through a pass the server made for a friend who is not there', () => {
+		state.current = running({ historyBlocks: [turn([move(4, null)])] });
+		const { getByRole } = render(LivePage);
+		expect(getByRole('region', { name: 'Waiting' })).toBeTruthy();
+		expect(invite.forget).not.toHaveBeenCalled();
+	});
+
+	it('is not fooled by the moves of the creator', () => {
+		state.current = running({ historyBlocks: [turn([])] });
+		const { getByRole } = render(LivePage);
+		expect(getByRole('region', { name: 'Waiting' })).toBeTruthy();
+	});
+
+	it('hides the link when the creator asks, and forgets it', async () => {
+		state.current = running();
+		const { getByRole, queryByRole } = render(LivePage);
+		await fireEvent.click(getByRole('button', { name: 'Hide the link' }));
+		expect(queryByRole('region', { name: 'Waiting' })).toBeNull();
+		expect(invite.forget).toHaveBeenCalledWith('game-1');
 	});
 });

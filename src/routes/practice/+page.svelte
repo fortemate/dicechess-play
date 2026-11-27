@@ -9,11 +9,10 @@
 	import MoveStepper from '../../components/MoveStepper.svelte';
 	import PawnPromotionSelector from '../../components/PawnPromotionSelector.svelte';
 	import PlayerStrip from '../../components/PlayerStrip.svelte';
-	import GameEndModal from '../../components/GameEndModal.svelte';
+	import GameResultCard from '../../components/GameResultCard.svelte';
 	import TurnCard from '../../components/TurnCard.svelte';
 	import PreRollDrawGate from '../../components/PreRollDrawGate.svelte';
 	import Button from '../../components/ui/Button.svelte';
-	import Card from '../../components/ui/Card.svelte';
 	import { chromeStore } from '#lib/stores/chromeStore.svelte.js';
 	import { preferencesStore } from '#lib/preferencesStore.svelte.js';
 	import { preloadSounds } from '#lib/sound.js';
@@ -101,12 +100,6 @@
 	const yourColorName = $derived(colorName(store.playerColor));
 	const botColorName = $derived(colorName(store.playerColor === 'w' ? 'b' : 'w'));
 	const botName = $derived(bot?.label ?? m.game_practice_bot());
-	// End-of-game modal: shows once per finished game, re-armed when a new game starts.
-	let endModalDismissed = $state(false);
-	$effect(() => {
-		if (!isOver) endModalDismissed = false;
-	});
-	const showEndModal = $derived(isOver && !endModalDismissed);
 	$effect(() => {
 		chromeStore.holdReload = !inLobby && !isOver;
 		return () => {
@@ -269,23 +262,6 @@
 
 <svelte:window onkeydown={onKeydown} />
 
-{#snippet endActions()}
-	<Button variant="primary" block onclick={startGame}>{m.game_practice_new_game()}</Button>
-	<Button variant="secondary" block onclick={() => store.endSession()}>
-		{m.game_practice_change_opponent()}
-	</Button>
-{/snippet}
-
-<GameEndModal
-	open={showEndModal}
-	headline={endHeadline}
-	tone={endTone}
-	reason={endReasonLabel(store.gameEndReason)}
-	onDismiss={() => (endModalDismissed = true)}
->
-	{@render endActions()}
-</GameEndModal>
-
 {#if inLobby}
 	<section class="mx-auto flex max-w-md flex-col gap-6">
 		<h2 class="text-2xl font-bold text-content">{m.game_practice_title()}</h2>
@@ -384,13 +360,18 @@
 
 		{#snippet card()}
 			{#if isOver}
-				<Card class="flex flex-col items-center gap-3">
-					<p class="m-0 text-lg font-bold text-content">{endHeadline}</p>
-					{#if endReasonLabel(store.gameEndReason)}
-						<p class="m-0 text-sm text-content-muted">{endReasonLabel(store.gameEndReason)}</p>
-					{/if}
-					{@render endActions()}
-				</Card>
+				<!-- The result takes the place of the turn card, so the board and the move list stay in
+				     view. "Rematch" starts the same game again; "New opponent" goes back to the setup. -->
+				<GameResultCard
+					headline={endHeadline}
+					tone={endTone}
+					reason={endReasonLabel(store.gameEndReason)}
+				>
+					<Button variant="primary" block onclick={startGame}>{m.game_result_rematch()}</Button>
+					<Button variant="secondary" block onclick={() => store.endSession()}>
+						{m.game_result_new_opponent()}
+					</Button>
+				</GameResultCard>
 			{:else if store.isPreRollGateActive}
 				<!-- The gate takes the turn card's slot rather than opening a modal: the board and its
 				     step controls stay live while the clock runs, which is what makes declining cheap
