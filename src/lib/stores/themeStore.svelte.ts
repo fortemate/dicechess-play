@@ -53,7 +53,7 @@ export class ThemeStore {
 	/** What the page renders. Never `system`. */
 	readonly theme: Theme = $derived(resolveTheme(this.preference, this.systemLight));
 
-	private media: MediaQueryList | undefined;
+	private readonly media: MediaQueryList | undefined;
 	private heldThemeColor: string | null = null;
 
 	constructor() {

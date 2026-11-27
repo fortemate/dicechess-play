@@ -61,7 +61,7 @@
 				var theme = 'dark';
 				if (stored === 'light' || stored === 'dark') {
 					theme = stored;
-				} else if (legacyDark.indexOf(stored) === -1 && systemLight) {
+				} else if (!legacyDark.includes(stored) && systemLight) {
 					theme = 'light';
 				}
 				document.documentElement.dataset.theme = theme;
