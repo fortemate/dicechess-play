@@ -103,7 +103,7 @@ describe('theme blocks', () => {
 	});
 
 	it('sets every variable that a Tailwind colour name reads', () => {
-		const mapping = appCss.split('@theme {')[1]?.split(':root,')[0] ?? '';
+		const mapping = appCss.split('@theme inline {')[1]?.split(':root,')[0] ?? '';
 		const read = [...mapping.matchAll(/--color-[a-z-]+:\s*var\((--[a-z-]+)\)/g)].map(
 			([, name]) => name,
 		);

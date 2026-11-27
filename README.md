@@ -139,6 +139,10 @@ src/
 │                              — both bot surfaces embed BotWebhookPanel for webhook/capability
 │                              management, keyed per bot so a staged secret cannot outlive it (#48)
 ├── components/                shared UI
+│   ├── ui/                    the interface primitives of the redesign (#252): Button, Chip,
+│   │                          SegmentedControl, Tag, Card, PageHeader, PageContainer (one page
+│   │                          width). No text of their own; at least 44 px tall; one focus ring.
+│   │                          PrimitivesPreview shows them all at /ui-preview, in the dev server only
 │   ├── Board.svelte           thin chessground wrapper driven by either game store
 │   ├── GameShell              game navigation, appearance, identity and onboarding
 │   ├── GameHub                the ways-to-start-a-game cards on /play
