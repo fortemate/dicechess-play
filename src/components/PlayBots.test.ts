@@ -479,7 +479,7 @@ describe('PlayBots', () => {
 			expect((await setup.findByRole('alert')).textContent).toBe(
 				'That table was just taken. Pick another bot.',
 			);
-			expect(api.listSeeks.mock.calls.length).toBe(reads + 1);
+			expect(api.listSeeks.mock.calls).toHaveLength(reads + 1);
 		});
 	});
 

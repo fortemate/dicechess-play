@@ -90,6 +90,14 @@ const sameTerms = (a: BotTable, seek: Seek): boolean =>
 	a.rated === (seek.rated === true) &&
 	JSON.stringify(a.timeControl) === JSON.stringify(seek.timeControl);
 
+/** What choosing a catalog bot leads to. A bot at a table answers at once, whatever else is known. */
+function arenaState(bot: CatalogBot, seated: boolean): ArenaState {
+	if (seated) return 'ready';
+	// Tested `=== false`, never `!bot.available`: the field is absent on an older API, and
+	// "unknown" must not read as "busy" (see `CatalogBot.available`).
+	return bot.available === false ? 'busy' : 'asleep';
+}
+
 /**
  * The bots that play online: the bots waiting at a table first, because they answer at once,
  * then the catalog from the weakest to the strongest, which continues the levels of the starter
@@ -131,9 +139,7 @@ export function onlineBots(catalog: readonly CatalogBot[], seeks: readonly Seek[
 			rating: bot.rating,
 			provisional: bot.provisional,
 			description: bot.description,
-			// Tested `=== false`, never `!bot.available`: the field is absent on an older API, and
-			// "unknown" must not read as "busy" (see `CatalogBot.available`).
-			state: seated.has(label) ? 'ready' : bot.available === false ? 'busy' : 'asleep',
+			state: arenaState(bot, seated.has(label)),
 		};
 	});
 	arena.sort(
