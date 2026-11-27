@@ -176,7 +176,7 @@
 		if (pendingPreselect === null) return;
 		const found = findBot(entries, pendingPreselect);
 		if (found) {
-			selectedKey = found.key;
+			select(found);
 			pendingPreselect = null;
 			return;
 		}
@@ -204,11 +204,19 @@
 		selectedKey = DEFAULT_BOT;
 	});
 
+	// Choosing a bot at a table also chooses its first table, in view in the setup, so the terms
+	// of the game are never an unseen default.
+	function select(entry: BotEntry | undefined) {
+		if (!entry) return;
+		selectedKey = entry.key;
+		tableTerms = entry.kind === 'table' ? (entry.tables[0]?.terms ?? null) : null;
+	}
+
 	function choose(key: string) {
 		// The opponent is fixed once a start is under way: the request already names the bot, so
 		// another choice now would show one bot and start a game against another.
 		if (busy) return;
-		selectedKey = key;
+		select(entries.find((entry) => entry.key === key));
 		notice = null;
 		error = null;
 	}
@@ -236,12 +244,31 @@
 	let arenaRated = $state(preferencesStore.botChallengeRated);
 	const arenaGroups = $derived(botTimeControlChoices());
 
-	// The chosen table of a table bot, as an index into its tables. A bot posts a new seek after
-	// every game, so the index is clamped each time it is read.
-	let tableChoice = $state(0);
-	const chosenTable = $derived(
-		selected.kind === 'table' ? (selected.tables[tableChoice] ?? selected.tables[0]) : undefined,
+	// The chosen table of a table bot, remembered by its terms. The tables are read again every
+	// few seconds, and a place in that list would then point at another table: a casual choice
+	// could turn into a rated game. If the chosen terms are gone, nothing is chosen, and the
+	// visitor chooses again.
+	let tableTerms = $state<string | null>(null);
+	const chosenTableIndex = $derived(
+		selected.kind === 'table'
+			? selected.tables.findIndex((table) => table.terms === tableTerms)
+			: -1,
 	);
+	const chosenTable = $derived(
+		selected.kind === 'table' ? selected.tables[chosenTableIndex] : undefined,
+	);
+	function chooseTable(index: number) {
+		tableTerms = selected.kind === 'table' ? (selected.tables[index]?.terms ?? null) : null;
+		notice = null;
+		error = null;
+	}
+	$effect(() => {
+		if (busy) return;
+		if (selected.kind === 'table' && tableTerms !== null && !chosenTable) {
+			tableTerms = null;
+			notice = m.play_table_gone();
+		}
+	});
 	const tableGroups = $derived(
 		selected.kind === 'table'
 			? [
@@ -258,11 +285,13 @@
 	);
 	const signedIn = $derived(authStore.status === 'signed-in');
 	const tableRatingNote = $derived(
-		!chosenTable?.rated
-			? m.play_rating_table_casual()
-			: signedIn
-				? m.play_rating_table_rated()
-				: m.play_rating_table_rated_guest(),
+		!chosenTable
+			? m.play_table_pick()
+			: !chosenTable.rated
+				? m.play_rating_table_casual()
+				: signedIn
+					? m.play_rating_table_rated()
+					: m.play_rating_table_rated_guest(),
 	);
 
 	// --- Starting -----------------------------------------------------------------------------
@@ -348,8 +377,11 @@
 	}
 
 	async function startAtTable(bot: TableBot) {
-		const table = bot.tables[tableChoice] ?? bot.tables[0];
-		if (!table) return;
+		const table = bot.tables.find((candidate) => candidate.terms === tableTerms);
+		if (!table) {
+			error = m.play_table_pick();
+			return;
+		}
 		let left = false;
 		phase = 'starting';
 		try {
@@ -426,7 +458,12 @@
 				? m.common_seat_white()
 				: m.common_seat_black();
 	// What the phone bar says after the name while the choices are folded away:
-	// "Greedy · 5 + 3 · Random color".
+	// "grove willow · 5 + 5 · Casual · Random color". Everything the game is played for has to be
+	// in it, the rating mode above all: the bar is all a visitor sees before pressing the button,
+	// and a stored "rated" choice must not ride along unseen. A starter bot game has no rating
+	// mode to state; its group says "never rated".
+	const NBSP = '\u00A0';
+	const ratingWord = (rated: boolean) => (rated ? m.play_summary_rated() : m.play_summary_casual());
 	const summary = $derived.by(() => {
 		const parts: string[] = [];
 		if (selected.kind === 'starter') {
@@ -436,12 +473,15 @@
 			const preset = botTimeControlPresets[arenaTime] ?? botTimeControlPresets[0];
 			parts.push(
 				preset.label,
+				ratingWord(arenaRated),
 				colorWord(arenaColor === 'random' ? 'random' : arenaColor === 'White' ? 'white' : 'black'),
 			);
 		} else if (chosenTable) {
-			parts.push(timeControlLabel(chosenTable.timeControl));
+			parts.push(timeControlLabel(chosenTable.timeControl), ratingWord(chosenTable.rated));
 		}
-		return parts.map((part) => ` · ${part}`).join('');
+		// Each part stays whole when the line wraps ("5 + 5" must not break in two): the only
+		// ordinary space is the one before each dot.
+		return parts.map((part) => ` ·${NBSP}${part.replaceAll(' ', NBSP)}`).join('');
 	});
 	const startNote = $derived(
 		selected.kind === 'starter'
@@ -616,9 +656,10 @@
 					<p class="mt-2 mb-0 text-sm text-content-muted">{selected.description}</p>
 				{/if}
 			</div>
-			<!-- The phone bar: what will be played, and the way to the choices. -->
+			<!-- The phone bar: what will be played, and the way to the choices. It wraps and is
+			     never cut short: a cut line could hide the very part that matters. -->
 			{#if !expanded}
-				<p class="m-0 min-w-0 flex-1 self-center truncate text-sm text-content-muted lg:hidden">
+				<p class="m-0 min-w-0 flex-1 self-center text-sm text-content-muted lg:hidden">
 					<b class="font-semibold text-content">{selected.label}</b>
 					{summary}
 				</p>
@@ -677,7 +718,7 @@
 				<GameSetupPanel
 					name="play-table"
 					timeGroups={tableGroups}
-					bind:time={tableChoice}
+					bind:time={() => chosenTableIndex, chooseTable}
 					rating="casual"
 					colorNote={m.play_table_color()}
 					ratingNote={tableRatingNote}

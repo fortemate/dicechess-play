@@ -52,6 +52,10 @@ export interface ArenaBot {
 
 /** One open seek of a table bot: the terms of the game that sitting down starts. */
 export interface BotTable {
+	/** The terms as one value: the same for every seek with this time control and rating mode.
+	 * A bot posts a new seek after every game, so a choice is remembered by its terms, never by
+	 * the id of a seek or its place in the list. */
+	terms: string;
 	seekId: string;
 	timeControl: TimeControl;
 	/** Only an explicit `true` counts as rated: an absent flag means the server does not say. */
@@ -86,9 +90,8 @@ export function starterBots(): StarterBot[] {
 const botSeekName = (seek: Seek): string | null =>
 	seek.kind === 'Bot' && seek.name ? seek.name : null;
 
-const sameTerms = (a: BotTable, seek: Seek): boolean =>
-	a.rated === (seek.rated === true) &&
-	JSON.stringify(a.timeControl) === JSON.stringify(seek.timeControl);
+const termsOf = (seek: Seek): string =>
+	`${JSON.stringify(seek.timeControl)}|${seek.rated === true ? 'rated' : 'casual'}`;
 
 /** What choosing a catalog bot leads to. A bot at a table answers at once, whatever else is known. */
 function arenaState(bot: CatalogBot, seated: boolean): ArenaState {
@@ -118,8 +121,10 @@ export function onlineBots(catalog: readonly CatalogBot[], seeks: readonly Seek[
 		if (catalogLabels.has(label)) continue;
 		const bot = tables.get(label) ?? { kind: 'table', key: label, label, tables: [] };
 		// A bot may hold several tables; two with the same terms are one choice to the visitor.
-		if (!bot.tables.some((table) => sameTerms(table, seek))) {
+		const terms = termsOf(seek);
+		if (!bot.tables.some((table) => table.terms === terms)) {
 			bot.tables.push({
+				terms,
 				seekId: seek.id,
 				timeControl: seek.timeControl,
 				rated: seek.rated === true,

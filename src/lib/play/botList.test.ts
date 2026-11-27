@@ -72,8 +72,18 @@ describe('onlineBots', () => {
 				key: 'house oracle',
 				label: 'house oracle',
 				tables: [
-					{ seekId: 's1', timeControl: blitz, rated: false },
-					{ seekId: 's2', timeControl: rapid, rated: true },
+					{
+						terms: expect.stringContaining('casual'),
+						seekId: 's1',
+						timeControl: blitz,
+						rated: false,
+					},
+					{
+						terms: expect.stringContaining('rated'),
+						seekId: 's2',
+						timeControl: rapid,
+						rated: true,
+					},
 				],
 			},
 		]);
@@ -82,6 +92,15 @@ describe('onlineBots', () => {
 	it('shows two tables with the same terms as one choice', () => {
 		const [bot] = onlineBots([], [seek('s1', 'house oracle'), seek('s2', 'house oracle')]);
 		expect(bot.kind === 'table' && bot.tables.map((table) => table.seekId)).toEqual(['s1']);
+	});
+
+	it('gives a table the same terms after the bot has posted its seek again', () => {
+		const [before] = onlineBots([], [seek('s1', 'house oracle')]);
+		const [after] = onlineBots([], [seek('s7', 'house oracle')]);
+		const [other] = onlineBots([], [seek('s8', 'house oracle', { rated: true })]);
+		const terms = (bot: typeof before) => (bot.kind === 'table' ? bot.tables[0].terms : null);
+		expect(terms(after)).toBe(terms(before));
+		expect(terms(other)).not.toBe(terms(before));
 	});
 
 	it('does not read an absent rated flag as a rated table', () => {

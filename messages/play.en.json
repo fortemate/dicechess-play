@@ -55,5 +55,9 @@
 	"play_table_taken": "That table was just taken. Pick another bot.",
 	"play_bot_gone": "{name} is no longer waiting at a table.",
 	"play_bot_unknown": "The bot from the link is not in the list right now.",
-	"play_table_color": "Your color is drawn when you sit down."
+	"play_table_color": "Your color is drawn when you sit down.",
+	"play_table_gone": "The table you chose is no longer open. Choose another one.",
+	"play_table_pick": "Choose a table first.",
+	"play_summary_rated": "Rated",
+	"play_summary_casual": "Casual"
 }

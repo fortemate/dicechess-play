@@ -457,6 +457,66 @@ describe('PlayBots', () => {
 			await waitFor(() => expect(api.acceptSeek).toHaveBeenCalledWith('s2', 'guest-uuid'));
 		});
 
+		// The tables are read again every few seconds. The choice is a choice of terms: it must
+		// survive the bot posting its seek again, and it must never slide onto another table.
+		it('keeps the chosen terms when the bot posts the same table again', async () => {
+			vi.useFakeTimers({ shouldAdvanceTime: true });
+			const rapid = { SuddenDeath: { initialSeconds: 600 } };
+			api.listSeeks.mockResolvedValue([
+				botSeek('s1', 'house oracle'),
+				botSeek('s2', 'house oracle', { timeControl: rapid }),
+			]);
+			api.acceptSeek.mockResolvedValue({ gameId: 'g9', token: 't9', seat: 'White' });
+			vi.stubGlobal('location', { href: 'about:blank', origin: 'https://play.example' });
+			const view = mount();
+			const setup = await chooseOracle(view);
+			await fireEvent.click(setup.getByRole('radio', { name: '10 min' }));
+
+			// The first table is taken and the second is posted again under a new id, now first.
+			api.listSeeks.mockResolvedValue([botSeek('s7', 'house oracle', { timeControl: rapid })]);
+			await vi.advanceTimersByTimeAsync(5000);
+			await waitFor(() => expect(setup.queryByRole('radio', { name: '5 + 3' })).toBeNull());
+			expect((setup.getByRole('radio', { name: '10 min' }) as HTMLInputElement).checked).toBe(true);
+			await fireEvent.click(setup.getByRole('button', { name: 'Start game' }));
+			await waitFor(() => expect(api.acceptSeek).toHaveBeenCalledWith('s7', 'guest-uuid'));
+		});
+
+		it('never slides onto another table when the chosen one is gone', async () => {
+			vi.useFakeTimers({ shouldAdvanceTime: true });
+			const rapid = { SuddenDeath: { initialSeconds: 600 } };
+			api.listSeeks.mockResolvedValue([
+				botSeek('s1', 'house oracle'),
+				botSeek('s2', 'house oracle', { timeControl: rapid, rated: true }),
+			]);
+			auth.authStore.status = 'signed-in';
+			const view = mount();
+			const setup = await chooseOracle(view);
+			// The first table, a casual one, is the choice in view.
+			expect((setup.getByRole('radio', { name: '5 + 3' }) as HTMLInputElement).checked).toBe(true);
+
+			api.listSeeks.mockResolvedValue([
+				botSeek('s2', 'house oracle', { timeControl: rapid, rated: true }),
+			]);
+			await vi.advanceTimersByTimeAsync(5000);
+			expect(
+				await setup.findByText('The table you chose is no longer open. Choose another one.'),
+			).toBeTruthy();
+			// The rated table took the first place in the list, and it is NOT chosen for the visitor.
+			const rated = setup.getByRole('radio', { name: '10 min · rated' }) as HTMLInputElement;
+			expect(rated.checked).toBe(false);
+			await fireEvent.click(setup.getByRole('button', { name: 'Start game' }));
+			expect((await setup.findByRole('alert')).textContent).toBe('Choose a table first.');
+			expect(api.acceptSeek).not.toHaveBeenCalled();
+
+			// Choosing it is the visitor's own call, and then it starts.
+			api.acceptSeek.mockResolvedValue({ gameId: 'g9', token: 't9', seat: 'White' });
+			vi.stubGlobal('location', { href: 'about:blank', origin: 'https://play.example' });
+			await fireEvent.click(rated);
+			expect(setup.getByText('Rated table: this game counts for rating.')).toBeTruthy();
+			await fireEvent.click(setup.getByRole('button', { name: 'Start game' }));
+			await waitFor(() => expect(api.acceptSeek).toHaveBeenCalledWith('s2', 'guest-uuid'));
+		});
+
 		it('tells a guest that a rated table needs a sign-in, before and after the refusal', async () => {
 			api.listSeeks.mockResolvedValue([botSeek('s1', 'house oracle', { rated: true })]);
 			api.acceptSeek.mockRejectedValue(new SeekAcceptError(403));
@@ -623,6 +683,38 @@ describe('PlayBots', () => {
 				within(setup).getByRole('button', { name: 'Done' }).getAttribute('aria-expanded'),
 			).toBe('true');
 			expect(choices.className).not.toContain('max-lg:hidden');
+		});
+
+		// The bar is all a visitor sees before pressing the button, so it must say what the game is
+		// played for. A stored "rated" choice riding along unseen was the failure to rule out.
+		it('says whether an arena bot game is rated, before the choices are opened', async () => {
+			auth.authStore.status = 'signed-in';
+			preferencesStore.setBotChallengeRated(true);
+			const view = mount();
+			await fireEvent.click(await view.findByRole('radio', { name: /grove willow/ }));
+			const setup = view.getByRole('region', { name: 'grove willow' });
+			const text = () => setup.textContent?.replace(/\s+/g, ' ');
+			expect(text()).toContain('grove willow · 5 + 5 · Rated · Random color');
+
+			await fireEvent.click(within(setup).getByRole('radio', { name: 'Casual' }));
+			await fireEvent.click(within(setup).getByRole('button', { name: 'Change' }));
+			await fireEvent.click(within(setup).getByRole('button', { name: 'Done' }));
+			expect(text()).toContain('grove willow · 5 + 5 · Casual · Random color');
+		});
+
+		it('says so for a guest too, who can only play casual', async () => {
+			const view = mount();
+			await fireEvent.click(await view.findByRole('radio', { name: /grove willow/ }));
+			const setup = view.getByRole('region', { name: 'grove willow' });
+			expect(setup.textContent?.replace(/\s+/g, ' ')).toContain('5 + 5 · Casual · Random color');
+		});
+
+		it('says whether the table of a bot is rated', async () => {
+			api.listSeeks.mockResolvedValue([botSeek('s1', 'house oracle', { rated: true })]);
+			const view = mount();
+			await fireEvent.click(await view.findByRole('radio', { name: /house oracle/ }));
+			const setup = view.getByRole('region', { name: 'house oracle' });
+			expect(setup.textContent?.replace(/\s+/g, ' ')).toContain('house oracle · 5 + 3 · Rated');
 		});
 	});
 });
