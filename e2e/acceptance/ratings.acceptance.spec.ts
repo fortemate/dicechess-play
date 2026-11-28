@@ -295,17 +295,24 @@ test('profile integrates sparse training estimates separately from competitive r
 	await stubApi(page);
 	await page.goto('/players/ExamplePlayer');
 	await expect(page.getByRole('heading', { name: 'ExamplePlayer', exact: true })).toBeVisible();
-	await expect(page.getByRole('heading', { name: 'Training vs bots', exact: true })).toBeVisible();
-	const training = page.getByRole('list', { name: 'Training vs bots' });
-	const rows = training.getByRole('listitem');
+	// Competitive ratings come first; the estimates are behind the switch and never beside them.
+	const competitive = page.getByRole('region', { name: 'Competitive ratings' });
+	await expect(competitive.getByText('1,800', { exact: true })).toBeVisible();
+	await expect(competitive).not.toContainText('1,234');
+	await page.getByRole('button', { name: 'Training', exact: true }).click();
+	const training = page.getByRole('region', { name: 'Training estimates' });
+	const rows = training.getByRole('listitem').filter({ has: page.getByRole('heading') });
 	await expect(rows).toHaveCount(3);
 	await expect(rows.nth(0)).toContainText('Bullet');
 	await expect(rows.nth(0)).toContainText('1,234');
-	await expect(rows.nth(0)).toContainText('95% interval 1,001–1,467');
+	await expect(rows.nth(0)).toContainText('1,001 to 1,467');
 	await expect(rows.nth(0)).toContainText('provisional');
-	await expect(rows.nth(0)).toContainText('Data cutoff not reported');
-	await expect(rows.nth(0)).toContainText('Calculation time not reported');
-	await expect(rows.nth(0)).toContainText('Glicko-2 · synthetic-v2');
+	const details = training.getByRole('list', { name: 'Where each training estimate comes from' });
+	await expect(details).toContainText('Bullet');
+	await expect(details).toContainText('Epoch 8');
+	await expect(details).toContainText('Data cutoff not reported');
+	await expect(details).toContainText('Calculation time not reported');
+	await expect(details).toContainText('Glicko-2 · synthetic-v2');
 	for (const [index, speed] of [
 		[1, 'Blitz'],
 		[2, 'Rapid'],
@@ -315,7 +322,6 @@ test('profile integrates sparse training estimates separately from competitive r
 		await expect(rows.nth(index)).not.toContainText('1,234');
 		await expect(rows.nth(index)).not.toContainText('1,500');
 	}
-	await expect(page.getByText('1,800', { exact: true })).toBeVisible();
 	await expect(training).not.toContainText('1,800');
 	await expect(
 		page.getByText(/Training estimates and records are separate from competitive standings/),
@@ -325,7 +331,7 @@ test('profile integrates sparse training estimates separately from competitive r
 		path: info.outputPath(`ratings-${info.project.name}-profile.png`),
 		fullPage: true,
 	});
-	await training.locator('..').scrollIntoViewIfNeeded();
+	await training.scrollIntoViewIfNeeded();
 	await page.screenshot({
 		path: info.outputPath(`ratings-${info.project.name}-training-detail.png`),
 	});
