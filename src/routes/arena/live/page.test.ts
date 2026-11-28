@@ -202,6 +202,16 @@ describe('/arena/live', () => {
 		expect(whole.queryByText(/most active of/)).toBeNull();
 	});
 
+	it('keeps saying so when nothing on the listed page matches', async () => {
+		// The search covered the server's page only; a matching game may be running off it.
+		const view = mount(many(50), 100);
+		await fireEvent.input(view.getByRole('searchbox'), { target: { value: 'nobody' } });
+		expect(view.getByText('No live game matches these filters.')).toBeTruthy();
+		expect(
+			view.getByText('The server lists the 50 most active of 100 games being played.'),
+		).toBeTruthy();
+	});
+
 	it('shows the same games as boards on request, in the same order', async () => {
 		const view = mount(FEW);
 		expect(view.container.querySelectorAll('.mini-board')).toHaveLength(0);

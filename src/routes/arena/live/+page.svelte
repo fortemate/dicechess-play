@@ -131,6 +131,15 @@
 			</div>
 		</div>
 
+		<!-- Said plainly: the list is the server's page, not everything that is running. -->
+		{#snippet capNotice()}
+			{#if feed.games.length > 0 && feed.total > feed.games.length}
+				<p class="m-0 text-sm text-content-muted">
+					{m.arena_live_capped({ listed: feed.games.length, total: feed.total })}
+				</p>
+			{/if}
+		{/snippet}
+
 		{#if feed.unavailable}
 			<p class="m-0 text-sm text-danger" role="alert">{m.arena_unavailable()}</p>
 		{/if}
@@ -147,6 +156,8 @@
 				<p class="m-0 text-content-muted">
 					{isFiltered(filters) ? m.arena_live_no_match() : m.arena_live_none()}
 				</p>
+				<!-- Nothing matched on the server's page only: a matching game may be running off it. -->
+				{@render capNotice()}
 				{#if isFiltered(filters)}
 					<Button variant="secondary" onclick={clear}>{m.arena_live_clear()}</Button>
 				{/if}
@@ -159,12 +170,7 @@
 					<p class="m-0" role="status">
 						{m.arena_live_showing({ shown: shown.length, count: matching.length })}
 					</p>
-					{#if feed.total > feed.games.length}
-						<!-- Said plainly: the list is the server's page, not everything that is running. -->
-						<p class="m-0">
-							{m.arena_live_capped({ listed: feed.games.length, total: feed.total })}
-						</p>
-					{/if}
+					{@render capNotice()}
 				</div>
 				{#if more > 0}
 					<Button variant="secondary" onclick={() => (limit += MORE_STEP)}>
