@@ -30,6 +30,9 @@
 		onRoll?: () => void;
 		/** Shown under the empty slots when there are no dice (a live status). */
 		emptyText?: string;
+		/** The line about the dice, when the page has more to say than the card can know: a
+		 * spectator is told who rolled them. Replaces the card's own line while there are dice. */
+		diceLine?: string;
 	}
 
 	let {
@@ -40,11 +43,12 @@
 		canRoll = false,
 		onRoll,
 		emptyText,
+		diceLine,
 	}: Props = $props();
 
 	const rollDue = $derived(canRoll && !!onRoll);
 	const hint = $derived(
-		dice.length > 0 ? diceHint(dice, mine) : rollDue ? m.game_turn_hint_roll() : '',
+		dice.length > 0 ? diceLine || diceHint(dice, mine) : rollDue ? m.game_turn_hint_roll() : '',
 	);
 
 	const EDGE = {

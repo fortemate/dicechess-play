@@ -73,4 +73,24 @@ describe('PlayerStrip', () => {
 		const compact = render(PlayerStrip, { name: 'BraveDie', sub: 'player', compact: true });
 		expect(compact.container.firstElementChild?.className).toMatch(/\bmin-h-12\b/);
 	});
+
+	it('puts a link beside the player when the page asks for one, and none otherwise (#263)', () => {
+		const plain = render(PlayerStrip, { name: 'grove cedar-4', sub: 'bot', bot: true });
+		expect(plain.queryByRole('link')).toBeNull();
+		plain.unmount();
+		const { getByRole } = render(PlayerStrip, {
+			name: 'grove cedar-4',
+			sub: 'bot',
+			bot: true,
+			clockMs: 60_000,
+			action: {
+				href: '/play?bot=grove%20cedar-4',
+				label: 'Challenge',
+				describedAs: 'Challenge grove cedar-4',
+			},
+		});
+		const link = getByRole('link', { name: 'Challenge grove cedar-4' });
+		expect(link.textContent?.trim()).toBe('Challenge');
+		expect(link.getAttribute('href')).toBe('/play?bot=grove%20cedar-4');
+	});
 });

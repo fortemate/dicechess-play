@@ -164,6 +164,7 @@ src/
 │   │                          an arena bot game through the catalog, a table bot game by sitting down
 │   ├── lib/Chessground.svelte
 │   ├── GameFrame · GameActions · PlayerStrip · TurnCard · GameResultCard · GameWaitingCard · MoveList · MoveStepper · BotBadge · PawnPromotionSelector
+│   ├── WatchActions · WatchOtherGames  the watching view of a live game (#263): flip, share, other games
 │   ├── GameHistoryCard · LiveGameHistoryCard · WdlBar · WdlCounts
 │   ├── Profile · ProfileView  the one public profile of a bot or a person (#262): the reader and the template
 │   │                     WdlSummaryCard · MiniBoard · GameSetupPanel · ThemeMenu
@@ -213,6 +214,7 @@ src/
 │   ├── rules/                 seo.ts — shared origins for the prerendered rules page's absolute
 │   │                          canonical/OG URLs (#254); sitemap.xml/app.html hardcode the same
 │   ├── live/                  live-play client: liveGameStore, liveClient (WS + reconnect),
+│   │                          watching — what a spectator is told and offered (#263),
 │   │                          friendGame (create a game by link) and openTable (post a seek),
 │   │                          each shared by a tab of /play and its older page (#258),
 │   │                          liveApi/lobbyApi/historyApi/ratingApi/rematchApi (REST),

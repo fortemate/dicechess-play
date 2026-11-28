@@ -8,7 +8,15 @@
 	import type { Key } from '@lichess-org/chessground/types';
 	import type { BoardStore } from '#lib/boardStore.js';
 
-	let { store }: { store: BoardStore } = $props();
+	let {
+		store,
+		orientation,
+	}: {
+		store: BoardStore;
+		/** The side at the bottom, when it is not the visitor's own: a spectator has no side and
+		 * may turn the board round. The coordinates follow. Moving is unaffected. */
+		orientation?: 'w' | 'b';
+	} = $props();
 
 	const toCg = (c: 'w' | 'b'): 'white' | 'black' => (c === 'w' ? 'white' : 'black');
 
@@ -23,7 +31,7 @@
 	<Chessground
 		class="rounded-xl overflow-hidden shadow-lg"
 		fen={store.currentBoardFen}
-		orientation={toCg(store.playerColor)}
+		orientation={toCg(orientation ?? store.playerColor)}
 		turnColor={toCg(store.activeColor)}
 		lastMove={store.lastMove}
 		movable={{

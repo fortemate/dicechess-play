@@ -17,6 +17,8 @@
 	import BotRematchButton from '../../../components/BotRematchButton.svelte';
 	import RematchControl from '../../../components/RematchControl.svelte';
 	import SpectatorFollowPanel from '../../../components/SpectatorFollowPanel.svelte';
+	import WatchActions from '../../../components/WatchActions.svelte';
+	import WatchOtherGames from '../../../components/WatchOtherGames.svelte';
 	import { recallBotGame } from '#lib/catalog/lastBotGame.js';
 	import GameRatingContext from '../../../components/GameRatingContext.svelte';
 	import RatingDeltaLine from '../../../components/RatingDeltaLine.svelte';
@@ -28,6 +30,8 @@
 	import { RematchStore } from '#lib/live/rematchStore.svelte.js';
 	import { SpectatorFollowStore } from '#lib/live/spectatorFollowStore.svelte.js';
 	import { isLiveEnabled } from '#lib/live/liveApi.js';
+	import { LiveGamesFeed } from '#lib/arena/liveGamesFeed.svelte.js';
+	import { challengeQuery, gameKind, otherGames, rolledLine } from '#lib/live/watching.js';
 	import { buildJoinUrl, buildSpectateUrl, parseSeat } from '#lib/live/seatLink.js';
 	import { forgetFriendInvite, recallFriendInvite } from '#lib/live/friendInvite.js';
 	import { buildReplayUrl, hasReplay } from '#lib/live/replayLink.js';
@@ -111,8 +115,14 @@
 		}
 	}
 
-	// Board is shown from the player's side (white for spectators), so the opponent's clock sits on top.
-	const bottomSeat = $derived<Seat>(live.playerColor === 'b' ? 'Black' : 'White');
+	// Board is shown from the player's side, so the opponent's clock sits on top. A spectator has
+	// no side: White is at the bottom until they turn the board round, and the player strips and
+	// the coordinates follow (#263).
+	let flipped = $state(false);
+	const boardSide = $derived<'w' | 'b'>(
+		live.spectator ? (flipped ? 'b' : 'w') : live.playerColor === 'b' ? 'b' : 'w',
+	);
+	const bottomSeat = $derived<Seat>(boardSide === 'b' ? 'Black' : 'White');
 	const topSeat = $derived<Seat>(bottomSeat === 'White' ? 'Black' : 'White');
 
 	const clockMs = (seat: Seat): number | undefined =>
@@ -384,6 +394,54 @@
 		}
 	});
 
+	// The watching view (#263). The other live games are read only for a spectator, and only
+	// while the page is shown; a spectator moves on to the game the Arena would feature next.
+	const gamesFeed = new LiveGamesFeed();
+	$effect(() => {
+		if (!live.spectator || !isLiveEnabled()) return;
+		return gamesFeed.start();
+	});
+	const others = $derived(otherGames(gamesFeed.games, page.params.id));
+	const nextGameHref = $derived(
+		others[0]
+			? `${resolve('/live/[id]', { id: others[0].gameId })}?spectate=1`
+			: resolve('/arena/live'),
+	);
+	const OTHERS_ID = 'watch-other-games';
+
+	// "Challenge" beside a bot leads to Play with that bot preselected. Only a spectator gets it:
+	// a player is in a game, and the strip of a game is free of navigation.
+	const seatChallenge = (seat: Seat) => {
+		const face = publicPlayer(live.players, seat);
+		if (!live.spectator || face?.kind !== 'Bot' || !face.name) return undefined;
+		return {
+			href: `${resolve('/play')}${challengeQuery(face.name)}`,
+			label: m.game_watch_challenge(),
+			describedAs: m.game_watch_challenge_named({ name: face.name }),
+		};
+	};
+
+	// The dice of the side to move, with its name, for someone who is neither side.
+	const watchedDiceLine = $derived(
+		live.spectator
+			? rolledLine(seatName(live.activeColor === 'w' ? 'White' : 'Black'), live.currentDice)
+			: undefined,
+	);
+
+	// The link of the game, for someone to watch it too.
+	let sharedLink = $state(false);
+	async function shareGame() {
+		const id = page.params.id;
+		if (!id) return;
+		try {
+			await navigator.clipboard.writeText(buildSpectateUrl(location.origin, id));
+			sharedLink = true;
+			setTimeout(() => (sharedLink = false), 1500);
+		} catch {
+			toastStore.error(m.game_watch_share_failed());
+		}
+	}
+
 	const statusText = $derived.by(() => {
 		// A dropped connection should show through whatever the last game status was (until it's over).
 		if (live.connection === 'closed' && live.gameStatus !== 'over')
@@ -413,8 +471,11 @@
 				if (live.outcome === 'won') return m.game_over_won();
 				if (live.outcome === 'lost') return m.game_over_lost();
 				if (live.outcome === 'draw') return m.game_over_draw();
+				// A spectator is told who won by name; a nameless seat is named by its colour.
 				return live.winner
-					? m.game_live_status_seat_won({ seat: SEAT_LABELS[live.winner] })
+					? m.game_live_status_seat_won({
+							seat: live.spectator ? seatName(live.winner) : SEAT_LABELS[live.winner],
+						})
 					: m.game_live_status_over();
 		}
 	});
@@ -560,6 +621,8 @@
 		if (friendHasMoved && page.params.id) forgetFriendInvite(page.params.id);
 	});
 
+	const watchedKind = $derived(live.spectator ? gameKind(gameRatingDomain, live.rated) : null);
+
 	// What this game is, for the top bar of the frame.
 	const frameTitle = $derived(
 		m.game_live_title({ white: seatName('White'), black: seatName('Black') }),
@@ -576,6 +639,10 @@
 		<RematchControl store={rematchStore} />
 	{:else if spectatorFollows}
 		<SpectatorFollowPanel store={followStore} />
+		<!-- eslint-disable-next-line svelte/no-navigation-without-resolve -- built from resolve() above -->
+		<Button variant="primary" block href={nextGameHref} data-sveltekit-reload>
+			{m.game_watch_another()}
+		</Button>
 	{:else}
 		<Button variant="primary" block href={resolve(opponentIsBot ? '/bots' : '/lobby')}>
 			{opponentIsBot ? m.game_live_play_another_bot() : m.game_live_find_another_game()}
@@ -592,10 +659,10 @@
 		</div>
 	{/if}
 	<a
-		href={resolve('lobby')}
+		href={live.spectator ? resolve('/arena') : resolve('lobby')}
 		class="inline-flex min-h-11 items-center rounded-control px-2 text-sm font-semibold text-content-muted transition-colors hover:text-content focus-visible:focus-ring"
 	>
-		{m.game_live_back_to_lobby()}
+		{live.spectator ? m.game_watch_back_to_arena() : m.game_live_back_to_lobby()}
 	</a>
 {/snippet}
 
@@ -612,7 +679,7 @@
 
 <GameFrame
 	title={frameTitle}
-	leaveHref={resolve('lobby')}
+	leaveHref={live.spectator ? resolve('/arena') : resolve('lobby')}
 	sound={{
 		enabled: preferencesStore.soundEnabled,
 		toggle: () => preferencesStore.setSoundEnabled(!preferencesStore.soundEnabled),
@@ -627,7 +694,10 @@
 			</span>
 		{/if}
 		{#if live.spectator}
-			<Tag>{m.game_live_badge_spectating()}</Tag>
+			{#if watchedKind}
+				<Tag class="max-sm:hidden">{watchedKind}</Tag>
+			{/if}
+			<Tag tone="highlight">{m.game_live_badge_spectating()}</Tag>
 		{/if}
 	{/snippet}
 
@@ -641,6 +711,7 @@
 			clockMs={clockMs(topSeat)}
 			href={seatProfileHref(topSeat)}
 			rating={seatRatingOf(topSeat)}
+			action={seatChallenge(topSeat)}
 		/>
 	{/snippet}
 
@@ -652,7 +723,7 @@
 		     (declining by tapping the board is a pointer shortcut; Escape and the card's own
 		     focused button are the keyboard paths) -->
 		<div class="relative aspect-square w-full" onpointerdown={onBoardPointerDown}>
-			<Board store={live} />
+			<Board store={live} orientation={boardSide} />
 			{#if live.pendingPromotion}
 				<PawnPromotionSelector
 					color={live.pendingPromotion.color}
@@ -692,6 +763,7 @@
 			clockMs={clockMs(bottomSeat)}
 			href={seatProfileHref(bottomSeat)}
 			rating={seatRatingOf(bottomSeat)}
+			action={seatChallenge(bottomSeat)}
 		/>
 	{/snippet}
 
@@ -756,21 +828,30 @@
 					dice={live.currentDice}
 					animating={live.isAnimatingRoll}
 					emptyText={live.currentDice.length === 0 ? statusText : undefined}
+					diceLine={watchedDiceLine}
 				/>
 			{/if}
 		{/if}
 	{/snippet}
 
 	{#snippet extra()}
-		<div class="rounded-card border border-border bg-surface/40 p-3">
-			<GameRatingContext
-				domain={gameRatingDomain}
-				rated={live.rated}
-				timeControl={gameTimeControl}
-				hasSeatRating={seatRatingOf(topSeat) !== undefined ||
-					seatRatingOf(bottomSeat) !== undefined}
-			/>
-		</div>
+		{#if live.spectator}
+			<!-- A spectator reads how the game counts as one word in the top bar, and gets the way
+			     on to other games here. -->
+			{#if isLiveEnabled()}
+				<WatchOtherGames id={OTHERS_ID} games={others} total={gamesFeed.total} />
+			{/if}
+		{:else}
+			<div class="rounded-card border border-border bg-surface/40 p-3">
+				<GameRatingContext
+					domain={gameRatingDomain}
+					rated={live.rated}
+					timeControl={gameTimeControl}
+					hasSeatRating={seatRatingOf(topSeat) !== undefined ||
+						seatRatingOf(bottomSeat) !== undefined}
+				/>
+			</div>
+		{/if}
 	{/snippet}
 
 	{#snippet moves(close)}
@@ -788,28 +869,39 @@
 		<!-- The standing draw offer is available in every phase, including the opponent's turn:
 		     arming reaches nobody until this seat's own turn completes, which is the only way an
 		     offer can ride on a forced pass. A spectator has neither control. -->
-		<GameActions
-			moves={movesControl}
-			draw={live.canResign && drawControl !== 'hidden'
-				? {
-						state: drawControl,
-						label: drawLabel,
-						disabled: live.connection !== 'open',
-						ontoggle: () => live.toggleArmDrawOffer(),
-					}
-				: undefined}
-			resign={live.canResign
-				? {
-						armed: confirmResign,
-						armedText: live.doubling
-							? m.game_resign_confirm_stake({ stake: live.doubling.currentStake })
-							: undefined,
-						disabled: live.connection !== 'open',
-						disabledReason: m.game_resign_label_disconnected(),
-						onpress: resign,
-						onblur: disarmResign,
-					}
-				: undefined}
-		/>
+		{#if live.spectator}
+			<WatchActions
+				moves={movesControl}
+				{flipped}
+				onflip={() => (flipped = !flipped)}
+				copied={sharedLink}
+				onshare={shareGame}
+				othersHref="#{OTHERS_ID}"
+			/>
+		{:else}
+			<GameActions
+				moves={movesControl}
+				draw={live.canResign && drawControl !== 'hidden'
+					? {
+							state: drawControl,
+							label: drawLabel,
+							disabled: live.connection !== 'open',
+							ontoggle: () => live.toggleArmDrawOffer(),
+						}
+					: undefined}
+				resign={live.canResign
+					? {
+							armed: confirmResign,
+							armedText: live.doubling
+								? m.game_resign_confirm_stake({ stake: live.doubling.currentStake })
+								: undefined,
+							disabled: live.connection !== 'open',
+							disabledReason: m.game_resign_label_disconnected(),
+							onpress: resign,
+							onblur: disarmResign,
+						}
+					: undefined}
+			/>
+		{/if}
 	{/snippet}
 </GameFrame>

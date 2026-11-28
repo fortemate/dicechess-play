@@ -97,6 +97,20 @@ describe('TurnCard', () => {
 		});
 	});
 
+	it('lets the page say who rolled the dice, only while there are dice (#263)', () => {
+		const line = 'grove cedar-4 rolled queen and king.';
+		const rolled = render(TurnCard, {
+			title: 'White to move',
+			dice: [die('Q'), die('K')],
+			diceLine: line,
+		});
+		expect(rolled.getByText(line)).toBeTruthy();
+		expect(rolled.queryByText(/Dice rolled/)).toBeNull();
+		rolled.unmount();
+		const empty = render(TurnCard, { title: 'White to move', dice: [], diceLine: line });
+		expect(empty.queryByText(line)).toBeNull();
+	});
+
 	it('tumbles the dice, staggered, only while a roll is animating', () => {
 		const dice = [die('P'), die('N'), die('B')];
 		const rolling = render(TurnCard, { dice, animating: true });
