@@ -82,9 +82,9 @@ export function records(opponents: readonly PlayerOpponent[] | null | undefined)
 	people: Tally | null;
 } {
 	const rows = opponents ?? [];
-	const bots = rows.filter(isBotRow).reduce(add, EMPTY);
+	const bots = rows.filter(isBotRow).reduce((sum, row) => add(sum, row), EMPTY);
 	// Every human opponent is one collapsed row on the wire; summed in case there is more.
-	const people = rows.filter((row) => !isBotRow(row)).reduce(add, EMPTY);
+	const people = rows.filter((row) => !isBotRow(row)).reduce((sum, row) => add(sum, row), EMPTY);
 	return { bots: bots.games > 0 ? bots : null, people: people.games > 0 ? people : null };
 }
 
