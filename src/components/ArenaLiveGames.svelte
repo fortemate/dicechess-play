@@ -7,8 +7,8 @@
 	// board redrawn on each read.
 	//
 	// A seat held by a person carries the "Player" tag in both views and on every screen width;
-	// that tag is how a game with a human is told from a game of two bots at a glance. A person
-	// without a rating says "unrated" where a rating would be.
+	// that tag is how a game with a human is told from a game of two bots at a glance. A seat
+	// without a rating shows none: the server does not say, which is not the same as "unrated".
 	import { resolve } from '$app/paths';
 	import { fullmoveOf } from '#lib/live/boardGrid.js';
 	import type { LiveGame, Seat } from '#lib/live/liveTypes.js';
@@ -72,13 +72,12 @@
 			<!-- Where there is room. The tag that must always show is the person's. -->
 			<Tag class="max-md:hidden">{m.arena_bot()}</Tag>
 		{/if}
-		<span class="shrink-0 text-sm text-content-muted tabular-nums">
-			{#if info.rating !== undefined}
+		<!-- No rating on the wire means "the server does not say": it draws nothing, never "unrated". -->
+		{#if info.rating !== undefined}
+			<span class="shrink-0 text-sm text-content-muted tabular-nums">
 				{formatWholeNumber(info.rating)}
-			{:else if info.human}
-				{m.arena_live_unrated()}
-			{/if}
-		</span>
+			</span>
+		{/if}
 	</span>
 {/snippet}
 

@@ -45,6 +45,8 @@
 	const filters = $derived({ kind, speed, query });
 	const counts = $derived(countByKind(feed.games));
 	const matching = $derived(filterGames(feed.games, filters));
+	// "No match" needs games to match against: with none listed, no game is being played.
+	const noMatch = $derived(feed.games.length > 0 && isFiltered(filters));
 	const shown = $derived(matching.slice(0, limit));
 	const more = $derived(Math.min(MORE_STEP, matching.length - shown.length));
 
@@ -153,12 +155,13 @@
 			{/if}
 		{:else if matching.length === 0}
 			<div class="flex flex-col items-start gap-3 py-4">
+				<!-- With nothing listed there are no live games, whatever the filters say. -->
 				<p class="m-0 text-content-muted">
-					{isFiltered(filters) ? m.arena_live_no_match() : m.arena_live_none()}
+					{noMatch ? m.arena_live_no_match() : m.arena_live_none()}
 				</p>
 				<!-- Nothing matched on the server's page only: a matching game may be running off it. -->
 				{@render capNotice()}
-				{#if isFiltered(filters)}
+				{#if noMatch}
 					<Button variant="secondary" onclick={clear}>{m.arena_live_clear()}</Button>
 				{/if}
 			</div>

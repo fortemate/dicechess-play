@@ -73,7 +73,6 @@
 	"arena_live_col_move": "Move",
 	"arena_live_move": "move {move}",
 	"arena_live_watch": "Watch",
-	"arena_live_unrated": "unrated",
 	"arena_live_list_label": "Live games",
 	"arena_live_loading": "Loading the games…",
 	"arena_live_none": "No game is being played right now.",

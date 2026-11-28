@@ -122,7 +122,9 @@ describe('/arena/live', () => {
 		const rows = within(view.getByRole('list', { name: 'Live games' })).getAllByRole('link');
 		const text = (i: number) => rows[i].textContent?.replace(/\s+/g, ' ') ?? '';
 		expect(text(1)).toMatch(/PlayerOne Player 2,177/);
-		expect(text(3)).toMatch(/Anonymous player Player unrated/);
+		// No rating on the wire draws nothing: the server does not say, which is not "unrated".
+		expect(text(3)).toMatch(/Anonymous player Player/);
+		expect(text(3)).not.toContain('unrated');
 		// A game of two bots carries no such mark.
 		expect(text(0)).not.toContain('Player');
 	});
@@ -168,6 +170,14 @@ describe('/arena/live', () => {
 		await press(view, 'Clear the filters');
 		expect(rowLinks(view)).toHaveLength(4);
 		expect((view.getByRole('searchbox') as HTMLInputElement).value).toBe('');
+	});
+
+	it('says there are no live games, not "no match", when a filter is on and nothing is listed', async () => {
+		const view = mount([]);
+		await fireEvent.input(view.getByRole('searchbox'), { target: { value: 'nobody' } });
+		expect(view.getByText('No game is being played right now.')).toBeTruthy();
+		expect(view.queryByText('No live game matches these filters.')).toBeNull();
+		expect(view.queryByRole('button', { name: 'Clear the filters' })).toBeNull();
 	});
 
 	it('shows one page and adds to it on request', async () => {
