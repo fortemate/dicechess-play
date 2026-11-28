@@ -148,6 +148,11 @@ describe('immutable published rating history', () => {
 			.mockResolvedValue(snapshot(second, 'second-bot'));
 		const view = render(RatingHistory, { category: 'blitz' });
 		await waitFor(() => expect(api.item).toHaveBeenCalledTimes(1));
+		// Both were saved in one minute: the choices say the exact time, so they can be told apart.
+		expect(view.getAllByRole('option').map((option) => option.textContent?.trim())).toEqual([
+			'Saved 1 Oct 2026, 00:00:00.000001 UTC · epoch 1',
+			'Saved 1 Oct 2026, 00:00:00.000002 UTC · epoch 1',
+		]);
 		await fireEvent.change(view.getByRole('combobox'), {
 			target: { value: JSON.stringify([second.epoch, second.cutoff]) },
 		});

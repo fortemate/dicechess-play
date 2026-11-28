@@ -55,5 +55,6 @@
 	"leaderboard_more": "Show {count} more",
 	"leaderboard_no_match": "No one on this board matches \"{query}\".",
 	"leaderboard_snapshot_banner": "Saved standings from {date}. Later games do not change these numbers. Snapshots cover bots only.",
-	"leaderboard_phone_head": "Rating · range"
+	"leaderboard_phone_head": "Rating · range",
+	"leaderboard_snapshot_option_exact": "Saved {date} UTC · epoch {epoch}"
 }

@@ -15,7 +15,7 @@
 	import type { RatingCategory } from '#lib/live/ratingCategory.js';
 	import { RATING_CATEGORY_LABELS } from '#lib/live/ratingCategory.js';
 	import { savedDay, updatedAt } from '#lib/leaderboard/boardView.js';
-	import { sameRatingCutoff } from '#lib/ratings/ratingPresentation.js';
+	import { ratingDate, sameRatingCutoff } from '#lib/ratings/ratingPresentation.js';
 	import RatingTable from './RatingTable.svelte';
 	import Button from './ui/Button.svelte';
 	let {
@@ -118,6 +118,27 @@
 		};
 	});
 
+	// A choice reads "Saved 20 Nov 2026, 06:00 UTC". Two snapshots that would read the same
+	// (saved within one minute, or at one moment on different scales) are told apart by the
+	// exact time and the epoch, which is their whole identity.
+	const plainLabel = (item: { epoch: number; cutoff: string }) =>
+		m.leaderboard_snapshot_option({ date: updatedAt(item.cutoff) ?? item.cutoff });
+	const listed = $derived(
+		requested && !summaries.some((item) => key(item) === key(requested))
+			? [requested, ...summaries]
+			: summaries,
+	);
+	const optionLabel = $derived.by(() => {
+		const seen: Record<string, number> = {};
+		for (const item of listed) seen[plainLabel(item)] = (seen[plainLabel(item)] ?? 0) + 1;
+		return (item: { epoch: number; cutoff: string }) =>
+			seen[plainLabel(item)] > 1
+				? m.leaderboard_snapshot_option_exact({
+						date: ratingDate(item.cutoff) ?? item.cutoff,
+						epoch: item.epoch,
+					})
+				: plainLabel(item);
+	});
 	const selectedListed = $derived(summaries.some((item) => key(item) === selected));
 	const permalink = $derived(
 		snapshot
@@ -151,16 +172,10 @@
 				class="min-h-11 max-w-full min-w-0 cursor-pointer rounded-control border border-border-strong bg-surface px-3 text-sm font-semibold text-content focus-visible:focus-ring"
 			>
 				{#if requested && !selectedListed}<option value={key(requested)}
-						>{m.leaderboard_snapshot_option({
-							date: updatedAt(requested.cutoff) ?? requested.cutoff,
-						})}</option
+						>{optionLabel(requested)}</option
 					>{/if}
 				{#each summaries as item (key(item))}
-					<option value={key(item)}
-						>{m.leaderboard_snapshot_option({
-							date: updatedAt(item.cutoff) ?? item.cutoff,
-						})}</option
-					>
+					<option value={key(item)}>{optionLabel(item)}</option>
 				{/each}
 			</select>
 		</label>
