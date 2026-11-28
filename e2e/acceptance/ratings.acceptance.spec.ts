@@ -15,6 +15,11 @@ import type {
 const API_ORIGIN = 'https://ratings-staging.invalid';
 const cutoff = '2026-01-02T03:04:05Z';
 const computedAt = '2026-01-02T04:05:06Z';
+// What a saved snapshot says about itself, and about a scale older than the current one.
+const SAVED_BANNER =
+	'Saved standings from 2 Jan 2026. Later games do not change these numbers. Snapshots cover bots only.';
+const EARLIER_SCALE =
+	'These numbers are on an earlier rating scale. Do not compare them with current ratings.';
 const leaders: LeaderRow[] = [
 	{
 		rank: 1,
@@ -247,21 +252,30 @@ test('current ordering and exact earlier-epoch history remain distinct', async (
 	await expect(rows.nth(1)).toContainText('1,600');
 	await expect(rows.nth(0)).toContainText('Not in automatic ladder');
 	await expect(rows.nth(0)).not.toContainText(/frozen/i);
-	await expect(rows.nth(0)).toContainText('95% interval 1,651–1,749');
-	await expect(page.getByText('Epoch 9 · Activity not reported', { exact: true })).toBeVisible();
+	await expect(rows.nth(0)).toContainText('1,651 to 1,749');
+	// One line says how much is shown and when the board was updated, to the minute.
+	await expect(
+		page.getByText('Showing 2 of 2 on the Blitz board · updated 2 Jan 2026, 04:05 UTC', {
+			exact: true,
+		}),
+	).toBeVisible();
+	await expect(page.getByText(/not reported/i)).toHaveCount(0);
 	await expectNoPageOverflow(page);
 	await page.screenshot({
 		path: info.outputPath(`ratings-${info.project.name}-current.png`),
 		fullPage: true,
 	});
 
-	const historyButton = page.getByRole('button', { name: 'Published history', exact: true });
-	await historyButton.focus();
-	await expect(historyButton).toBeFocused();
+	// The two sections are links with addresses of their own; the keyboard opens the second.
+	const sections = page.getByRole('navigation', { name: 'Leaderboard sections' });
+	const historyLink = sections.getByRole('link', { name: 'Published snapshots', exact: true });
+	await historyLink.focus();
+	await expect(historyLink).toBeFocused();
 	await page.keyboard.press('Enter');
-	await expect(historyButton).toHaveAttribute('aria-pressed', 'true');
-	await expect(page.getByText('Historical snapshot · Epoch 7', { exact: true })).toBeVisible();
-	await expect(page.getByText('Earlier epoch', { exact: true })).toBeVisible();
+	await expect(historyLink).toHaveAttribute('aria-current', 'page');
+	await expect(page).toHaveURL(/[?&]view=history/);
+	await expect(page.getByText(SAVED_BANNER, { exact: true })).toBeVisible();
+	await expect(page.getByText(EARLIER_SCALE, { exact: true })).toBeVisible();
 	await expect(page.getByText('Example Archive', { exact: true })).toBeVisible();
 	await expect(page.getByText('Example Steady', { exact: true })).toHaveCount(0);
 	const link = page.getByRole('link', { name: 'Link to this snapshot' });
@@ -280,8 +294,8 @@ test('current ordering and exact earlier-epoch history remain distinct', async (
 		fullPage: true,
 	});
 	await page.goto(target.pathname + target.search);
-	await expect(page.getByText('Historical snapshot · Epoch 7', { exact: true })).toBeVisible();
-	await expect(page.getByText('Earlier epoch', { exact: true })).toBeVisible();
+	await expect(page.getByText(SAVED_BANNER, { exact: true })).toBeVisible();
+	await expect(page.getByText(EARLIER_SCALE, { exact: true })).toBeVisible();
 	expect(
 		requests.filter(
 			(request) => request === `/leaderboard/snapshots/blitz/7/${encodeURIComponent(cutoff)}`,
@@ -398,7 +412,7 @@ test('history distinguishes unsupported server from a retryable failure', async 
 		fullPage: true,
 	});
 	await page.getByRole('button', { name: 'Retry', exact: true }).click();
-	await expect(page.getByText('Historical snapshot · Epoch 7', { exact: true })).toBeVisible();
+	await expect(page.getByText(SAVED_BANNER, { exact: true })).toBeVisible();
 	await expect(page.getByRole('alert')).toHaveCount(0);
 });
 
