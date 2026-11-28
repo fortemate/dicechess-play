@@ -134,9 +134,9 @@ src/
 │   │                          board-flip toggle, provably-fair commit/seed section
 │   ├── leaderboard/           current standings + published snapshots of one rating scale per speed (#124, #261)
 │   ├── bots/                  human-play bot catalog (play-api GET /lobby/bots, ADR-0014)
-│   │   └── [team]/[name]/     bot profile — rating, ladder W-D-L, recent games (#152 Tier 1;
-│   │                          Tier 2/3 — human record, head-to-head vs models, rating history —
-│   │                          are a separate, not-yet-agreed design)
+│   │   └── [team]/[name]/     a bot's public profile: one template shared with players/[nickname]
+│   │                          (#152, #262)
+│   ├── players/[nickname]/    a person's public profile, the same template (#207, #262)
 │   └── me/                    guest profile + restore code; W-D-L on this device + in the lobby
 │       ├── bots/              signed-in author's owned-bot surface: claim with one-time Bearer
 │       │                      token, ladder/catalog/capacity, rotate token, release (#242)
@@ -164,7 +164,8 @@ src/
 │   │                          an arena bot game through the catalog, a table bot game by sitting down
 │   ├── lib/Chessground.svelte
 │   ├── GameFrame · GameActions · PlayerStrip · TurnCard · GameResultCard · GameWaitingCard · MoveList · MoveStepper · BotBadge · PawnPromotionSelector
-│   ├── GameHistoryCard · LiveGameHistoryCard · BotProfileGameCard · WdlBar · WdlCounts
+│   ├── GameHistoryCard · LiveGameHistoryCard · WdlBar · WdlCounts
+│   ├── Profile · ProfileView  the one public profile of a bot or a person (#262): the reader and the template
 │   │                     WdlSummaryCard · MiniBoard · GameSetupPanel · ThemeMenu
 │   │                     ToastContainer
 │   ├── AdminBotsFilterBar · AdminBotsInventory · AdminBotDetailDrawer — /me/admin/bots
@@ -237,6 +238,8 @@ src/
 │   │                          wire mirror; bot/player profiles + published snapshot reads, #124/#152)
 │   │                          + boardView — how a ranked row is drawn: the shared scale of the range
 │   │                          bars, search by name, the newcomer tag, the update time (#261)
+│   ├── profile/               profileView — what a public profile shows: a tile per speed, the two
+│   │                          records, the opponents met most, whether a bot plays now (#262)
 │   ├── ratings/               ratingPresentation — documented Glicko interval/order conversions and
 │   │                          UTC cutoff labels preserving the API's sub-millisecond precision
 │   ├── catalog/               catalogApi — bot-catalog read/wake/play-bot client (play-api wire mirror);

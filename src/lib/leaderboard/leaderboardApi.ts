@@ -90,6 +90,11 @@ export interface CategoryRating {
 	wins: number;
 	draws: number;
 	losses: number;
+	/** The participant's 1-based row on this speed's board of its own population (play-api #333):
+	 * the same number as `rank` in `GET /leaderboard`. Optional and never null on the wire: absent
+	 * when the participant has no row there (still provisional, deactivated, beyond the size of
+	 * the board) and on a server that predates the field. Absent means "no place", never "last". */
+	rank?: number;
 }
 
 /** Separate training estimate; competitive profile entries carry no version metadata. */
