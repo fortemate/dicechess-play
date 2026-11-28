@@ -45,7 +45,7 @@ describe('LeaderboardRow', () => {
 	it('renders a bot with its team-qualified name, a badge, and a link to its profile', () => {
 		const { getByRole, getByText } = render(LeaderboardRow, { row: row() });
 		expect(getByRole('link', { name: 'acme alice' }).getAttribute('href')).toBe('/bots/acme/alice');
-		expect(getByText('bot')).toBeTruthy();
+		expect(getByText('Bot')).toBeTruthy();
 	});
 
 	it('separates scheduling from strength, without fading a bot or calling its rating frozen', () => {
@@ -64,7 +64,7 @@ describe('LeaderboardRow', () => {
 		expect(getByRole('link', { name: 'RollingDice' }).getAttribute('href')).toBe(
 			'/players/RollingDice',
 		);
-		expect(queryByText('bot')).toBeNull();
+		expect(queryByText('Bot')).toBeNull();
 	});
 
 	/** `onLadder` is always false for a person — the flag belongs to the bot pairing scheduler. Fading
@@ -100,11 +100,48 @@ describe('LeaderboardRow', () => {
 		expect(bot.queryByText('you')).toBeNull();
 	});
 
-	it('shows the rating with its deviation, and the win rate over decided games', () => {
-		const { getByText } = render(LeaderboardRow, { row: row() });
-		expect(getByText('1,721')).toBeTruthy(); // whole points: the ± carries the precision
-		expect(getByText('95% interval 1,554–1,887')).toBeTruthy();
+	it('shows the rating, its 95% range, the number it ranks at and the win share', () => {
+		const { getByText, getAllByText } = render(LeaderboardRow, { row: row() });
+		expect(getByText('1,721')).toBeTruthy(); // whole points: the range carries the precision
+		// Once beside the bar and once as the text a phone shows instead of it.
+		expect(getAllByText('1,554 to 1,887').length).toBeGreaterThan(0);
 		expect(getByText('1,550')).toBeTruthy();
 		expect(getByText('75%')).toBeTruthy(); // 30 of 40 decided
+	});
+
+	it('draws the range as a bar with a text alternative, on the scale it is given', () => {
+		const { getByRole } = render(LeaderboardRow, {
+			row: row(),
+			bar: { start: 10, width: 60, dot: 40 },
+		});
+		const image = getByRole('img', { name: '95% range from 1,554 to 1,887, rating 1,721' });
+		const [fill, dot] = [...image.querySelectorAll<HTMLElement>('[style]')];
+		expect(fill.style.left).toBe('10%');
+		expect(fill.style.width).toBe('60%');
+		expect(dot.style.left).toBe('40%');
+	});
+
+	it('writes the columns a phone has no room for as text in the row', () => {
+		const { getByText } = render(LeaderboardRow, { row: row() });
+		expect(getByText('42 games · 75% wins')).toBeTruthy();
+		expect(getByText('W 30 · D 2 · L 10')).toBeTruthy();
+		expect(getByText('ranks at 1,550')).toBeTruthy();
+	});
+
+	it('tags a newcomer by the number of rated games, and nobody else', () => {
+		const few = render(LeaderboardRow, { row: row({ games: 29 }) });
+		expect(few.getByText('new')).toBeTruthy();
+		few.unmount();
+		const many = render(LeaderboardRow, { row: row({ games: 30 }) });
+		expect(many.queryByText('new')).toBeNull();
+	});
+
+	it('says so, and draws no bar, when the server reports no usable range', () => {
+		const { getAllByText, queryByRole } = render(LeaderboardRow, {
+			row: row({ ciLow: 1900, ciHigh: 1800 }),
+			bar: null,
+		});
+		expect(getAllByText('Interval not reported').length).toBeGreaterThan(0);
+		expect(queryByRole('img')).toBeNull();
 	});
 });

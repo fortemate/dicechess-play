@@ -70,13 +70,28 @@ describe('immutable published rating history', () => {
 		api.item.mockResolvedValue(snapshot());
 		const view = render(RatingHistory, { category: 'blitz', currentEpoch: 2 });
 		expect(await view.findByText('synthetic past-bot')).toBeTruthy();
-		expect(view.getByText('Earlier epoch')).toBeTruthy();
+		expect(view.getByText(/earlier rating scale/)).toBeTruthy();
 		expect(view.getByText('Not in automatic ladder')).toBeTruthy();
 		expect(view.queryByText(/frozen|inactive/i)).toBeNull();
 		expect(view.getByText('1,731')).toBeTruthy();
+		// Plain wording: the day it was saved, that it is frozen, and that it covers bots only.
+		expect(
+			view.getByText(
+				'Saved standings from 1 Oct 2026. Later games do not change these numbers. Snapshots cover bots only.',
+			),
+		).toBeTruthy();
+		expect(view.getByRole('option', { name: 'Saved 1 Oct 2026, 00:00 UTC' })).toBeTruthy();
 		const link = view.getByRole('link', { name: 'Link to this snapshot' }) as HTMLAnchorElement;
 		expect(link.href).toContain('epoch=1');
 		expect(link.href).toContain('cutoff=2026-10-01');
+	});
+	it('narrows the saved rows by the search of the page', async () => {
+		api.list.mockResolvedValue([summary()]);
+		api.item.mockResolvedValue(snapshot());
+		const view = render(RatingHistory, { category: 'blitz', query: 'nobody' });
+		expect(await view.findByText('No one on this board matches "nobody".')).toBeTruthy();
+		await view.rerender({ category: 'blitz', query: 'PAST' });
+		expect(await view.findByText('synthetic past-bot')).toBeTruthy();
 	});
 	it('distinguishes no published history from an unsupported old server', async () => {
 		api.list.mockResolvedValue([]);
@@ -133,6 +148,11 @@ describe('immutable published rating history', () => {
 			.mockResolvedValue(snapshot(second, 'second-bot'));
 		const view = render(RatingHistory, { category: 'blitz' });
 		await waitFor(() => expect(api.item).toHaveBeenCalledTimes(1));
+		// Both were saved in one minute: the choices say the exact time, so they can be told apart.
+		expect(view.getAllByRole('option').map((option) => option.textContent?.trim())).toEqual([
+			'Saved 1 Oct 2026, 00:00:00.000001 UTC · epoch 1',
+			'Saved 1 Oct 2026, 00:00:00.000002 UTC · epoch 1',
+		]);
 		await fireEvent.change(view.getByRole('combobox'), {
 			target: { value: JSON.stringify([second.epoch, second.cutoff]) },
 		});
