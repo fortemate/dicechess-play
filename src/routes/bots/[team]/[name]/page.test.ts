@@ -157,7 +157,7 @@ describe("a bot's profile", () => {
 			const asked = lobby.listGames.mock.calls.length;
 			view.unmount();
 			await vi.advanceTimersByTimeAsync(30_000);
-			expect(lobby.listGames.mock.calls.length).toBe(asked);
+			expect(lobby.listGames.mock.calls).toHaveLength(asked);
 		} finally {
 			vi.useRealTimers();
 		}
