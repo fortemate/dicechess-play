@@ -134,6 +134,62 @@ describe("a bot's profile", () => {
 		expect(watch.getAttribute('href')).toBe('/live/live-7');
 	});
 
+	it('drops the link when the game ends and keeps asking only while the page is shown', async () => {
+		vi.useFakeTimers({ shouldAdvanceTime: true });
+		try {
+			api.fetchBotProfile.mockResolvedValue(profile());
+			const live = {
+				games: [
+					{
+						gameId: 'live-7',
+						version: 3,
+						players: { white: { kind: 'Bot', name: 'grove cedar-1' }, black: null },
+					},
+				],
+				total: 1,
+			};
+			lobby.listGames.mockResolvedValue(live);
+			const view = render(BotPage);
+			await view.findByRole('link', { name: 'Playing now · watch' });
+			lobby.listGames.mockResolvedValue({ games: [], total: 0 });
+			await vi.advanceTimersByTimeAsync(10_000);
+			expect(view.queryByRole('link', { name: 'Playing now · watch' })).toBeNull();
+			const asked = lobby.listGames.mock.calls.length;
+			view.unmount();
+			await vi.advanceTimersByTimeAsync(30_000);
+			expect(lobby.listGames.mock.calls.length).toBe(asked);
+		} finally {
+			vi.useRealTimers();
+		}
+	});
+
+	it('writes one game in the singular', async () => {
+		const one = {
+			category: 'blitz' as const,
+			rating: 1500,
+			rd: 300,
+			provisional: true,
+			games: 1,
+			wins: 1,
+			draws: 0,
+			losses: 0,
+		};
+		api.fetchBotProfile.mockResolvedValue(
+			profile({
+				ratings: [one],
+				opponents: [{ ...versus(1), games: 1, wins: 1, draws: 0, losses: 0 }],
+			}),
+		);
+		const view = render(BotPage);
+		const tiles = within(
+			await view.findByRole('region', { name: 'Competitive ratings' }),
+		).getAllByRole('listitem');
+		expect(lines(tiles)[1]).toBe('Blitz 1,500 95% range 912 to 2,088 1 game · provisional');
+		const bots = view.getByRole('heading', { name: 'Against bots' }).parentElement!;
+		expect(bots.textContent?.replace(/\s+/g, ' ')).toContain('1 game · 1 W · 0 D · 0 L');
+		expect(view.queryByText(/1 games/)).toBeNull();
+	});
+
 	it('shows the profile without the link when the list of live games cannot be read', async () => {
 		api.fetchBotProfile.mockResolvedValue(profile());
 		lobby.listGames.mockRejectedValue(new Error('down'));
@@ -148,11 +204,11 @@ describe("a bot's profile", () => {
 		const bots = (await view.findByRole('heading', { name: 'Against bots' })).parentElement!;
 		// 14 opponents: 1,295 games, 735 won, 14 drawn, 546 lost; 735 of 1,281 decided is 57%.
 		expect(bots.textContent?.replace(/\s+/g, ' ').trim()).toBe(
-			'Against bots 57% wins in 1,295 games 735 W · 14 D · 546 L',
+			'Against bots 57% of decided games won 1,295 games · 735 W · 14 D · 546 L',
 		);
 		const humans = view.getByRole('heading', { name: 'Against people' }).parentElement!;
 		expect(humans.textContent?.replace(/\s+/g, ' ').trim()).toBe(
-			'Against people 66% wins in 44 games 29 W · 0 D · 15 L',
+			'Against people 66% of decided games won 44 games · 29 W · 0 D · 15 L',
 		);
 		view.unmount();
 

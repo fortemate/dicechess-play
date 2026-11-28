@@ -47,7 +47,7 @@
 	"profile_tile_unplayed": "No rated games at this speed yet.",
 	"profile_against_bots": "Against bots",
 	"profile_against_people": "Against people",
-	"profile_record_wins": "wins in {games} games",
+	"profile_record_wins": "of decided games won",
 	"profile_record_line": "{wins} W · {draws} D · {losses} L",
 	"profile_record_none": "No games yet.",
 	"profile_opponents": "Most played opponents",
@@ -63,5 +63,8 @@
 	"profile_recent_none": "No recorded games yet.",
 	"profile_tabs_label": "List shown",
 	"profile_tab_opponents": "Opponents",
-	"profile_tab_recent": "Recent games"
+	"profile_tab_recent": "Recent games",
+	"profile_tile_games_one": "1 game",
+	"profile_training_games_one": "1 training game",
+	"profile_training_details": "Where each training estimate comes from"
 }

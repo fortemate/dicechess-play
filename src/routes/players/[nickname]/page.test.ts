@@ -135,6 +135,13 @@ describe("a person's profile", () => {
 		expect(text[1]).toBe('Blitz No training estimate at this speed.');
 		expect(text[2]).toBe('Rapid 1,432 95% range 1,300 to 1,560 7 training games · provisional');
 		expect(view.queryByText('1,600')).toBeNull();
+		// What the server does not say about an estimate is said to be unknown, never left out.
+		const details = within(
+			view.getByRole('list', { name: 'Where each training estimate comes from' }),
+		).getAllByRole('listitem');
+		expect(details.map((item) => item.textContent?.replace(/\s+/g, ' ').trim())).toEqual([
+			'Rapid · Epoch 1 · Data cutoff not reported · Calculation time not reported · Glicko-2 · 1',
+		]);
 	});
 
 	it('tells an unknown nickname from a server that cannot be reached', async () => {

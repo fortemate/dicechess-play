@@ -24,7 +24,8 @@
 		TrainingCategoryRating,
 	} from '#lib/leaderboard/leaderboardApi.js';
 	import { SEAT_LABELS } from '#lib/live/playerLabel.js';
-	import { RATING_CATEGORY_LABELS } from '#lib/live/ratingCategory.js';
+	import { RATING_CATEGORY_LABELS, RATING_CATEGORY_ORDER } from '#lib/live/ratingCategory.js';
+	import { knownEpoch, ratingDate } from '#lib/ratings/ratingPresentation.js';
 	import { m } from '#lib/paraglide/messages.js';
 	import {
 		FIRST_GAMES,
@@ -104,6 +105,46 @@
 			losses: formatWholeNumber(tally.losses),
 		});
 
+	// "1 game", "2 games": the count decides the word.
+	const gamesText = (count: number) =>
+		count === 1
+			? m.profile_tile_games_one()
+			: m.profile_tile_games({ count: formatWholeNumber(count) });
+	const trainingGamesText = (count: number) =>
+		count === 1
+			? m.profile_training_games_one()
+			: m.profile_training_games({ count: formatWholeNumber(count) });
+
+	// Where a training estimate comes from. What the server does not say is said to be unknown,
+	// never left out.
+	const estimates = $derived(
+		RATING_CATEGORY_ORDER.flatMap((category) => {
+			const found = (training ?? []).find((rating) => rating.category === category);
+			if (!found) return [];
+			const cutoff = ratingDate(found.cutoff);
+			const computed = ratingDate(found.computedAt);
+			const algorithm =
+				found.algorithm === 'glicko2' || !found.algorithm
+					? m.common_rating_glicko()
+					: found.algorithm;
+			return [
+				{
+					category,
+					facts: [
+						knownEpoch(found.epoch)
+							? m.common_rating_epoch({ epoch: found.epoch })
+							: m.common_rating_epoch_unknown(),
+						cutoff ? m.common_rating_cutoff({ date: cutoff }) : m.common_rating_cutoff_unknown(),
+						computed
+							? m.common_rating_computed({ date: computed })
+							: m.common_rating_computed_unknown(),
+						`${algorithm} · ${found.algorithmVersion ?? m.common_rating_algorithm_version_unknown()}`,
+					],
+				},
+			];
+		}),
+	);
+
 	const label = 'm-0 text-xs font-bold tracking-wider text-content-muted uppercase';
 	const moreLink =
 		'mt-3 cursor-pointer self-start rounded-control border-0 bg-transparent p-0 py-1 text-base font-bold text-content underline-offset-4 hover:underline focus-visible:focus-ring';
@@ -129,12 +170,14 @@
 	<div class="flex min-w-0 flex-col gap-2">
 		<h2 class={label}>{heading}</h2>
 		{#if tally}
+			<!-- The share is of decided games, as everywhere on the site; the line under the bar
+			     gives every game, draws included. -->
 			<p class="m-0 flex flex-wrap items-baseline gap-x-2 text-content-muted">
 				<span class="text-3xl font-bold text-content tabular-nums">{winPercent(tally)}%</span>
-				{m.profile_record_wins({ games: formatWholeNumber(tally.games) })}
+				{m.profile_record_wins()}
 			</p>
 			{@render bar(tally, false)}
-			<p class="m-0 text-content tabular-nums">{recordLine(tally)}</p>
+			<p class="m-0 text-content tabular-nums">{gamesText(tally.games)} · {recordLine(tally)}</p>
 		{:else}
 			<p class="m-0 text-content-muted">{m.profile_record_none()}</p>
 		{/if}
@@ -253,7 +296,7 @@
 						</p>
 						{#if tile.rated.range}
 							<p class="m-0 text-xs text-content-muted tabular-nums md:text-base">
-								<span class="max-md:hidden">{m.profile_tile_range_lead()}</span>
+								<span class="max-md:sr-only">{m.profile_tile_range_lead()}</span>
 								{m.profile_tile_range({
 									low: formatWholeNumber(tile.rated.range.low),
 									high: formatWholeNumber(tile.rated.range.high),
@@ -261,9 +304,7 @@
 							</p>
 						{/if}
 						<p class="m-0 text-xs text-content-muted tabular-nums md:text-base">
-							{showTraining
-								? m.profile_training_games({ count: formatWholeNumber(tile.rated.games) })
-								: m.profile_tile_games({ count: formatWholeNumber(tile.rated.games) })}
+							{showTraining ? trainingGamesText(tile.rated.games) : gamesText(tile.rated.games)}
 							{#if tile.rated.provisional}
 								· {m.common_rating_provisional()}
 							{/if}
@@ -276,6 +317,21 @@
 				</li>
 			{/each}
 		</ul>
+		{#if showTraining && estimates.length > 0}
+			<ul
+				aria-label={m.profile_training_details()}
+				class="m-0 flex list-none flex-col gap-1 p-0 text-sm text-content-muted"
+			>
+				{#each estimates as estimate (estimate.category)}
+					<li>
+						<span class="font-semibold text-content">
+							{RATING_CATEGORY_LABELS[estimate.category]}
+						</span>
+						<span> · {estimate.facts.join(' · ')}</span>
+					</li>
+				{/each}
+			</ul>
+		{/if}
 	</section>
 
 	<div class="grid items-start gap-4 lg:grid-cols-[3fr_2fr]">

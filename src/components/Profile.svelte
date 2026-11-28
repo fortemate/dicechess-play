@@ -10,8 +10,9 @@
 	// "No such bot" or "no such player" (404, also what a deleted account answers) is permanent
 	// and is told apart from a server that cannot be reached right now.
 	//
-	// For a bot the public list of live games is read once as well, to offer "watch" while it
-	// plays. That read is a convenience: when it fails, the profile is shown without the link.
+	// For a bot the public list of live games is read as well, and again every few seconds while
+	// the page is shown, to offer "watch" only while it plays. That read is a convenience: when
+	// it fails, the profile is shown without the link.
 	import {
 		fetchBotProfile,
 		fetchPlayerProfile,
@@ -24,6 +25,9 @@
 	import { liveGameOf, type Subject } from '#lib/profile/profileView.js';
 	import ProfileView from './ProfileView.svelte';
 	import Spinner from './Spinner.svelte';
+
+	/** How often a bot's profile asks whether the bot is in a game. */
+	const LIVE_POLL_MS = 10_000;
 
 	let { subject }: { subject: Subject } = $props();
 
@@ -65,17 +69,32 @@
 			.finally(() => {
 				if (alive) loading = false;
 			});
+		let timer: ReturnType<typeof setInterval> | undefined;
 		if (wanted.kind === 'bot') {
-			listGames()
-				.then((answer) => {
-					if (alive) playingGameId = liveGameOf(answer.games, wanted);
-				})
-				.catch(() => {
-					// No link to watch; the profile does not depend on it.
-				});
+			// Asked again while the page is shown, so the link goes when the game ends and comes
+			// when one starts. One read at a time; never while the tab is hidden.
+			let reading = false;
+			const look = () => {
+				if (reading || document.hidden) return;
+				reading = true;
+				listGames()
+					.then((answer) => {
+						if (alive) playingGameId = liveGameOf(answer.games, wanted);
+					})
+					.catch(() => {
+						// The link is a convenience: without an answer nothing is offered to watch.
+						if (alive) playingGameId = null;
+					})
+					.finally(() => {
+						reading = false;
+					});
+			};
+			look();
+			timer = setInterval(look, LIVE_POLL_MS);
 		}
 		return () => {
 			alive = false;
+			clearInterval(timer);
 		};
 	});
 </script>
