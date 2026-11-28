@@ -67,7 +67,7 @@ describe('/arena', () => {
 		const { getByRole } = render(Page);
 		const links = [...getByRole('navigation', { name: 'Arena sections' }).querySelectorAll('a')];
 		expect(links.map((link) => link.getAttribute('aria-current'))).toEqual(['page', null]);
-		expect(links[0].getAttribute('href')).toBe('/arena');
+		expect(links.map((link) => link.getAttribute('href'))).toEqual(['/arena', '/arena/live']);
 		expect(links[1].textContent?.replace(/\s+/g, ' ')).toContain('Live games 100');
 	});
 

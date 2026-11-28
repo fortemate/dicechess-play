@@ -122,6 +122,8 @@ src/
 │   │                          an open table (`?tab=table`, with the wait on the board)
 │   ├── arena/                 the Arena overview (#259): one featured live game, six more, bots
 │   │                          waiting for an opponent and the top of the rating board
+│   │   └── live/              every live game (#260): a list or small boards, filters by who
+│   │                          plays and by speed, a search by name, "show more"
 │   ├── practice/              vs-bot game (client-authoritative; engine in a Web Worker)
 │   ├── lobby/                 seek list + live-board wall (polls play-api)
 │   ├── live/ · live/[id]/     friend-link entry · server-authoritative live board (WebSocket)
@@ -152,6 +154,8 @@ src/
 │   ├── GameShell              game navigation, appearance, identity and onboarding
 │   ├── ArenaFeatured · ArenaGames · ArenaSeats · ArenaStandings — the four blocks of /arena
 │   │                          (#259); each draws what the page hands it
+│   ├── ArenaHead · ArenaPlayBar · ArenaLiveGames — the head and the phone "Play a game" bar of
+│   │                          both Arena pages; the games of /arena/live as rows or boards (#260)
 │   ├── PlayFriend · PlayTables · OpenTableWaiting — the friend tab and the open-table tab of
 │   │                          /play (#258), and the wait at one's own table on the game frame,
 │   │                          shared with the lobby
@@ -201,6 +205,8 @@ src/
 │   │                          game, shared by /play and /practice (#257)
 │   ├── arena/                 featured — which live game Arena features and when it gives way (a
 │   │                          pure rule); arenaFeed — the polling that keeps the overview current (#259)
+│   │                          liveGames — order and filters of the full list, pure; liveGamesFeed —
+│   │                          one read of the listing at a time, nothing per game (#260)
 │   ├── play/                  botList — starter bots, catalog bots and bots at an open table as
 │   │                          one list; which are "Ready now"; filters; the bot of a link (#257)
 │   ├── rules/                 seo.ts — shared origins for the prerendered rules page's absolute
