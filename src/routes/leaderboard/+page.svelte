@@ -1,4 +1,13 @@
 <script lang="ts">
+	// The leaderboard (#261): current standings and published snapshots of one rating scale per
+	// speed.
+	//
+	// The page owns what is asked of the server (the speed and who is listed) and the two
+	// sections, each with an address of its own: a snapshot link keeps opening the same
+	// snapshot. What the visitor types into the search narrows the rows already on screen.
+	// How a board is drawn is `RatingTable`; what a row shows is decided by
+	// `lib/leaderboard/boardView`, which is pure.
+	import { resolve } from '$app/paths';
 	import { page } from '$app/state';
 	import { m } from '#lib/paraglide/messages.js';
 	import { isLiveEnabled } from '#lib/live/liveApi.js';
@@ -12,9 +21,18 @@
 		RATING_CATEGORY_ORDER,
 		type RatingCategory,
 	} from '#lib/live/ratingCategory.js';
+	import { authStore } from '#lib/authStore.svelte.js';
+	import { updatedAt } from '#lib/leaderboard/boardView.js';
 	import { knownEpoch, ratingDate } from '#lib/ratings/ratingPresentation.js';
 	import RatingTable from '../../components/RatingTable.svelte';
 	import RatingHistory from '../../components/RatingHistory.svelte';
+	import Spinner from '../../components/Spinner.svelte';
+	import Button from '../../components/ui/Button.svelte';
+	import Chip from '../../components/ui/Chip.svelte';
+	import PageHeader from '../../components/ui/PageHeader.svelte';
+	import SegmentedControl from '../../components/ui/SegmentedControl.svelte';
+	import TabNav from '../../components/ui/TabNav.svelte';
+
 	let scope = $state<BoardScope>('all');
 	let category = $state<RatingCategory>('blitz');
 	let view = $state<'live' | 'history'>('live');
@@ -24,6 +42,7 @@
 	let retry = $state(0);
 	let requested = $state<{ epoch: number; cutoff: string } | null>(null);
 	let invalidLink = $state(false);
+	let query = $state('');
 
 	// A permalink uses the full immutable identity. Returning via browser history restores it too.
 	$effect(() => {
@@ -73,139 +92,137 @@
 		{ value: 'bots' as const, label: m.leaderboard_bots() },
 		{ value: 'players' as const, label: m.leaderboard_players() },
 	]);
-	const pillClass = (active: boolean) =>
-		active
-			? 'rounded-full bg-primary px-3 py-1.5 text-xs font-bold text-primary-content'
-			: 'rounded-full border border-border bg-surface px-3 py-1.5 text-xs font-bold text-content-muted hover:text-content';
+	const speeds = RATING_CATEGORY_ORDER.map((value) => ({
+		value,
+		label: RATING_CATEGORY_LABELS[value],
+	}));
+	// Each section keeps the speed on screen in its address.
+	const tabs = $derived([
+		{
+			href: `${resolve('/leaderboard')}${category === 'blitz' ? '' : `?category=${category}`}`,
+			label: m.leaderboard_live(),
+			current: view === 'live',
+		},
+		{
+			href: `${resolve('/leaderboard')}?view=history&category=${category}`,
+			label: m.leaderboard_history(),
+			current: view === 'history',
+		},
+	]);
+	const signedOut = $derived(authStore.status === 'signed-out');
+	const fieldClass =
+		'min-h-11 w-full rounded-control border border-border-strong bg-surface px-3 text-sm text-content placeholder:text-content-muted focus-visible:focus-ring';
 	function chooseCategory(value: RatingCategory) {
 		requested = null;
 		invalidLink = false;
 		category = value;
 	}
-	function chooseView(value: 'live' | 'history') {
-		invalidLink = false;
-		view = value;
-	}
 </script>
 
-<svelte:head
-	><title>{m.leaderboard_page_title()}</title><meta
-		name="description"
-		content={m.leaderboard_description()}
-	/></svelte:head
->
+<svelte:head>
+	<title>{m.leaderboard_page_title()}</title>
+	<meta name="description" content={m.leaderboard_description()} />
+</svelte:head>
 
-<section class="mx-auto flex min-w-0 max-w-5xl flex-col gap-5">
-	<header class="space-y-2">
-		<h2 class="text-2xl font-bold text-content">{m.leaderboard_title()}</h2>
-		<p class="text-sm text-content-muted">{m.leaderboard_description()}</p>
-	</header>
+<div class="flex min-w-0 flex-col gap-5">
+	<PageHeader title={m.leaderboard_title()} lead={m.leaderboard_lead()} />
+
 	{#if !isLiveEnabled()}
-		<p class="rounded-2xl border border-border bg-surface p-6 text-content-muted">
-			{m.leaderboard_disabled()}
-		</p>
+		<p class="m-0 text-content-muted">{m.leaderboard_disabled()}</p>
 	{:else}
-		<div class="flex flex-wrap gap-2" role="group" aria-label={m.leaderboard_title()}>
-			<button
-				type="button"
-				class={pillClass(view === 'live')}
-				aria-pressed={view === 'live'}
-				onclick={() => chooseView('live')}>{m.leaderboard_live()}</button
-			>
-			<button
-				type="button"
-				class={pillClass(view === 'history')}
-				aria-pressed={view === 'history'}
-				onclick={() => chooseView('history')}>{m.leaderboard_history()}</button
-			>
-		</div>
-		<div class="flex flex-wrap items-center gap-x-5 gap-y-3">
+		<TabNav label={m.leaderboard_tabs_label()} items={tabs} />
+
+		<div class="flex flex-wrap items-center gap-x-4 gap-y-3">
+			<SegmentedControl
+				label={m.leaderboard_speed()}
+				options={speeds}
+				value={category}
+				onchange={chooseCategory}
+				class="max-sm:w-full"
+			/>
 			{#if view === 'live'}
-				<div
-					class="flex flex-wrap items-center gap-2"
-					role="group"
-					aria-label={m.leaderboard_show()}
-				>
-					<span class="text-xs font-bold uppercase text-content-muted">{m.leaderboard_show()}</span>
-					{#each scopes as option (option.value)}<button
-							type="button"
-							onclick={() => (scope = option.value)}
-							aria-pressed={scope === option.value}
-							class={pillClass(scope === option.value)}>{option.label}</button
-						>{/each}
+				<div role="group" aria-label={m.leaderboard_show()} class="flex flex-wrap gap-2">
+					{#each scopes as option (option.value)}
+						<Chip pressed={scope === option.value} onclick={() => (scope = option.value)}>
+							{option.label}
+						</Chip>
+					{/each}
 				</div>
 			{/if}
-			<div
-				class="flex flex-wrap items-center gap-2"
-				role="group"
-				aria-label={m.leaderboard_speed()}
-			>
-				<span class="text-xs font-bold uppercase text-content-muted">{m.leaderboard_speed()}</span>
-				{#each RATING_CATEGORY_ORDER as option (option)}<button
-						type="button"
-						onclick={() => chooseCategory(option)}
-						aria-pressed={category === option}
-						class={pillClass(category === option)}>{RATING_CATEGORY_LABELS[option]}</button
-					>{/each}
-			</div>
+			<label class="min-w-40 flex-1 sm:ml-auto sm:max-w-56">
+				<span class="sr-only">{m.leaderboard_search()}</span>
+				<input
+					type="search"
+					bind:value={query}
+					placeholder={m.leaderboard_search()}
+					class={fieldClass}
+				/>
+			</label>
 		</div>
+
 		{#if view === 'history'}
-			{#if invalidLink}<p role="alert" class="rounded-xl border border-danger/40 p-4 text-danger">
-					{m.leaderboard_invalid_link()}
-				</p>
-			{:else}<RatingHistory
+			{#if invalidLink}
+				<p role="alert" class="m-0 text-danger">{m.leaderboard_invalid_link()}</p>
+			{:else}
+				<RatingHistory
 					{category}
 					{requested}
+					{query}
 					currentEpoch={board?.category === category ? board.epoch : null}
-				/>{/if}
-		{:else if error}
-			<div role="alert" class="rounded-xl border border-danger/40 p-4 text-danger">
-				<p>{error}</p>
-				<button type="button" class="mt-2 underline" onclick={() => retry++}
-					>{m.leaderboard_retry()}</button
+				/>
+			{/if}
+		{:else}
+			{#if signedOut}
+				<!-- One line, and only for a visitor the server has said is not signed in. -->
+				<div
+					class="flex flex-wrap items-center justify-between gap-x-6 gap-y-2 rounded-card bg-surface-hover px-4 py-3"
 				>
-			</div>
-		{:else if !loaded}
-			<p role="status" class="rounded-xl border border-border p-6 text-content-muted">
-				{m.leaderboard_loading()}
-			</p>
-		{:else if board}
-			<div
-				class="space-y-1 rounded-xl border border-border bg-surface/40 p-4 text-xs text-content-muted"
-			>
-				<p class="font-semibold text-content">
-					{m.common_rating_competitive()} · {RATING_CATEGORY_LABELS[category]}
+					<p class="m-0 text-content">{m.leaderboard_sign_in_line()}</p>
+					<Button
+						variant="secondary"
+						disabled={!authStore.canSignIn}
+						onclick={() => authStore.signIn()}
+					>
+						{m.leaderboard_sign_in()}
+					</Button>
+				</div>
+			{/if}
+			{#if error}
+				<div role="alert" class="flex flex-wrap items-center gap-3 text-danger">
+					<p class="m-0">{error}</p>
+					<Button variant="secondary" onclick={() => retry++}>{m.leaderboard_retry()}</Button>
+				</div>
+			{:else if !loaded}
+				<p role="status" class="m-0 flex items-center gap-2 text-content-muted">
+					<Spinner />
+					{m.leaderboard_loading()}
 				</p>
-				<p>
-					{knownEpoch(board.epoch)
-						? m.common_rating_epoch({ epoch: board.epoch })
-						: m.common_rating_epoch_unknown()} · {m.common_rating_activity_unknown()}
-				</p>
-				<p>
-					{ratingDate(board.cutoff)
-						? m.common_rating_cutoff({ date: ratingDate(board.cutoff)! })
-						: m.common_rating_cutoff_unknown()}
-				</p>
-				<p>
-					{ratingDate(board.computedAt)
-						? m.common_rating_computed({ date: ratingDate(board.computedAt)! })
-						: m.common_rating_computed_unknown()}
-				</p>
-			</div>
-			{#if board.leaders.length}<RatingTable rows={board.leaders} />{:else}<p
-					class="rounded-xl border border-border p-6 text-content-muted"
-				>
-					{m.leaderboard_empty({ speed: RATING_CATEGORY_LABELS[category].toLowerCase() })}
-				</p>{/if}
+			{:else if board}
+				{#if board.leaders.length}
+					<RatingTable
+						rows={board.leaders}
+						speed={RATING_CATEGORY_LABELS[category]}
+						{query}
+						updated={updatedAt(board.computedAt)}
+					/>
+				{:else}
+					<p class="m-0 text-content-muted">
+						{m.leaderboard_empty({ speed: RATING_CATEGORY_LABELS[category].toLowerCase() })}
+					</p>
+				{/if}
+			{/if}
 		{/if}
-		<details class="rounded-xl border border-border bg-surface/40 p-4 text-xs text-content-muted">
-			<summary class="cursor-pointer font-semibold">{m.common_rating_explanation()}</summary>
-			<div class="mt-3 space-y-2">
-				<p>{m.leaderboard_order_help()}</p>
-				<p>{m.common_rating_interval_help()}</p>
-				<p>{m.leaderboard_compare_warning()}</p>
-				<p>{m.common_rating_scheduling_help()}</p>
+
+		<details class="text-sm text-content-muted">
+			<summary class="cursor-pointer font-semibold text-content focus-visible:focus-ring">
+				{m.common_rating_explanation()}
+			</summary>
+			<div class="mt-3 flex max-w-3xl flex-col gap-2">
+				<p class="m-0">{m.leaderboard_order_help()}</p>
+				<p class="m-0">{m.common_rating_interval_help()}</p>
+				<p class="m-0">{m.leaderboard_compare_warning()}</p>
+				<p class="m-0">{m.common_rating_scheduling_help()}</p>
 			</div>
 		</details>
 	{/if}
-</section>
+</div>

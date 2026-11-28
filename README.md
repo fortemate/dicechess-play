@@ -132,7 +132,7 @@ src/
 │   ├── replay/[id]/           public replay for a server-recorded game (play-api GET
 │   │                          /games/{id}/history, #163) — engine-walked per-turn positions,
 │   │                          board-flip toggle, provably-fair commit/seed section
-│   ├── leaderboard/           competitive rating board + immutable published snapshots, grouped by speed/epoch (#124)
+│   ├── leaderboard/           current standings + published snapshots of one rating scale per speed (#124, #261)
 │   ├── bots/                  human-play bot catalog (play-api GET /lobby/bots, ADR-0014)
 │   │   └── [team]/[name]/     bot profile — rating, ladder W-D-L, recent games (#152 Tier 1;
 │   │                          Tier 2/3 — human record, head-to-head vs models, rating history —
@@ -235,6 +235,8 @@ src/
 │   │                          setup page to the board in session storage, never in the address (#256)
 │   ├── leaderboard/           leaderboardApi — rating-ladder + bot-profile read client (play-api
 │   │                          wire mirror; bot/player profiles + published snapshot reads, #124/#152)
+│   │                          + boardView — how a ranked row is drawn: the shared scale of the range
+│   │                          bars, search by name, the newcomer tag, the update time (#261)
 │   ├── ratings/               ratingPresentation — documented Glicko interval/order conversions and
 │   │                          UTC cutoff labels preserving the API's sub-millisecond precision
 │   ├── catalog/               catalogApi — bot-catalog read/wake/play-bot client (play-api wire mirror);

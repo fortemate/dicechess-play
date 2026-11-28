@@ -1,4 +1,7 @@
 <script lang="ts">
+	// Published snapshots of the leaderboard (#124, #261): a choice of saved dates, a line that
+	// says the numbers are frozen and cover bots only, and a permanent link to the one on screen.
+	//
 	// Snapshot identity includes speed, epoch and the exact cutoff. Cancelled/stale requests never
 	// replace the selected history with another speed or with the current live board (#124).
 	import { m } from '#lib/paraglide/messages.js';
@@ -10,16 +13,22 @@
 		type RatingSnapshotSummary,
 	} from '#lib/leaderboard/leaderboardApi.js';
 	import type { RatingCategory } from '#lib/live/ratingCategory.js';
-	import { ratingDate, sameRatingCutoff } from '#lib/ratings/ratingPresentation.js';
+	import { RATING_CATEGORY_LABELS } from '#lib/live/ratingCategory.js';
+	import { savedDay, updatedAt } from '#lib/leaderboard/boardView.js';
+	import { sameRatingCutoff } from '#lib/ratings/ratingPresentation.js';
 	import RatingTable from './RatingTable.svelte';
+	import Button from './ui/Button.svelte';
 	let {
 		category,
 		currentEpoch,
 		requested,
+		query = '',
 	}: {
 		category: RatingCategory;
 		currentEpoch?: number | null;
 		requested?: { epoch: number; cutoff: string } | null;
+		/** What the visitor typed into the search of the page. */
+		query?: string;
 	} = $props();
 	let summaries = $state<RatingSnapshotSummary[]>([]);
 	let selected = $state('');
@@ -122,81 +131,76 @@
 	);
 </script>
 
-<section class="flex min-w-0 flex-col gap-4" aria-label={m.leaderboard_history()}>
-	<p class="text-sm text-content-muted">{m.leaderboard_history_scope()}</p>
+<section class="flex min-w-0 flex-col gap-5" aria-label={m.leaderboard_history()}>
 	{#if listLoading}
-		<p role="status" class="text-sm text-content-muted">{m.leaderboard_loading()}</p>
+		<p role="status" class="m-0 text-content-muted">{m.leaderboard_loading()}</p>
 	{:else if unsupported}
-		<p class="rounded-xl border border-border bg-surface p-4 text-content-muted">
-			{m.leaderboard_history_unsupported()}
-		</p>
+		<p class="m-0 text-content-muted">{m.leaderboard_history_unsupported()}</p>
 	{:else if listError}
-		<div role="alert" class="rounded-xl border border-danger/40 p-4 text-danger">
-			<p>{listError}</p>
-			<button type="button" class="mt-2 underline" onclick={() => listRetry++}
-				>{m.leaderboard_retry()}</button
-			>
+		<div role="alert" class="flex flex-wrap items-center gap-3 text-danger">
+			<p class="m-0">{listError}</p>
+			<Button variant="secondary" onclick={() => listRetry++}>{m.leaderboard_retry()}</Button>
 		</div>
 	{:else if summaries.length === 0 && !selected}
-		<p class="rounded-xl border border-border bg-surface p-4 text-content-muted">
-			{m.leaderboard_history_empty()}
-		</p>
+		<p class="m-0 text-content-muted">{m.leaderboard_history_empty()}</p>
 	{:else}
-		<label class="flex min-w-0 flex-col gap-2 text-sm font-semibold text-content">
+		<label class="flex min-w-0 flex-wrap items-center gap-3 text-sm font-semibold text-content">
 			{m.leaderboard_snapshot_select()}
 			<select
 				bind:value={selected}
-				class="min-w-0 max-w-full rounded-xl border border-border bg-surface px-3 py-2 text-content"
+				class="min-h-11 max-w-full min-w-0 cursor-pointer rounded-control border border-border-strong bg-surface px-3 text-sm font-semibold text-content focus-visible:focus-ring"
 			>
 				{#if requested && !selectedListed}<option value={key(requested)}
-						>{m.common_rating_epoch({ epoch: requested.epoch })}</option
+						>{m.leaderboard_snapshot_option({
+							date: updatedAt(requested.cutoff) ?? requested.cutoff,
+						})}</option
 					>{/if}
 				{#each summaries as item (key(item))}
 					<option value={key(item)}
 						>{m.leaderboard_snapshot_option({
-							epoch: item.epoch,
-							date: ratingDate(item.cutoff) ?? item.cutoff,
-							count: item.entryCount,
+							date: updatedAt(item.cutoff) ?? item.cutoff,
 						})}</option
 					>
 				{/each}
 			</select>
 		</label>
 		{#if snapshotLoading}
-			<p role="status" class="text-sm text-content-muted">{m.leaderboard_loading()}</p>
+			<p role="status" class="m-0 text-content-muted">{m.leaderboard_loading()}</p>
 		{:else if snapshotError}
-			<div role="alert" class="rounded-xl border border-danger/40 p-4 text-danger">
-				<p>{snapshotError}</p>
-				<button type="button" class="mt-2 underline" onclick={() => snapshotRetry++}
-					>{m.leaderboard_retry()}</button
-				>
+			<div role="alert" class="flex flex-wrap items-center gap-3 text-danger">
+				<p class="m-0">{snapshotError}</p>
+				<Button variant="secondary" onclick={() => snapshotRetry++}>{m.leaderboard_retry()}</Button>
 			</div>
 		{:else if snapshot}
 			<div
-				class="space-y-1 rounded-xl border border-border bg-surface/50 p-4 text-sm text-content-muted"
+				class="flex flex-wrap items-center justify-between gap-x-6 gap-y-2 rounded-card bg-highlight px-4 py-3 text-highlight-content md:flex-nowrap"
 			>
-				<p class="font-semibold text-content">
-					{m.common_rating_historical()} · {m.common_rating_epoch({ epoch: snapshot.epoch })}
-				</p>
-				{#if currentEpoch != null && snapshot.epoch < currentEpoch}<p>
-						{m.leaderboard_earlier_epoch()}
-					</p>{/if}
-				<p>{m.common_rating_cutoff({ date: ratingDate(snapshot.cutoff) ?? snapshot.cutoff })}</p>
-				<p>
-					{m.common_rating_computed({
-						date: ratingDate(snapshot.computedAt) ?? snapshot.computedAt,
-					})}
-				</p>
-				<p>{m.leaderboard_snapshot_saved()}</p>
+				<div class="flex min-w-0 flex-col gap-1">
+					<p class="m-0">
+						{m.leaderboard_snapshot_banner({
+							date: savedDay(snapshot.cutoff) ?? snapshot.cutoff,
+						})}
+					</p>
+					{#if currentEpoch != null && snapshot.epoch < currentEpoch}
+						<p class="m-0 text-sm">{m.leaderboard_earlier_epoch()}</p>
+					{/if}
+				</div>
 				<a
 					href={resolve(`/leaderboard?${permalink}`)}
-					class="inline-block pt-1 font-semibold text-primary underline"
+					class="font-bold whitespace-nowrap text-highlight-content underline focus-visible:focus-ring"
 					>{m.leaderboard_snapshot_link()}</a
 				>
 			</div>
-			{#if snapshot.leaders.length}<RatingTable rows={snapshot.leaders} historical />{:else}<p>
-					{m.leaderboard_snapshot_empty()}
-				</p>{/if}
+			{#if snapshot.leaders.length}
+				<RatingTable
+					rows={snapshot.leaders}
+					speed={RATING_CATEGORY_LABELS[category]}
+					{query}
+					historical
+				/>
+			{:else}
+				<p class="m-0 text-content-muted">{m.leaderboard_snapshot_empty()}</p>
+			{/if}
 		{/if}
 	{/if}
 </section>
