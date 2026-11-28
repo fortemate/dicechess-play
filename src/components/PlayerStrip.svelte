@@ -27,6 +27,9 @@
 		/** Denser row on phones (48px instead of 56px), for a screen that has to fit a full-width
 		 * board above the fold; md+ is unaffected. The showcase table uses it. */
 		compact?: boolean;
+		/** A link beside the player, e.g. "Challenge" next to a bot one is watching. The caller
+		 * resolves the address and words the label. */
+		action?: { href: string; label: string; describedAs?: string };
 	}
 
 	let {
@@ -39,6 +42,7 @@
 		href,
 		rating,
 		compact = false,
+		action,
 	}: Props = $props();
 
 	const low = $derived(clockMs !== undefined && isLowTime(clockMs));
@@ -53,8 +57,11 @@
 		{compact ? 'min-h-12 py-1 md:min-h-14 md:py-2' : 'min-h-14 py-2'}
 		{active ? (low ? 'border-danger/50' : 'border-badge-accent/60') : 'border-border'}"
 >
+	<!-- With a link beside the player a phone has no room for the picture: the name comes first. -->
 	<span
-		class="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg border border-border-strong bg-surface-hover text-content-muted"
+		class="h-8 w-8 shrink-0 items-center justify-center rounded-lg border border-border-strong bg-surface-hover text-content-muted {action
+			? 'hidden sm:flex'
+			: 'flex'}"
 		aria-hidden="true"
 	>
 		<svg
@@ -105,9 +112,22 @@
 			<small class="truncate text-[11px] text-content-muted">{sub}</small>
 		{/if}
 	</span>
+	{#if action}
+		<!-- eslint-disable svelte/no-navigation-without-resolve -- the caller passes a resolved path -->
+		<a
+			href={action.href}
+			aria-label={action.describedAs}
+			class="ml-auto inline-flex min-h-11 shrink-0 items-center px-1 text-sm font-bold text-content underline underline-offset-4 focus-visible:focus-ring"
+		>
+			{action.label}
+		</a>
+		<!-- eslint-enable svelte/no-navigation-without-resolve -->
+	{/if}
 	{#if clockMs !== undefined}
 		<span
-			class="ml-auto min-w-[92px] rounded-lg border px-2.5 py-0.5 text-right font-mono text-2xl font-bold tabular-nums transition-all
+			class="{action
+				? ''
+				: 'ml-auto'} min-w-[92px] rounded-lg border px-2.5 py-0.5 text-right font-mono text-2xl font-bold tabular-nums transition-all
 				{low
 				? 'border-danger/50 bg-danger/15 text-danger'
 				: active

@@ -72,6 +72,10 @@ vi.mock('#lib/live/rematchApi.js', () => ({
 	RematchApiError: class extends Error {},
 }));
 
+// The public list of live games, which only the watching view reads (#263).
+const lobby = vi.hoisted(() => ({ listGames: vi.fn().mockResolvedValue({ games: [], total: 0 }) }));
+vi.mock('#lib/live/lobbyApi.js', () => lobby);
+
 const toastStore = vi.hoisted(() => ({ error: vi.fn(), success: vi.fn(), info: vi.fn() }));
 vi.mock('#lib/toastStore.svelte.js', () => ({ toastStore }));
 
@@ -895,6 +899,171 @@ describe('live board — the invitation of a game by link (#256)', () => {
 		await fireEvent.click(getByRole('button', { name: 'Hide the link' }));
 		expect(queryByRole('region', { name: 'Waiting' })).toBeNull();
 		expect(invite.forget).toHaveBeenCalledWith('game-1');
+	});
+});
+
+/*
+ * The watching view (#263): what a seatless viewer gets beyond the board, and that none of it is
+ * a control that needs a seat. The strips and the turn card are stubbed in this suite; that they
+ * draw the "Challenge" link and the line about the dice is covered by their own tests.
+ */
+describe('live board — watching', () => {
+	const listed = (id: string, rating: number) => ({
+		gameId: id,
+		version: 1,
+		players: {
+			white: { kind: 'Bot', name: `grove ${id}-w`, rating },
+			black: { kind: 'Bot', name: `grove ${id}-b`, rating },
+		},
+		timeControl: { Fischer: { initialSeconds: 300, incrementSeconds: 3 } },
+		activeSeat: 'White',
+		dicePending: false,
+		clocks: null,
+		dfen: 'rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 14 NP',
+	});
+	const watching = (overrides: Record<string, unknown> = {}) =>
+		storeState({
+			gameStatus: 'waiting',
+			authoritativeOver: null,
+			termination: null,
+			outcome: null,
+			winner: null,
+			spectator: true,
+			players: {
+				white: { kind: 'Bot', name: 'grove cedar-4' },
+				black: { kind: 'Bot', name: 'grove larch-1' },
+			},
+			...overrides,
+		});
+
+	beforeEach(() => {
+		vi.stubEnv('VITE_PLAY_API_URL', 'http://localhost:8080');
+		pageState.params = { id: 'game-1' };
+		pageState.url = new URL('http://x/live/game-1?spectate=1');
+		continuation.getContinuation.mockReset().mockResolvedValue({
+			sourceGameId: 'game-1',
+			serverNow: '2026-09-07T12:00:00Z',
+			phase: 'waiting',
+			deadlineAt: null,
+		});
+		lobby.listGames.mockReset().mockResolvedValue({
+			games: [
+				listed('game-1', 3000),
+				listed('low', 1500),
+				listed('top', 2400),
+				listed('mid', 2000),
+				listed('last', 1000),
+			],
+			total: 61,
+		});
+		toastStore.error.mockReset();
+	});
+
+	afterEach(() => {
+		cleanup();
+		vi.unstubAllEnvs();
+		vi.unstubAllGlobals();
+	});
+
+	it('says that one is watching and leads back to the Arena', () => {
+		state.current = watching();
+		const { getByText, getByRole } = render(LivePage);
+		expect(getByText('You are watching')).toBeTruthy();
+		expect(getByRole('link', { name: 'Leave game' }).getAttribute('href')).toBe('/arena');
+	});
+
+	it('never offers a control that needs a seat', () => {
+		// Even if the store were to say a resignation is possible, a spectator gets no such button.
+		state.current = watching({ canResign: true, drawOfferControlState: 'idle' });
+		const { queryByRole, getByRole } = render(LivePage);
+		expect(queryByRole('button', { name: /resign/i })).toBeNull();
+		expect(queryByRole('button', { name: /draw/i })).toBeNull();
+		expect(queryByRole('group', { name: 'Game actions' })).toBeNull();
+		expect(getByRole('group', { name: 'Watching' })).toBeTruthy();
+	});
+
+	it('turns the board round and back', async () => {
+		state.current = watching();
+		const { getByRole } = render(LivePage);
+		const flip = getByRole('button', { name: 'Flip board' });
+		expect(flip.getAttribute('aria-pressed')).toBe('false');
+		await fireEvent.click(flip);
+		expect(flip.getAttribute('aria-pressed')).toBe('true');
+		await fireEvent.click(flip);
+		expect(flip.getAttribute('aria-pressed')).toBe('false');
+	});
+
+	it('copies the link that opens the game for watching, and says so', async () => {
+		const writeText = vi.fn().mockResolvedValue(undefined);
+		vi.stubGlobal('navigator', { clipboard: { writeText } });
+		state.current = watching();
+		const { getByRole } = render(LivePage);
+		await fireEvent.click(getByRole('button', { name: 'Share' }));
+		expect(writeText).toHaveBeenCalledWith(`${location.origin}/live/game-1?spectate=1`);
+		await waitFor(() => expect(getByRole('button', { name: 'Link copied' })).toBeTruthy());
+	});
+
+	it('says so when the link cannot be copied', async () => {
+		vi.stubGlobal('navigator', {
+			clipboard: { writeText: vi.fn().mockRejectedValue(new Error('denied')) },
+		});
+		state.current = watching();
+		const { getByRole } = render(LivePage);
+		await fireEvent.click(getByRole('button', { name: 'Share' }));
+		await waitFor(() => expect(toastStore.error).toHaveBeenCalledOnce());
+		expect(getByRole('button', { name: 'Share' })).toBeTruthy();
+	});
+
+	it('lists three other live games, the most notable first, and links to all of them', async () => {
+		state.current = watching();
+		const { findByRole } = render(LivePage);
+		const block = await findByRole('region', { name: 'More live games' });
+		await waitFor(() => expect(block.querySelectorAll('li')).toHaveLength(3));
+		const links = [...block.querySelectorAll('li a')];
+		expect(links.map((a) => a.getAttribute('href'))).toEqual([
+			'/live/top?spectate=1',
+			'/live/mid?spectate=1',
+			'/live/low?spectate=1',
+		]);
+		expect(links[0].textContent?.replace(/\s+/g, ' ').trim()).toBe(
+			'grove top-w vs grove top-b Blitz 5 + 3 · move 14',
+		);
+		const all = [...block.querySelectorAll('a')].at(-1)!;
+		expect(all.textContent?.replace(/\s+/g, ' ').trim()).toBe('All 61 live games →');
+		expect(all.getAttribute('href')).toBe('/arena/live');
+	});
+
+	it('at the end names the winner and offers another game to watch', async () => {
+		state.current = watching({
+			gameStatus: 'over',
+			termination: 'Timeout',
+			winner: 'Black',
+			authoritativeOver: { result: { Win: { side: 'Black' } }, termination: 'Timeout' },
+		});
+		const { getByText, findByRole, getByRole } = render(LivePage);
+		expect(getByText('grove larch-1 won.')).toBeTruthy();
+		const another = await findByRole('link', { name: 'Watch another game' });
+		await waitFor(() => expect(another.getAttribute('href')).toBe('/live/top?spectate=1'));
+		expect(getByRole('link', { name: '← Back to Arena' }).getAttribute('href')).toBe('/arena');
+	});
+
+	it('sends a spectator to the full list when no other game is being played', async () => {
+		lobby.listGames.mockResolvedValue({ games: [listed('game-1', 3000)], total: 1 });
+		state.current = watching({ gameStatus: 'over', termination: 'Resign', winner: 'White' });
+		const { findByRole, findByText } = render(LivePage);
+		expect(await findByText('No other game is being played right now.')).toBeTruthy();
+		expect((await findByRole('link', { name: 'Watch another game' })).getAttribute('href')).toBe(
+			'/arena/live',
+		);
+	});
+
+	it('is not shown to a player, who never reads the list of live games for it', () => {
+		state.current = storeState({ gameStatus: 'playing', authoritativeOver: null, outcome: null });
+		const { queryByText, queryByRole } = render(LivePage);
+		expect(queryByText('You are watching')).toBeNull();
+		expect(queryByRole('group', { name: 'Watching' })).toBeNull();
+		expect(queryByRole('region', { name: 'More live games' })).toBeNull();
+		expect(lobby.listGames).not.toHaveBeenCalled();
 	});
 });
 
